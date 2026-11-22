@@ -2136,15 +2136,29 @@ function quota(repository, options) {
   const runs = githubJson(['run', 'list', '--repo', result.nameWithOwner, '--limit', '20', '--json', 'status,conclusion'], repository, options);
   if (!runs.some(item => item.status === 'in_progress' || item.status === 'completed' && item.conclusion === 'success')) fail('ACTIONS_RUN_UNPROVEN');
 }
+function publicationSnapshot(repository, receipt, options) {
+  verifiedFeatureRepair({projectRoot: repository.repositoryRoot, receipt}, options);
+  const candidate = output(git(receipt.integrationWorktree, ['rev-parse', 'HEAD'], options));
+  if (output(git(receipt.integrationWorktree, ['symbolic-ref', '--short', 'HEAD'], options)) !== receipt.integrationBranch ||
+      git(repository.repositoryRoot, ['merge-base', '--is-ancestor', receipt.integrationCommit, candidate], options, {allowFailure: true}).status !== 0) fail('PUBLISH_CANDIDATE_UNVERIFIED');
+  return {...receipt, integrationCommit: candidate};
+}
 function publicationRunner(repository, receipt, options, verification) {
   const repo = githubRepo(receipt);
   const controllerResult = result => ({...result, stdout: result.stdout?.toString() ?? '', stderr: result.stderr?.toString() ?? ''});
   return (_executable, args, extra) => {
+    if (output(git(receipt.integrationWorktree, ['rev-parse', 'HEAD'], options)) !== receipt.integrationCommit ||
+        output(git(receipt.integrationWorktree, ['symbolic-ref', '--short', 'HEAD'], options)) !== receipt.integrationBranch ||
+        output(git(repository.repositoryRoot, ['remote', 'get-url', receipt.remote], options)) !== receipt.remoteUrl) fail('PUBLISH_CANDIDATE_CHANGED');
     if (args[0] === 'pr' && args[1] === 'merge' && args.includes('--auto')) return {status: 0, stdout: '', stderr: ''};
     if (args[0] !== 'pr' || args[1] !== 'create') return controllerResult(gh(args, extra.cwd, options));
     const existing = githubJson(['pr', 'list', '--repo', repo, '--head', receipt.integrationBranch, '--base', 'master', '--state', 'open', '--json', 'url,headRefOid'], repository, options);
+    if (!Array.isArray(existing)) fail('PR_IDENTITY_UNPROVEN');
     if (existing.length > 1) fail('PR_IDENTITY_AMBIGUOUS');
     if (existing.length) {
+      const url = existing[0]?.url;
+      const identity = typeof url === 'string' && url.match(/^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/([1-9][0-9]*)$/);
+      if (!identity || identity[1].toLowerCase() !== repo.toLowerCase()) fail('PR_IDENTITY_UNPROVEN');
       if (existing[0].headRefOid !== receipt.integrationCommit) fail('PR_HEAD_MISMATCH');
       return {status: 0, stdout: existing[0].url + '\n', stderr: ''};
     }
@@ -2288,7 +2302,8 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (closeoutEnabled(repository)) refreshFeatureRecord(repository, receipt, options);
         resourcePhase(repository, taskId, 'record', options);
         receipt = advancePublishedHead(repository, controller.readDeliveryReceipt(common), options);
-        result = advancePublishedHead(repository, controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, receipt, options, params.verification)}), options);
+        const publication = publicationSnapshot(repository, receipt, options);
+        result = advancePublishedHead(repository, controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, publication, options, params.verification)}), options);
         result = {...result, safetyAutoMergeDeferred: true};
       }
       if (action === 'status') {
@@ -2296,33 +2311,22 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (receipt.mode !== 'pr' || !receipt.pullRequest?.url) fail('PR_DELIVERY_REQUIRED');
         if (receipt.status === 'cleaned') {
           assertReviewed(repository, receipt); result=controller.validateCleanedDelivery(common);
-          validateCompletedCloseout(repository,taskId,receipt,options);
+          if(receipt.cleanupScope!=='source')validateCompletedCloseout(repository,taskId,receipt,options);
         }
         else result = controller.refreshDeliveryStatus({...common, resolveCiStatus: (_repository, record) => reviewedStatus(repository, record, reviewedCommit, options)});
       }
       if (action === 'cleanup') {
-        const resourceContractRequired=closeoutEnabled(repository);
         quota(repository, options);
         const receipt = controller.readDeliveryReceipt(common);
         assertReviewed(repository, receipt);
-        const retirement = path.join(retirementDirectory(repository, taskId), 'deployed-worktree-retirement.json');
-        if (fs.existsSync(retirement)) {
-          const record = recoveryJson(retirement).value;
-          if (record.status !== 'complete') fail('WORKTREE_RETIREMENT_PENDING');
-          return {...receipt, worktreeRetirement: 'retired'};
-        }
         if(receipt.status==='cleaned') {
           result=controller.validateCleanedDelivery(common);
-          validateCompletedCloseout(repository,taskId,receipt,options);
-          log(repository,'delivery-cleanup','PASS',undefined,{},options);
+          if(receipt.cleanupScope!=='source')validateCompletedCloseout(repository,taskId,receipt,options);
           return result;
         }
         git(projectRoot, ['fetch', 'origin', 'refs/heads/master:refs/remotes/origin/master'], options);
-        validateResourceCleanup({projectRoot, receipt}, options);
-        // Record late test outputs before preserving them, then retain every Git
-        // cleanup guard (merged tip, restore-verified backup, ignored data, occupancy).
-        resourcePhase(repository, taskId, 'record', options);
-        resourcePhase(repository, taskId, 'cleanup', options);
+        // Ordinary source checkout retirement is separate from deployment and
+        // business-resource recovery. Keep the existing task/merge/dirty/use checks.
         const validated = validateCleanup({projectRoot, receipt}, options);
         for (const item of validated.managed) {
           const advertised = output(git(projectRoot, ['ls-remote', 'origin', `refs/heads/${item.branch}`], options));
@@ -2331,43 +2335,21 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
           if (oid !== item.commit) fail('REMOTE_TASK_COMMIT_MISMATCH');
           if (git(projectRoot, ['merge-base', '--is-ancestor', oid, 'refs/remotes/origin/master'], options, {allowFailure: true}).status !== 0) fail('BRANCH_UNMERGED');
         }
-        const beforeRefs = refs(repository, options);
-        const beforeWorktrees = worktrees(repository, options);
-        const backup = backupUnlocked(repository, {...options, preservationRefs: beforeRefs, worktreePaths: [...new Set([repository.repositoryRoot, ...validated.managed.map(item => item.worktree).filter(item => fs.existsSync(item))])]});
-        if (!backup.restoreVerified) fail('BACKUP_NOT_VERIFIED');
         validateCleanup({projectRoot, receipt}, options);
-        preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options, backup.verifiedPreservationRefs);
-        for (const item of validated.managed) if (fs.existsSync(item.worktree)) assertNoIgnoredData(item.worktree, options);
-        // The controller omits superseded worktree removal. Remove only the validated task history.
         for (const item of validated.managed.filter(item => item.worktree !== receipt.featureWorktree && item.worktree !== receipt.integrationWorktree)) {
-          if (fs.existsSync(item.worktree)) { assertNoIgnoredData(item.worktree, options); git(projectRoot, ['worktree', 'remove', item.worktree], options); }
+          if (fs.existsSync(item.worktree)) git(projectRoot, ['worktree', 'remove', item.worktree], options);
         }
-        for (const item of validated.managed) if (fs.existsSync(item.worktree)) assertNoIgnoredData(item.worktree, options);
-        if (resourceContractRequired) writePrivateJson(closeoutFinalization(repository,taskId),{taskId,candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired,restoreVerified:backup.restoreVerified,beforeRefs,beforeWorktrees,managed:validated.managed,verifiedPreservationRefs:backup.verifiedPreservationRefs});
         result = controller.cleanupDelivery({...common,deferResourceCleanup:true});
-        if(result.status!=='cleaned') {
-          log(repository,'delivery-cleanup','FAIL','RESOURCE_CLEANUP_PENDING',{},options);
-          return {...result,safetyBackup:backup.directory};
+        if(result.status==='cleaned') {
+          result={...result,cleanupScope:'source'};
+          writePrivateJson(path.join(repository.commonDirectory,'leon-engineering/deliveries',taskId+'.json'),result);
         }
-        fsck(repository, options);
-        const concurrentRefAdvances = preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options, backup.verifiedPreservationRefs);
-        result = {...result, safetyBackup: backup.directory, safetyFsck: 'PASS', concurrentRefAdvances};
-        if(fs.existsSync(path.join(repository.repositoryRoot,'.agents/resource-lifecycle.json'))) {
-          writePrivateJson(path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'lifecycle-backup.json'),
-            {taskId,id:path.basename(backup.directory),manifestHash:readManifest(backup.directory).hash});
-        }
-        finishResourceReceipt(repository,taskId,resourceContractRequired);
-        const finalization=closeoutFinalization(repository,taskId);
-        if (fs.existsSync(finalization)) writePrivateJson(finalization,{...JSON.parse(fs.readFileSync(finalization,'utf8')),status:'complete'});
+        log(repository,'source-worktree-cleanup',result.status==='cleaned'?'PASS':'FAIL',undefined,{scope:'source',businessResources:'untouched'},options);
       }
-      if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(repository) &&
-          (params.deferCleanup === true || deploymentRetirementEnabled(repository))) {
+      if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(repository) && params.deferCleanup === true) {
         log(repository, 'delivery-cleanup-deferred', 'DEFERRED', undefined, {safetyCleanupDeferred: true, readOnly: false}, options);
         safetyCleanupDeferred = true;
-        const file = path.join(retirementDirectory(repository, taskId), 'deployed-worktree-retirement.json');
-        const retired = fs.existsSync(file) && recoveryJson(file).value.status === 'complete';
-        result = {...result, safetyCleanupDeferred: true,
-          ...(deploymentRetirementEnabled(repository) ? {worktreeRetirement: retired ? 'retired' : 'pending'} : {})};
+        result = {...result, safetyCleanupDeferred: true};
       }
       log(repository, 'delivery-' + action, 'PASS', undefined, result?.safetyBackup ? {backup: result.safetyBackup, concurrentRefAdvances: result.concurrentRefAdvances} : {}, options);
       return result;
@@ -2400,6 +2382,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
   if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(discover(projectRoot, options))) {
     return runDelivery({projectRoot, taskId, action:'cleanup'}, options);
   }
+  if(result.cleanupScope==='source')return result;
   if (['status','cleanup'].includes(action) && result.status==='cleaned') {
     const repository=discover(projectRoot,options),policy=path.join(repository.repositoryRoot,'.agents/resource-lifecycle.json');
     if(fs.existsSync(policy)) {
@@ -2769,7 +2752,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const result = await handlers[subcommand](options);
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
-      'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
+      'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup', 'cleanupScope',
       'safetyAutoMergeDeferred', 'safetyCleanupDeferred', 'safetyBackup', 'safetyFsck', 'concurrentRefAdvances', 'preparedAmendment', 'gitStatus', 'lifecycleCloseout', 'worktreeRetirement'
     ].filter(key => result[key] !== undefined).map(key => [key, result[key]])) : result;
     if (subcommand === 'delivery' && result.ci) rendered.ci = {status: result.ci.status, runCount: result.ci.runs?.length ?? 0};

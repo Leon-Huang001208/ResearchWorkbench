@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -129,11 +130,12 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 const root=process.argv[1];
 const tools=[];
-const ctx={tools:{register(tool){tools.push(tool);return ()=>{};}},on(){return ()=>{};},effect(){},get(){return undefined;},logger:{info(){},warn(){}},systemPrompt:{section(){return ()=>{};},getSectionOrder(){return 0;}},sessionProjections:{register(){return ()=>{};}},subagents:{resolveMaxDepth(value){return value??1;},getProvider(){return {name:'spawn',capabilities:{depthLimit:true},prepareContinuable(){}};}}};
-for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/tool-subagent-control/src/index.ts','packages/subagent/tool-subagent-control/src/list-agents.ts']){
+const ctx={tools:{register(tool){tools.push(tool);return ()=>{};}},on(){return ()=>{};},effect(){},get(){return undefined;},logger:{info(){},warn(){}},systemPrompt:{section(){return ()=>{};},getSectionOrder(){return 0;}},sessionProjections:{register(){return ()=>{};}},subagents:{resolveMaxDepth(value){return value??1;},getProvider(){return {name:'spawn',capabilities:{depthLimit:true},prepareContinuable(){}};},startContinuable(){throw Error('registration_fixture_execution_forbidden');}}};
+for(const path of ['packages/skill/tool-skill/src/index.ts','packages/interaction/tool-ask-user/src/index.ts','packages/subagent/tool-subagent-control/src/index.ts','packages/subagent/tool-subagent-control/src/list-agents.ts']){
   (await import(pathToFileURL(join(process.cwd(),path)))).apply(ctx);
 }
 (await import(pathToFileURL(join(process.cwd(),'packages/subagent/tool-subagent/src/index.ts')))).apply(ctx,{provider:'spawn',maxDepth:1,backgroundMode:'continuable'});
+(await import(pathToFileURL(join(root,'app/research_web/runtime/specialists.mjs')))).apply(ctx,{researchRoot:'/tmp/never-used',nativeLlmModule:join(process.cwd(),'packages/llm/llm/lib/index.js')});
 const web=await import(pathToFileURL(join(process.cwd(),'packages/web/tool-web/src/index.ts')));
 web.apply(ctx,{search:true,fetch:false,searchMaxResults:8,searchMaxQueries:4,fetchTimeoutMs:30000,searchTimeoutMs:60000,fetchMaxOutputChars:200000});
 (await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')))).apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used',timeoutSeconds:60,maxOutputBytes:262144});
@@ -155,3 +157,82 @@ console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))))
         for key, value in schema["properties"].items():
             # DataHub has additional business validation layered over native JSON schema.
             assert value["type"] == properties[key]["type"]
+
+
+def test_product_tool_catalog_matches_runtime_input_metadata_without_dsh_source() -> None:
+    root = Path(__file__).parents[2]
+    catalog = {row["id"]: row for row in tool_catalog()["items"]}
+    data_tools = [
+        name for name, row in catalog.items() if row["source"] == "runtime/public-data.mjs"
+    ]
+    script = r"""
+import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+const [root, enabledJson, python] = process.argv.slice(1);
+const tools = [];
+const ctx = {tools:{register(tool){tools.push(tool);}},logger:{info(){},warn(){}}};
+const researchRoot = join(root,'__registration_only_never_used__');
+(await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')))).apply(ctx,{
+  python,runnerPath:join(researchRoot,'never-run.py'),researchRoot,
+});
+(await import(pathToFileURL(join(root,'app/research_web/runtime/public-data.mjs')))).apply(ctx,{
+  researchRoot,enabledTools:JSON.parse(enabledJson),
+});
+console.log(JSON.stringify(tools.map(tool=>({id:tool.name,parameters:tool.parameters}))));
+"""
+    result = subprocess.run(
+        [
+            "node",
+            "--input-type=module",
+            "-e",
+            script,
+            str(root),
+            json.dumps(data_tools),
+            sys.executable,
+        ],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    captured = json.loads(result.stdout)
+    actual = {row["id"]: row["parameters"] for row in captured}
+    assert len(actual) == len(captured)
+    for name in [*data_tools, "research_run_script"]:
+        declared = catalog[name]["parameters"]
+        registered = actual[name]
+        assert set(declared["properties"]) == set(registered["properties"]), name
+        assert set(declared["required"]) == set(registered.get("required", [])), name
+        for key, value in declared["properties"].items():
+            assert value["type"] == registered["properties"][key]["type"], (name, key)
+        for key in ("purpose", "quality"):
+            if key in declared["properties"]:
+                assert declared["properties"][key]["enum"] == registered["properties"][key]["enum"]
+
+
+def test_knowledge_tool_catalog_keeps_unique_query_and_hit_registrations(source):
+    script = r"""
+import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+const root = process.argv[1];
+const tools = [];
+const ctx = {tools:{register(tool){tools.push(tool);}},logger:{info(){},warn(){}}};
+const plugin = await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')));
+plugin.apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used'});
+console.log(JSON.stringify(tools.filter(tool=>['research_search_knowledge','research_read_knowledge'].includes(tool.name)).map(tool=>({id:tool.name,parameters:tool.parameters}))));
+"""
+    native = json.loads(node(source, script, Path(__file__).parents[2]))
+    assert [item["id"] for item in native] == [
+        "research_search_knowledge",
+        "research_read_knowledge",
+    ]
+    for item, field in zip(native, ["query", "hit_id"], strict=True):
+        entry = next(row for row in tool_catalog()["items"] if row["id"] == item["id"])
+        assert entry["selectable"] is False
+        assert entry["parameters"]["required"] == item["parameters"]["required"] == [field]
+        assert set(entry["parameters"]["properties"]) == {field}
+        assert set(item["parameters"]["properties"]) == {field}
+        assert item["parameters"]["additionalProperties"] is False
+        assert entry["parameters"]["properties"][field]["type"] == "string"

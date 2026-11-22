@@ -4,6 +4,29 @@ Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快�
 
 冻结 RSS 归档的来源元数据由 `research_quality_service.py` 在输入原件上下文中提取；报告 SDK 的 `research_report_plan.py` 经章节 `source_ids` 呈现绑定的元数据，`research_report.py::source_metadata_text` 与 Host 质量检查共用同一呈现规则，作者正文及财务观测继续沿原检查核对。
 
+普通源码退出位于 `scripts/git_safety.mjs` 的 `runDelivery` cleanup，复用原共享控制器和任务/合并/clean/无占用检查；不默认备份、恢复重演或等待部署。回归在 `tests/javascript/git_safety.test.mjs`，`cleanupScope=source` 将源码状态与业务资源分开。
+
+`resident/model_provider_upgrade.py` 的 `operate` 在当前五个
+`ATTACHED_MCP_PRESERVATION_MODES` 的 forward apply 及非 `post_deploy_rollback(state)`
+preparing 恢复中，取得原 BirthFence／安装作用域后执行 `validate_configuration`
+和 `ops.verify(previous=True)`。对应回归留在 `tests/research_web/test_model_provider_upgrade.py`，
+覆盖锁内顺序、配置与前版复核失败后 journal 保留、零切换，以及 Trial／完成后回滚排除；
+不恢复旧财经日历常量或部署入口。当前合同见[围栏内复核](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+`.agents/verification-policy.json` 以两个确切文件将上述 Native 操作员及测试映射到
+`research-web-native-upgrade` L4/full-delivery，并登记完整测试模块，保留通用完整检查、
+原三项 CI 与 Windows 真机交接。`verification_policy.test.mjs` 验证两个入口的闭包及
+相邻未知路径仍走 fallback；不以 resident 目录前缀扩张匹配，也不由规划结果认证实际升级。
+Bootstrap 原 PR／push 路径清单分别显式覆盖对应测试，沿 Actions 治理回归核验实际触发闭包。
+
+`test_artifact_retention.py` 的普通失败默认在结束、根身份及无占用核对后清理再生根，
+保留真实失败结果；只有 `--keep-failed REASON` 明确保留复现用途。Checks 从真实事件base/head取变更，
+纯此工具及文档修补只运行对应31项分片回归；产品改动仍走原完整路径，作业与依赖不变。
+
+原PR续接的发布候选冻结位于 `scripts/git_safety.mjs`，复用原 `publishDelivery`；回归在 `tests/javascript/git_safety.test.mjs` 使用真实共享控制器与独立磁盘回执，防止同一对象替身掩盖旧快照。原prepared-amend合同与所有任务历史保持，参见[发布合同](AGENT_WORKFLOW.md#原-pr-发布候选快照)。
+
+Docker 管理器的 `register --subnet` 与 `--resume-registration` 接续显式网段及未写账本的空 stage 资源；回归沿 `test_docker_manager.py`。
+
 FinGPT 完成切换后的双入口回滚位于 `resident/model_provider_upgrade.py`。它根据已接受版本绑定旧配置和工件，重新冻结当前保全资料，并使用原联合事务的恢复步骤。回归位于 `tests/research_web/test_model_provider_upgrade.py`。
 
 备份锁恢复和工作树身份复核由 `scripts/git_safety.mjs` 的显式维护入口发起，复用 v2 真实恢复。
@@ -44,7 +67,15 @@ Research Bot 的请求模型和专用 HTTP 路由位于 `research_bot_models.py`
 
 ## WeKnora 资料适配（2026-11-06）
 
-`app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由。`ui/knowledge-settings.mjs` 在既有数据设置区挂载独立卡片；`scripts/weknora_candidate.py` 只读核对显式盘点、容量声明与20题对照。回归为 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 及 `research_web_knowledge.test.mjs`。原上传、DataHub、档案及报告链不迁移；上游0001是显式表格摘要 opt-out，0002增加默认关闭的实例级只检索 profile；Go、真实服务及 UI零生成尚未验证，上线仍 BLOCKED。见[资料合同](research-web-weknora.md)。
+Host批准知识scope、原生query/read运行合同及0004可选源码资产分别显式路由L4；离线formal/current/API/store、runtime Node与补丁文本catalog分开，保留Constraints/Checks/MacBootstrap及Windows/Linux交接，未认证真实KB/模型或上游应用。
+
+`scripts/check_research_architecture.mjs` 与其JS测试单独精确映射L4，保留四视口、hash、字体和原完整检查。Checks原分区清单加入 `test_weknora_formal_scope.py`、`test_store.py`、`test_capabilities_native.py`；Actions合同验证它们确实是分区命令参数，未增加job／runner／依赖。
+
+单轮范围接线位于 `main.py` 的 Prompt／明确动作、`service.py` 的新会话提交、`store.py` 的同回执原子 reserve，以及 `knowledge_backend/routes.py`／`current.py` 的持久 grant 与原生首 turn 复核。正式检索和读取复用 CurrentQuery／CurrentRead 和不透明 hit_id，不另注册同名工具；`runtime/public-data.mjs` 仅从原生执行上下文传可信 caller，guard 保留正式拒绝且不回退 current。离线回归在 `test_weknora_formal_scope.py`、原 current/API/store 测试与知识工具 Node 合同；这组检查不认证真实模型／服务。0004仅为未应用上游可选资产，其manifest与文本合同在原 `test_weknora_kb_settings_patch.py` 验证。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
+`deploy/weknora/docreader/plain_text_entrypoint.py` 在原DocReader启动检查后补严格UTF-8 TXT解析，保留原解析器和原件；离线回归为 `test_weknora_plain_text.py`，随原Checks步骤执行。现场只读挂载与真实入库另验，不由兼容层测试推定服务通过。
+
+`app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由；`sync.py` 管固定目录观察／上传／current切换，`sync_storage.py` 管逐账号有界 SQLite 与内容快照，`current.py` 管会话命中、读取与用户冻结。`service.py`／Host 沿原生命周期管理60秒同步，`runtime/public-data.mjs`、`research-tools.mjs`／guard 将只读知识工具绑定可信会话，来源及质量链核对 Host 回执。`ui/knowledge-settings.mjs` 提供绑定、库选择和同步状态／明确动作；`scripts/weknora_candidate.py` 继续只读核对盘点、容量及20题对照。旧九份 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 全保留，新增 `test_weknora_sync/sync_client/current/current_api.py`，JS 沿 `research_web_knowledge.test.mjs` 与质量工具合同执行。原上传、DataHub、档案及报告链不自动迁移；本轮仅检索的本机服务与实际模型、权限撤销、浏览器和正式报告分别验收。见[资料合同](research-web-weknora.md)。
 
 统一导航封闭部署位于resident/model_provider_upgrade.py，使用UNIFIED_NAVIGATION_*独立常量，不覆盖旧PR168 NAVIGATION_PAYLOAD；原test_model_provider_upgrade覆盖真实Git范围、实际operate及v4恢复矩阵。产品5ff→b192、执行器及三CI、实际服务切换分别核验；不改controller/evidence/自动名单。
 
@@ -491,10 +522,17 @@ main挂载惰性有界桥，core/app/shell/settings保留既有路由并新增�
 时间因果、资金事务、恢复、数据准入或执行假设变化须同步合同与测试，不认证真实收益。
 
 
+`research_workbench_entrypoint/docker_build_queue.py` 为 `rwb-docker capacity --json`、
+`build --wait --task-id` 和 `resume` 提供标准库管理队列。任务/提交/选项去重、归档和完成对账由
+该模块负责；Docker 变更仍由原入口在原锁内执行。`docker/manage.py` 的 stage 预留、
+owner-handoff 与镜像用途合同保持；近处回归为 `test_docker_build_queue.py`，实际构建/健康另验。
+
 `rwb-docker`、`docker/manage.py`、`docker/Dockerfile.control`、`docker/Dockerfile.dev`
 及 `docker/buildkitd.toml` 是 Mac mini 管理平面与开发基座，权威说明为
 `docs/research-web-docker.md`，近处测试为 `tests/research_web/test_docker_manager.py`。
 生命周期/配额/镜像/挂载变化须同步该手册；真实镜像、实例健康与开发重建另保留本次证据。
+`owner-handoff` 在同一操作锁内预览或退休精确 stage 预留，逐字归档原账本，
+另存业主交接及未完成业务状态。入口和拒绝回归仍由上述管理器与测试负责。
 
 异根 Native 私有 pair 认证共享 `web_bootstrap.py` 的现有 bounded reader；OS 用户标准根
 发现、调用内根/父/record FD 与真实 lease 复查由 Docker 和 Native manager 同路径消费。

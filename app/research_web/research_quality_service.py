@@ -323,6 +323,31 @@ def source_context(service, sid, files, sources=()):
     dossiers = getattr(service, "dossiers", None)
     if dossiers is not None:
         identities.extend(dossiers.registered_sources(sid))
+    knowledge = getattr(service, "knowledge", None)
+    if knowledge is not None and "uploads" in scope:
+        for source in knowledge.registered_sources(sid):
+            # The registry owns the receipt bytes. Quality discovery needs the
+            # exact identity and admission limits, not another full-text copy.
+            row = {
+                key: source[key]
+                for key in (
+                    "id",
+                    "title",
+                    "sha256",
+                    "digest_scope",
+                    "historical_eligible",
+                    "admission",
+                    "limitations",
+                )
+                if key in source
+            }
+            if (
+                len(identities) >= 140
+                or len(json.dumps([*identities, row], ensure_ascii=False).encode()) > 200000
+            ):
+                log.info("research_knowledge_context_limit")
+                break
+            identities.append(row)
     for source in ordered:
         if (
             len(identities) >= 140

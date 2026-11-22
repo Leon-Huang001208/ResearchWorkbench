@@ -1,5 +1,9 @@
 # 统一集成协调器
 
+知识 query／hit_id 由原 Host 根据持久会话选择普通 current 或显式批准的单轮 scope，正式分支复核原生根 caller、首 turn 和 requestId，失败不回退 current。该授权不经过金融 Provider 或增加跨服务协调器，也不把配置就绪等同于真实服务、报告或供应商资格。见[单轮资料合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
+知识资料工具沿原DataKey和可信会话回调读取current白名单及命中回执，不经过金融Provider或新增跨服务协调器。目录同步由账号Host独立准入，来源撤权和原件漂移仍复核；固定报告的时间批准与冻结保留明确动作。见[资料合同](../../research-web-weknora.md)。
+
 财经日历首批通过现有受限 HTTP 下载与官方排期解析器读取 Fed 和 BLS，无需新的协调器或采集日程。
 
 首批市场资料的预检／执行由既有账号Host受控处理，不扩展跨服务协调器或自动日程。

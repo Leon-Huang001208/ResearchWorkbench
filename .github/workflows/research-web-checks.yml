@@ -4,6 +4,20 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
@@ -25,6 +39,20 @@ on:
     branches:
       - master
     paths:
+      - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
+      - "deploy/weknora/patches/native-upload-manifest.json"
+      - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
+      - "outputs/research-web-architecture/04-data-file-flow.html"
+      - "outputs/research-web-architecture/04-data-file-flow.receipt.json"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
+      - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
+      - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/index.html"
+      - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
       - "app/cli/**"
       - "research_workbench_entrypoint/**"
@@ -71,6 +99,37 @@ jobs:
         with:
           node-version: "24.19.0"
 
+      - name: Choose contract test scope
+        id: contract-scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+
+          base, head = os.environ.get("BASE_SHA", ""), os.environ.get("HEAD_SHA", "")
+          files = []
+          if base and head and base != "0" * 40:
+              fetched = subprocess.run(["git", "-c", "gc.auto=0", "fetch", "--no-tags", "--no-write-fetch-head", "--no-auto-maintenance", "--depth=1", "origin", base, head], capture_output=True)
+              if fetched.returncode == 0:
+                  diff = subprocess.run(["git", "diff", "--name-only", "-z", base, head], capture_output=True)
+                  if diff.returncode == 0:
+                      files = [name for name in diff.stdout.decode().split("\0") if name]
+          tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
+          scope_files = tool | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "AGENTS.md"}
+          limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          architecture = {"scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"}
+          architecture_files = architecture | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
+          architecture_only = bool(architecture.intersection(files)) and all(name in architecture_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              output.write("retention_only=" + str(limited).lower() + "\n")
+              output.write("architecture_only=" + str(architecture_only).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "full Research Web"))
+          PY
+
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
@@ -96,6 +155,18 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
+          if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
+            echo "Architecture checker scope: no Python product changes"
+            exit 0
+          fi
+          if [ "${{ steps.contract-scope.outputs.retention_only }}" = "true" ]; then
+            PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+              -- tests/research_web/test_test_artifact_retention.py --confcutdir=tests/research_web -q
+            exit 0
+          fi
           # The exact-handoff fixture verifies these historical objects offline.
           # Keep checkout shallow and fetch only the three fixed source commits.
           git -c gc.auto=0 -c maintenance.auto=false fetch --no-tags --no-write-fetch-head --no-auto-maintenance --depth=1 origin \
@@ -108,6 +179,7 @@ jobs:
             --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
             -- \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_docker_build_queue.py \
             tests/research_web/test_api.py \
             tests/research_web/test_research_bots.py \
             tests/research_web/test_automation_routes.py \
@@ -117,12 +189,21 @@ jobs:
             tests/research_web/test_weknora_client.py \
             tests/research_web/test_weknora_service.py \
             tests/research_web/test_weknora_api.py \
+            tests/research_web/test_weknora_formal_scope.py \
+            tests/research_web/test_store.py \
+            tests/research_web/test_capabilities_native.py \
             tests/research_web/test_weknora_integrity.py \
             tests/research_web/test_weknora_candidate.py \
             tests/research_web/test_weknora_upstream_patch.py \
             tests/research_web/test_weknora_retrieval_profile.py \
             tests/research_web/test_weknora_cli.py \
             tests/research_web/test_weknora_kb_settings_patch.py \
+            tests/research_web/test_weknora_sync.py \
+            tests/research_web/test_weknora_sync_scaling.py \
+            tests/research_web/test_weknora_sync_client.py \
+            tests/research_web/test_weknora_current.py \
+            tests/research_web/test_weknora_current_api.py \
+            tests/research_web/test_weknora_plain_text.py \
             tests/research_web/test_event_api.py \
             tests/research_web/test_event_datahub_bridge.py \
             tests/research_web/test_event_studies.py \
@@ -229,6 +310,7 @@ jobs:
             tests/research_web/test_iteration_resources.py \
             tests/research_web/test_test_artifact_retention.py \
             tests/research_web/test_docker_resources.py \
+            tests/research_web/test_docker_manager.py \
             tests/research_web/test_market_provider.py \
             tests/research_web/test_market_service.py \
             tests/research_web/test_market_financial_calendar.py \
@@ -323,17 +405,24 @@ jobs:
             --confcutdir=tests/unit -q
 
       - name: Run Research Web JavaScript contracts
+        if: steps.contract-scope.outputs.retention_only != 'true'
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
+        run: |
+          if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
+            node --test tests/javascript/research_web_architecture.test.mjs
+          else
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
+          fi
 
       - name: Verify pinned editorial engine without model or paid requests
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
 
       - name: Stage safe pytest evidence
         id: stage-safe-evidence
-        if: always()
+        if: always() && steps.contract-scope.outputs.architecture_only != 'true'
         shell: bash
         run: |
           .venv/bin/python scripts/stage_ci_pytest_evidence.py \
@@ -342,7 +431,7 @@ jobs:
             --max-bytes 104857600
 
       - name: Upload safe pytest evidence
-        if: always() && steps.stage-safe-evidence.outcome == 'success'
+        if: always() && steps.contract-scope.outputs.architecture_only != 'true' && steps.stage-safe-evidence.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: research-web-checks-${{ github.run_id }}-${{ github.run_attempt }}

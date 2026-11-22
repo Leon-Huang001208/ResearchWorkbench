@@ -20,6 +20,23 @@
       "evidence": []
     },
     {
+      "id": "approved-knowledge-research-turn",
+      "module": "研究与报告",
+      "title": "指定资料范围的单轮研究",
+      "summary": "研究只使用本次明确批准的资料，支持查看命中原文并在撤权后停止读取。",
+      "scope": "首条研究消息的资料范围、原文检索、会话引用与权限复核。",
+      "next": "完成同候选检查和真实研究、撤权及资料引用验收。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/285",
+      "updated": "2026-11-22",
+      "status": "validating",
+      "platforms": ["macos"],
+      "included": true,
+      "activation": "disabled",
+      "limitations": "离线合同与架构图已核对；真实资料、研究模型及常驻启用仍待验收，不自动获得正式报告资格。",
+      "evidence": []
+    },
+    {
       "id": "external-research-service-mode",
       "module": "研究与报告",
       "title": "私网仅服务模式",

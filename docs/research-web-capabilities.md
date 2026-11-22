@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+工具目录按原生实际注册核对名称与参数。DataHub声明包含既有 `purpose`／`quality`／`as_of` 输入，研究脚本声明既有 `code`／`report_plan` 二选一；目录不授予执行或质量资格，原权限与严格执行校验保持。无DSH源码环境的注册回归直接调用本地runtime模块，固定DSH完整插件核对另外留证。
+
 Research Bot 对来源批次先判新鲜度，再冻结原件和准备技能。历史记录保存实际准入依据供核对。
 
 Research Bot 只绑定已发布的技能或 Workflow 版本及内容哈希。运行时重验当前授权和原生发现，结果校验要求所绑定版本及 Workflow 已冻结子技能的实际加载回执。
@@ -8,7 +10,9 @@ Research Bot 只绑定已发布的技能或 Workflow 版本及内容哈希。运
 
 ## WeKnora 与能力中心（2026-11-06）
 
-WeKnora 薄适配提供资料服务出口，不创建新插件市场、安装器或执行器。能力中心三分类和原技能／Workflow 身份保持，DSH 官方 WeKnora 插件仅为兼容候选，未激活。现有 DataKey 只允许已批准报告范围的查询／读取，绑定、时间批准和冻结不是模型可自行调用的能力；原自动化与日程未启用。[资料合同](research-web-weknora.md)
+WeKnora适配提供资料服务出口，不创建新插件市场、安装器或执行器。当前研究的 `research_search_knowledge`／`research_read_knowledge` 只经原DataKey读取可信会话的current资料和命中回执，模型不能选择库、账号或写范围；原报告查询仍须批准scope。绑定、同步配置／扫描、时间批准和冻结保留认证用户明确动作。能力中心三分类、原技能／Workflow身份和入站四项只读MCP保持，资料worker的启用不恢复其他Automation日程。[资料合同](research-web-weknora.md)
+
+已批准 scope 的新会话首轮可走 Host 单轮 grant 分支，仍复用 query／hit_id 工具协议；scope 和当前原生请求不来自模型参数。正式失败不回退普通 current，子会话不继承根授权，来源时间与正式报告资格仍单独复核。详见[单轮研究](research-web-weknora.md#host-批准范围的单轮研究)。
 
 能力中心仅保留技能／连接器／插件：方法与通用Workflow并入技能，Tool在关联详情。连接器使用原MCP、DataHub和本机管理，插件复用原包生命周期。旧方法ID、版本、权限和历史深链保留；复制方法产生普通Skill草稿，不改原方法，也不继承其采用记录身份。定时任务薄入口复用原计划，报告专属Workflow仍从报告生产进入。
 

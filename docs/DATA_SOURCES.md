@@ -1,12 +1,13 @@
 # 数据源清单
 
-Research Workbench 查数据时先看本页。最近一次清单核对为 **2026-11-15**，依据仓库 `0ca0f4c0` 的实现和已有取数记录。表中状态描述具体入口的接入和验证范围；当前账号是否能取、能取到哪天，以请求当时的权限、响应和覆盖为准。
+Research Workbench 查数据时先看本页。**2026-11-22** 在 `92ae4ae` 基线上增补了 FRED／BLS 的本次观测；其他条目保留 2026-11-15 按 `0ca0f4c0` 实现与已有记录核对的范围。表中状态描述具体入口的接入和验证范围；当前账号是否能取、能取到哪天，以请求当时的权限、响应和覆盖为准。
 
 ## 怎么选源
 
 1. 到[行情数据](#行情数据)找价格、成交、指数、财务数值、资金流与宏观序列；到[文本数据](#文本数据)找公告、政策、报告、新闻、日程及文档原件。同一供应商的不同接口按各自能力查找。
 2. 先匹配市场、证券代码、字段、起止日期、频率和数据口径。优先使用任务指定、覆盖匹配且当前可调用的入口。未指定来源时，数值从已有同口径快照或适用的 DataHub / 专用行情入口查起；正式引用优先找发布机构、交易所或发行人的原件。Wind 查询进入 [Wind 能力发现](../.agents/skills/wind-find-finance-skill/SKILL.md)选择对应工具。
 3. DataHub 当前状态在 Research Web **设置 → 数据源** 查看，或按 [DataHub 合同](research-web-datahub.md)读取 `GET /api/research/data/connections`。查询时保留实际来源、时间、覆盖和缺口。需要换源时核对单位、币种、复权和指标定义。通过不同接口获得同一上游的数据，只算一个出处。
+   RWB 全局设置从左下角账号菜单进入；二级侧栏收起或窗口较窄时，点顶栏的二级导航按钮展开分类，再选择“数据源”。该分类不按管理员身份隐藏；WeKnora 账号绑定卡片位于数据源页。
 4. 正式研究保留数值、原字段、单位、币种、数据日期、实际取得时间和快照 ID，文本保留原标题、发布者、原链接、发布时间及版本。回测须另核历史当时可得时间（PIT）和修订版本。快照取得时间、报告期和预告日期分别记录。
 
 表中“已适配”表示有现成入口，“已有样例”表示已有记录证明某个范围曾取到数据，“仅登记”表示待核验的线索。“原站核验”可走公开网页或用户提供的原件。账号授权、依赖、额度或服务开关按各行核对。
@@ -33,8 +34,10 @@ Research Workbench 查数据时先看本页。最近一次清单核对为 **2026
 | 世界黄金协会 WGC · `ext_wgc/etf-holdings`、`etf-flows` | 黄金 ETF 四地区月度持仓与净流量，单位为吨 | 两个独立指标，各自保留月份、完整性和原件。见 [WGC 合同](research-web-datahub.md#wgc-月度吨数与研究时点2026-10-23)。 |
 | SPDR Gold Shares · `ext_spdr/gld` | 单只 GLD 的净资产、黄金吨数、盎司数、发行份额 | 已有四字段原生快照和取数样例，范围为 GLD。见 [GLD 合同](research-web-datahub.md#spdr-gld-四项原生快照2026-10-23)。 |
 | BGS，经 KAPSARC 转发 · `ext_kapsarc/production` | 各国家或地区的年度矿山黄金产量（千克） | 以已验证导出的年份、单位和覆盖为准，BGS 与转发入口共同指向同一数据出处。见 [BGS 合同](research-web-datahub.md)。 |
+| 圣路易斯联储 FRED · `ext_fred/series` | 固定 FRED Graph CSV 序列入口 | 2026-11-22 经现有 Provider 真实读取 `DFF`、2024-01-02 至 2024-01-08，取得 7 行 `snapshot`，保留原始字段与原件。单位／频率字典、完整历史及 vintage／PIT 未由本次认证；不是 OpenBB 对拍。见[本次复用验证](../.ai/reports/2026-11-22-rwb-tool-reuse-validation.md)。 |
+| 美国劳工统计局 BLS · `ext_bls/series` | 固定 Public Data API v2 统计序列入口 | 2026-11-22 经现有 Provider 查询 `CUUR0000SA0`、2024 年，实际 HTTP 403、0 行、`failed`；不伪报已连通，不与日历入口的历史超时混同。见[本次复用验证](../.ai/reports/2026-11-22-rwb-tool-reuse-validation.md)。 |
 | 用户授权数据库 / 文件 / RWB 快照 | 已有报价、因子、财务表或用户交付的任何可核实数值 | 按具体表和文件登记来源、单位及有效期。DataHub `mysql` 支持目录与只读单表；同口径会话快照和研究仓可复用已取得的原件与版本。见 [MySQL 合同](research-web-datahub.md#用户-mysql-边界)和 [研究仓合同](research-web-market-store.md)。 |
-| 其他目录项 | Tushare 的证券目录、日线、交易日历及财务指标；FRED、BLS、Fed、CFTC、LBMA、Cboe 等的经济序列、CPI、联储资产负债、持仓、定盘或衍生品数据；Yahoo／Nasdaq 历史行情、MOEX 指数日线、中证及其他指数估值 | 作为补源线索。逐端点区分已适配、已观测、仅登记、需独立连接器及不可调用。见 [外部入口目录](../app/research_web/datahub/external_sources.json)和[逐源记录](../.ai/reports/2026-10-23-datahub-source-verification.json)。 |
+| 其他目录项 | Tushare 的证券目录、日线、交易日历及财务指标；Fed、CFTC、LBMA、Cboe 等的经济序列、联储资产负债、持仓、定盘或衍生品数据；Yahoo／Nasdaq 历史行情、MOEX 指数日线、中证及其他指数估值 | 作为补源线索。逐端点区分已适配、已观测、仅登记、需独立连接器及不可调用。见 [外部入口目录](../app/research_web/datahub/external_sources.json)和[逐源记录](../.ai/reports/2026-10-23-datahub-source-verification.json)。 |
 
 ## 文本数据
 

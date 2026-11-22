@@ -1,5 +1,9 @@
 # 华安 ETF 周报数据合同
 
+单轮知识 grant 只把认证用户批准的原件／截止／时间证据绑定到新研究首轮；会话命中继续返回 `historical_eligible=false` 与 `source_time_unknown`，不据 grant 自动认可历史可知或正式报告。周报仍核对自己的来源证据、冻结输入、供应商口径和质量门，不从普通 current 或新的单轮回执推定材料已获准采用。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
+目录同步产生的当前知识命中保留 `source_time_unknown` 和 `historical_eligible=false`；即使用户冻结命中，也不替代本周报的原件、来源批准、截止期和历史可知证据。旧scope报告流程及供应商数据门继续适用。见[资料合同](research-web-weknora.md)。
+
 市场页展示的 Fed/BLS 日程不充当华安 ETF 周报经济日历的冻结输入；预测、前值、实际值继续以授权原件为准。
 
 首批市场事件、日历和评分证据不替换周报冻结底稿、截止期或来源口径。

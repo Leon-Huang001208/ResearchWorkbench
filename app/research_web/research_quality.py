@@ -362,6 +362,10 @@ def assess_quality(contract, report, sources, observations=None):
                 continue
             if source["title"] != record.get("title") or source.get("url") != record.get("url"):
                 invalid.append("source_identity_mismatch:" + source["id"])
+            if record.get("admission", {}).get("report_admitted") is False:
+                issues.append("source_not_report_admitted:" + source["id"])
+            if "source_time_unknown" in record.get("limitations", []):
+                issues.append("source_date_unknown:" + source["id"])
             if not record.get("content") and source["id"] not in observed_sources:
                 issues.append("source_content_unverified:" + source["id"])
             if record.get("as_of"):

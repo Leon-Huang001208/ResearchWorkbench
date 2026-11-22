@@ -1,5 +1,35 @@
 # Agent 任务路由指南
 
+附接 MCP 保全复核的当前前移仅修改原 Native 联合操作员。沿同一任务和 PR #284，
+在既有测试模块验证五个保全模式的 forward apply 与非完成后回滚的 `preparing` 恢复：
+真实持有 BirthFence SQLite EX、安装作用域及原 Operations 后，配置校验和前版健康／保全复核
+均通过，才进入切换或删除准备 journal。失败须证明未 stop、checkpoint 或切源且原 journal 保留。
+Trial、完成后回滚与其他阶段不套用此门；回归、同候选 CI、Mac mini 部署仍分别取证，
+不重建已过时的财经日历部署 profile。见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+原操作员源码与 `test_model_provider_upgrade.py` 两个确切文件由 `research-web-native-upgrade`
+显式选择 L4/full-delivery：完整模块、原通用完整检查、Constraints、Checks 和同候选 Mac Bootstrap
+均须分别取证。Bootstrap 的 PR／push 路径已同时覆盖源码与对应测试，测试单改也不能漏过 Mac 门。
+Windows 门交对应真机执行，Mac 不 dispatch；邻近未登记 resident／测试路径仍按
+unknown L4 fallback 保留缺口，不能用局部回归或路由计划代替整模块、CI 或实际升级验收。
+
+管理员构建可显式使用 `./rwb-docker build --wait --task-id TASK`（需要时加 `--refresh-dsh`）；
+exit75 表示请求仍为 `waiting_resources`，不是构建或交付通过。`capacity --json` 只读，不能用
+`build --help` 代替探测。已有获准的续跑观察可调用 `resume --next`；本功能不创建或启用自动化，
+不另建任务/工作树/PR、不重复已核验结果，也不清除未知锁。真实构建、资源设置及平台验收分别留证。
+
+管理员队列及 `rwb-docker` 源码路径显式进入 L4/full-delivery 的 Docker 合同路由，不以未知路径的
+通用 fallback 少选门当作准入通过。Mac 功能任务使用既有 Bootstrap 和 macOS Docker Desktop 门；
+Linux Docker 产品门由对应真机按 exact SHA 接手，不从 Mac dispatch，也不阻断独立的 Mac 本平台验收。
+
+Host批准知识scope、原生query/read运行合同及0004可选源码资产分别显式路由L4；离线formal/current/API/store、runtime Node与补丁文本catalog分开，保留Constraints/Checks/MacBootstrap及Windows/Linux交接，未认证真实KB/模型或上游应用。
+
+架构证据检查器及其测试使用两条精确文件映射保留L4原验证闭包，邻近未知工具仍拒绝。原Checks分片清单显式执行formal-scope、Store和Native能力三模块，确保新增授权／回滚断言实际参与CI；不新增作业或执行真实知识服务。
+
+本机知识资料迭代沿现有Checks离线Python清单、Node通配符和同候选Mac Bootstrap；原九份WeKnora回归保留，新同步／会话及纯文本五模块加入原步骤。目录、实际Embedding、零生成、权限撤销、浏览器和原报告分别留证，合成合同或冷Doctor不认证这些现场结果。增量预算见[Actions额度](actions-budget.md#本机资料同步与当前研究预算2026-11-20)。
+
+管理员维护停止的 stage 时，原任务未完成而业主明确接续可使用 `owner-handoff`，默认预览，原件与计划摘要核对后显式应用，步骤见 [Docker 管理](research-web-docker.md)。
+
 策略验证的 Mac mini 升级在独立工作树绑定实际旧版及 PR #308 合并树。沿既有操作员测试、独立评审、通用 CI 和同候选 macOS 15 Bootstrap 取证。原账号保全、网关与主实例版本和正式账号冻结行情复跑分别记录，Windows 执行交对应设备。
 
 策略验证沿现有 Python 与 Node 批次运行离线边界例，真实用户冻结包在独立 Web Host 和 Chrome 实跑。注明回执对应的输入摘要、规则结果、逐笔分页及候选身份。
@@ -22,6 +52,10 @@ Research Bot 本地验证复用共享测试环境。Research Web Checks 的现�
 综合总览本轮在独立 worktree 接入真实九指数和原事件／评分读取；Node 离线浏览器与真实
 公开源分别留证，不能互相替代。Bootstrap 原步骤新增四静态资源逐字节校验和 Provider
 导入，Checks 原 Python 步骤选入九指数测试；同候选 Mac 安装、受管部署与关闭状态另验。
+
+## 原 PR 发布候选快照
+
+同一任务修补后，正式 publish 以当前受管 integration HEAD 冻结本次候选，原 PR 复用核对与新 PR 正文使用同一快照。先完成该候选的真实验证与独评，再沿原任务发布；候选或远端身份变化仍拒绝，不能把旧 prepared 候选的结论转记给新提交。严格 prepared-amend 的未发布边界、原调用／CI返修计数与历史回执继续保留。
 
 ## prepared 冲突恢复诊断兼容（2026-11-06）
 
@@ -253,7 +287,7 @@ master
   → routed CI
   → merge master
   → preserve evidence and reclaim task resources/cache within aggregate20GiB
-  → restore-verified safe Git cleanup and disk receipt
+  → retire merged, unused task source worktrees through GitSafety
 ```
 
 短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。需要 GitHub Windows CI 时，Windows 真机先 checkout 待验 ref、读取 `git rev-parse HEAD`，再从该机 dispatch workflow 并传入 `expected_sha`；Mac 不发送 Windows dispatch。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
@@ -346,7 +380,7 @@ node scripts/git_safety.mjs worktree-revalidate --project /absolute/owning-RWB \
 持锁实际恢复备份并复查摘要后，`--apply --preview-sha256 <摘要>` 仅重新登记两端核实的设备号。
 原资源账本和原始交付、收尾、资源回执置于私有 `identity-recovery-epochs/`。这个命令不进行
 Git 交付、文件退休、缓存回收或服务操作。仍须独立确认内盘余量，然后走普通
-`delivery --cleanup` 完成 Git 和资源收尾；不要用 `--status` 当现场预览。
+`delivery --cleanup` 完成本任务源码工作树和分支退出，`cleanupScope=source` 不代表业务资源或部署验收；不要用 `--status` 当现场预览。
 
 发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
 
@@ -455,8 +489,9 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 
 #### 上线验收后的旧工作树退出
 
-受管源码的 `delivery --status` 完成合并和评审记录后，以 `worktreeRetirement: pending`
-等待部署验收。macOS Native resident 在现有上线验收持久化、真实 Web 进程返回相同 revision、
+普通源码交付在合并和评审完成后，已合并、可重建且无用途的本任务工作树可直接沿 `delivery --cleanup` 退出，不等部署、不制作完整恢复备份。原归属、合并、clean、ignored 数据和占用检查保持；成功回执以 `cleanupScope: source` 区分源码退出与业务资源。显式 `--status --defer-cleanup` 仍可推迟自动清理。
+
+以下 Native 上线验收入口仅用于实际由 resident 持有的源码，不是普通任务工作树退出的前置。macOS Native resident 在现有上线验收持久化、真实 Web 进程返回相同 revision、
 且没有未完成部署事务后，从已验证提交的生产 checkout 调用退役入口，目标仅为 resident 明确绑定的源代码 Git 仓库。每次最多完成一个
 任务；重试沿既有 resident 检查。清理结果单独记录，既有安装或健康结果不因清理欠账而回退。
 
@@ -480,11 +515,11 @@ node scripts/git_safety.mjs worktree-retirement --project /absolute/control-chec
 
 项目规则固定`.agents/resource-closeout.json`的两个受管构建器合计20 GiB。Git入口在start/prepare/publish登记任务目录身份；publish修补只允许把已完整包含在候选中的干净feature tip更新到受管记录，保留CI计数和基线，不接受未提交或其他分支身份。资源登记/回执保存在Git common directory的`leon-engineering/resource-closeout/<task-id>/`，不放在将删除的worktree中。
 
-需要完整安全备份的人工受管收尾仍调用 `delivery --cleanup`。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。新任务登记 `selective-v1` 证据模式：`logs/evidence-retention.json` 必须覆盖每个现存文件；自动丢弃只接受同批根的已退休回执和实际退出码0、冻结用例集合、无失败JUnit、stdout/stderr的路径与hash互相匹配。复制或删除前跨本任务所有工作树预检保留集总量，上限128MiB；归档后用相对映射重新核验回执与JUnit关系。最终/失败/未知记录不能借别批PASS丢弃。旧任务缺模式时沿原全量合同，不静默改写历史回执。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
+普通 `delivery --cleanup` 只退出本任务已合并且未被使用的源码工作树和分支，不触发完整备份、恢复重演、Docker/卷清理或日志逐文件归档。未知 ignored 数据、进程占用和未归并提交仍拒绝；先处理具体对象，再沿原任务继续。需要备份、业务迁移或资源归档时使用各自既有入口与当前授权，不把它们机械串在小修收尾前。普通错误保存短记录，可重建且已无用途的本任务临时产物正常清理。
 
-本机pytest优先用 `scripts/test_artifact_retention.py run` 管理同任务唯一活动根：一次固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码，只有同批JUnit与stdout/stderr通过后才自动回收。默认exact模式要求干净checkout与候选SHA一致；WIP红绿显式`--mode wip`，回执标记非exact，只回收夹具、不签发最终验收或自动丢弃日志。低级create/admit/retire仅供受审调用或中断恢复；前一根回收后才创建下一批，无须等Git合并。失败/未知保留最小复现及原始回执；没有登记的历史目录只读审查后按精确清单另行确认，不能从名称或年龄推断可删。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
+本机pytest优先用 `scripts/test_artifact_retention.py run`，同任务每次只运行一批：固定当前HEAD、批次和最多20个用例，执行前及期间核对512MiB根/64MiB输出/3GiB宿主空间，自身运行pytest并记录真实退出码。成功仍按同批JUnit、stdout/stderr及身份检查回收；普通失败或容量终止保留简短根外结果与必要日志，确认自己的执行结束、根身份匹配且无占用后默认清理可再生根，owner标记已回收且outcome为failed，命令仍返回非零。缺JUnit不伪造通过，不默认保留完整失败根或制作逐文件hash／恢复副本；确需复现时显式加 `--keep-failed REASON` 写明用途。错误修正后沿同一任务正常继续，无须为每次清理或继续另行确认；身份不明、在途或占用的根、业务原件及其他任务继续保护，历史失败和累计计数不改写。默认exact模式要求干净checkout与候选SHA一致，WIP显式用`--mode wip`且不签发最终验收；低级create/admit/retire供已审调用或中断恢复。临时Docker资源仍用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20GiB或恢复失败，回执为blocked。完整类别、示例与保留边界见[存储留存规则](research-web-storage-retention.md)。
 
-每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。普通Git恢复点按用户2026-10-31方案，在已登记且交付成功后轮转保留最新2个有效点，不再等待7天；未登记存量先核对逐类批准；未提交、未归并、活动、未知归属和独有保护锚点不自动淘汰，修复隔离备份仍单独保护。
+每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。普通源码回执的 `cleaned` 与 `cleanupScope=source` 仅代表任务源码退出；业务资源和部署状态分别报告。重复status对已cleaned交付复核，不重新删除。普通Git恢复点按用户2026-10-31方案，在已登记且交付成功后轮转保留最新2个有效点，不再等待7天；未登记存量先核对逐类批准；未提交、未归并、活动、未知归属和独有保护锚点不自动淘汰，修复隔离备份仍单独保护。
 
 先按下列优先级路由，而不是只凭任务大小选择。后台/远程是执行通道，worktree 是本地仓库修改隔离；二者可以组合，长时本身不要求 worktree。选择最小但足够的方式，不因任务看似复杂而跳过验证。
 
@@ -530,6 +565,8 @@ node scripts/git_safety.mjs worktree-retirement --project /absolute/control-chec
 新模式按真实 runner/machine 平台归属证据：多平台 local gate 的一次 macOS 执行不复用为 Windows/Linux PASS；`generic` 不推断所有原生平台，`cross-platform` 未覆盖的目标仍保留 NOT_RUN 交接。CI PASS 必须绑定 workflow、run、候选、预期及实际 checkout；merge preview 还须由本地真实 Git commit 的父提交证明关联 base/head，未知对象失败关闭且 validator 不自行 fetch。候选、说明源码、图源/生成物与报告提交分别记录，避免报告或生成物自指提交。报告仍记录验收范围和证据来源；机械结构有效不代表任务已全部完成。
 
 ## 最小验收规划（Verification planning）
+
+模块源码变更仍须在任务报告中给出有效的 `architecture-review` 结构决定。明确说明结构未变时，每个命中模块更新至少一份与本次改动直接相关的映射文档即可，不要求把该模块清单内无关文档一起修改；没有模块文档或有效结构说明仍会拒绝。结构变化继续执行原完整映射文档和受影响图源检查，其他 API、图形证据、CI 与平台验收要求保持。只含该检查器／对应测试和相关文档的变更，原 Checks 选择架构检查器的 Node 模块；该工作流及其直接范围测试可随修补进入白名单，混入产品源码或差异未知仍使用原完整范围，原 retention-only 分支保持。
 
 资产观察 AF 连续指标迁移沿既有 Research Web Checks：`test_asset_workspace.py` 覆盖分区选源、完整日期对、60／61天硬门、valuation、旧观察和刷新恢复；JS 通配符覆盖六MA、BOLL样本标准差、EMA／KDJ／RSI黄金值、预热／缺失／平盘、周月先聚合、估算筹码、连续卡片和迟到响应。浏览器另验同输入原页对照、五图联动、缩放平移、多个宽度与明暗主题、取消和实例释放。固定本地 ECharts／Chart.js 的加载、wheel资源和Mac安装字节一致性须独立验证；真实CJPY冷启动首次查询及逐区刷新不能被夹具或HTTP成功替代。保持原CI job、平台归属和DSH质量门，未执行项保留NOT_RUN；常驻部署另行授权。
 

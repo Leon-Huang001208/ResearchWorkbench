@@ -1,5 +1,23 @@
 # FinGPT 三组隔离比较（macOS）
 
+Checks 的临时根工具快路仅适用于该工具及文档的局部修补；FinGPT 产品源码改动仍运行原完整验证。
+工具31项通过不构成模型、费用或真实比较验收，业务结论继续依据实际授权运行回执。
+
+原 PR #284 的围栏内复核与两条精确测试路由沿既有完整模块、通用检查和同候选
+Constraints／Checks／Mac Bootstrap 验收；Bootstrap 的 PR／push 路径同时覆盖操作员源码和对应测试。
+这仅补维护保护与验证选择，不执行 FinGPT 模型、报告、费用或真实比较，也不把工程 stage
+验收升级为 FinGPT 业务完成。Windows 门继续交对应真机，实际服务切换单独取证。
+
+管理员构建队列的离线回归仅增加既有 Research Web Checks 分片清单的队列测试。
+原模型质量门与真实比较记录不变；当前 nodeid/JUnit/脱敏失败证据链保留，不退回旧直接 pytest。
+队列工程或期限夹具通过不提高 FinGPT/Claw 比较结论，实际模型、安装、构建与业务验收分别取证。
+
+单轮知识grant与原生query/read合同的精确L4路径验证只覆盖Host授权、会话回执、运行边界及0004可选资产文本。它复用原Constraints／Checks／MacBootstrap，不构成FinGPT模型、费用、真实资料检索或完整报告质量的比较证据；Windows/Linux验收仍交对应真机，实际KB／模型／上游应用分别留证。[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)
+
+知识同步和会话命中合同在原Checks及Mac安装步骤验收，本机Embedding的实测身份与资料回执独立记录。它们不构成FinGPT三组模型、费用或完整报告质量的比较证据；旧付费调用台账缺口也不能由新零生成观测补填。见[资料合同](research-web-weknora.md)。
+
+FinGPT 的 stage 预留业主交接独立记录业务 `INCOMPLETE`；固定源码候选部署及真实报告验收各保存实际结果。
+
 Native 工作树退役的回归只核验版本身份、回滚依据和临时 Git 工作树处理。FinGPT 的模型行为、费用和真实研究质量仍以各自授权运行的原始验收回执为准。
 
 策略验证的脚本回放在 Host 计算，证据归属该研究入口。FinGPT 对比继续采用下面的模型和报告验收合同。

@@ -1,5 +1,26 @@
 # Research Web Native / Docker 安装与运行
 
+附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版
+复核；不增加公开安装入口、参数、依赖或用户配置。五模式的 forward／限定 preparing 恢复
+失败时保留原准备 journal，不停机或切源；Trial 与完成后回滚沿原流程。干净安装、同候选
+macOS CI 和真实常驻验收仍各自留证，见[范围与顺序](research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+可选管理员持久构建队列使用宿主已有 Python 3.12 标准库和 Git，不新增 Python 包，
+不修改 `web.in`、`web.lock` 或公开安装器。原有纯 Docker 命令不新增宿主 Python 前置条件；
+`capacity`、`build --wait` 或 `resume` 缺少兼容解释器时明确拒绝，不自动安装。
+本次不调整 Docker 内存或重启引擎；入口及恢复合同见[Docker手册](research-web-docker.md#持久构建队列)。
+
+Host 批准资料 scope 的单轮接线复用原消息、Store 回执、DataKey 与唯一 DSH，不新增依赖、服务、账号数据库迁移或公开安装步骤。原生 query／hit_id 工具的授权、同候选 macOS 干净安装、真实 WeKnora／模型及业务报告分别验收；0004为未应用上游可选源码资产，不作为现役安装成功证明。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
+`apply-local-knowledge` 在开始更新、准备维护围栏和切换检查点复核现有 Tailscale Serve。
+本模式要求443 RWB及9443 WeKnora固定 HTTPS 路由；已有8443 SuperAgent须匹配原目标。
+路由不符时停止更新并保留原服务，按[部署合同](research-web-gateway-upgrade.md#rwb-本地知识库受管升级)核对现场；
+公开安装入口和依赖锁沿用原流程，源码修复不能代替正式绑定和运行验收。
+
+Docker 默认网段池耗尽时，管理员可为 stage 显式指定未占用 CIDR；中断注册按 [Docker 管理](research-web-docker.md) 核对并接续同名空资源。
+
+Stage 业主交接通过已有 `rwb-docker` 管理器执行；新候选依旧从固定干净源码构建并通过原安装与健康检查。
+
 FinGPT 切换成功时保存受理版本对应的私有回滚材料。完成后回滚以当前已接受的完整 SHA 为参数，沿既有 Native 联合事务运行，安装入口及依赖锁沿用原流程。
 
 受管 Native 正式验收后，可按[工作树退役合同](AGENT_WORKFLOW.md#上线验收后的旧工作树退出)清理已验证的 Git 工作树。公开安装入口及运行服务照常工作。现场已安装的 `controller.pyz` 仍按独立受管流程更新，源码合并或安装新轮子不会自动替换它。
@@ -1273,6 +1294,19 @@ a398 功能祖先、60416994 基础闭包、58ad352e MCP主线、54610625 最新
 公开 `./rwb server` 入口现在由stdlib先校验显式 `RESEARCH_WEKNORA_ORIGIN`，仅把合格的非秘密origin加入原最小子环境；无效输入不转发、不回显，其他模型或供应商环境仍不继承。冷启动 `server doctor` 增加可选知识库事实，配置只显示 `configuration_pending`，授权／连接 `not_checked`、运行 `NOT_RUN`，不读凭据、不联网或创建账户根。Mac原冷Doctor冒烟验证该真实交接。0003原生知识库设置只检索模式仍要求API先建库；完整Vue、服务与实际界面待验收。
 
 冷Doctor与公开server共用全stdlib `research_workbench_entrypoint/knowledge_configuration.py` 校验非秘密origin。Doctor不导入server启动模块、凭据后端或服务依赖；不因配置可见就把授权、连接或运行标为通过。安装与实际最小环境转发仍由同候选Mac干净安装验证。
+
+2026-11-20本机资料同步使用既有Python依赖和标准库SQLite，三公开安装入口、Web锁和
+`scripts/setup_web.py` 保持；Bootstrap原安装步骤导入 `knowledge_backend.sync`、`sync_storage`
+与 `current`，原静态步骤继续逐字节核对知识库设置卡片。该步骤不配置账号、不扫描真实目录、
+不安装WeKnora／Ollama或下载模型。操作员按[资料合同](research-web-weknora.md#本机目录同步与当前研究)
+先核验原服务、固定本机Embedding代理及WorkDisk身份，再由用户自行用真实邮箱注册WeKnora账号，
+从RWB设置页登录已有账号并绑定（或用原JWT／workspace高级入口），密码提交即清空且不保存，
+选择自有库并明确启用固定目录同步；来源目录及账号存储不能互换。Doctor仅报告绑定与保全，
+干净安装、实际同步、模型／零生成及浏览器接受仍须各自取证。
+
+固定DocReader的TXT补齐使用仓库内只读 `plain_text_entrypoint.py` overlay，保留原
+`container_entrypoint.py` 的ARM／OpenSSL检查并运行原DocReader主模块；它不安装新依赖或由
+一键安装器隐式部署。严格UTF-8/BOM解析和原件不变先由离线合同验证，实际挂载和入库另验。
 
 ### macOS 私网仅服务模式
 

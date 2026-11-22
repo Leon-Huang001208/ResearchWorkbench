@@ -1,5 +1,9 @@
 # Research Web Tabbit 集成
 
+知识单轮的可信 caller 由原生执行元数据注入，正式读取要求获准根会话当前首 turn；这个身份检查不授权 Tabbit、任意 URL、浏览器工具或目录访问。普通浏览器审批、来源工具和 current 资料读取保留原边界，正式 scope 失败不借浏览器或 current 降级，见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
+当前知识工具只沿既有Host/DataKey读取当前会话授权的命中片段，不启用Tabbit或赋予浏览器、任意URL和目录访问权限。云端模型所需片段与本机原件分开，读取继续复核身份、版本和来源选择。见[资料合同](research-web-weknora.md)。
+
 周报13工具范围不授予tabbit_browser或额外MCP；已有Tabbit批准流程和普通Native会话范围不变。允许的新闻/网页取证走现有DataHub及research_read_source保留出处；本修复不操作浏览器、不用未访问URL充证据。
 
 华安ETF周报继续使用唯一DSH执行和原Host质量门；模板渲染脚本只接收Host注入的绝对

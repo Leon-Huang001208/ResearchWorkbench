@@ -1,5 +1,54 @@
 # Mac mini 空私有池网关升级
 
+## 附接 MCP 保全的围栏内复核
+
+原 PR #284 只将两项仍有效的保护前移到当前联合操作员，不恢复旧财经日历固定部署 profile。
+适用集合为当前 `ATTACHED_MCP_PRESERVATION_MODES` 的五个模式：
+`RESEARCH_BOT_MODE`、`RESEARCH_BOT_V2_MODE`、`STORAGE_IDENTITY_MODE`、
+`STRATEGY_VALIDATION_MODE`、`LOCAL_KNOWLEDGE_MODE`。
+仅覆盖 fresh forward apply 及 `preparing` 恢复，并要求
+`not post_deploy_rollback(state)`；Trial、完成后回滚、其他模式及其他恢复阶段保持原语义。
+Local Knowledge 完成后回滚可能已在运行目标版本，不能套用前版验证方向。
+
+fresh apply 沿原 BirthFence SQLite EX、安装作用域及 Operations，在最终 GitHub 候选证据核对后、
+`execute()` 前，依次执行 `validate_configuration(home, state)` 和
+`ops.verify(previous=True)`。限定的 preparing 恢复也须先取得原围栏及安装作用域，
+再完成同样的真实前版复核，成功后才删除原 gateway upgrade journal。
+配置校验独立保留，不能因已调用 `verify` 就假定其覆盖配置。
+任一复核失败均保留 preparing journal，不进入 stop、checkpoint 或源码切换。
+
+这是现有锁内验证顺序的加强，不新增锁、lease、模式、服务、数据库、依赖或权限，
+不改变账号、MCP 开关、模型与研究执行器。原旧回执及失败证据保留；源码、离线真实围栏夹具、
+同候选 CI 与实际 Mac mini 切换分别取证。普通源码前移不构成部署完成，也不触发其他平台运行。
+
+## RWB 本地知识库受管升级
+
+`model_provider_upgrade apply-local-knowledge` 使用封闭 `reviewed-local-knowledge-v1`，前版固定为
+`33b3044dd68197106c5018e31482762cb1e02ea1`，产品精确提交以操作员的 `LOCAL_KNOWLEDGE_PAYLOAD`
+为准。源代码、原三项 CI、同候选 macOS 安装与独立评审完成后，从原登记 Git common 中的干净执行树运行。
+跨 common 的交付证据通过既有 `delivery_transfer` 导入；不改登记的 `source_common`。
+
+该入口复用 v4 三锁、BirthFence、空闲检查、全账号原件保全和恢复，保持既有模型、MCP 与
+`alphadesk_qa` 配置。主安装清单及网关配置新增固定 `weknora_origin`，值为
+`https://mac-mini-1.tail947973.ts.net:9443`；两端启动读取持久值，字段缺失保持旧行为。
+安装合同只允许 `scripts/setup_web.py` 的固定 before/after blob，文件模式均须为 `100755`；
+其他安装锁、运行时和入口合同继续保持严格一致。构建使用隔离源码中的既有 QA 资产构建及 wheel 流程，
+不因此切换研究执行器。
+
+成功上线后的主动回滚使用
+`model_provider_upgrade rollback-local-knowledge --rollback-target CURRENT_ACCEPTED_SHA`。
+它核对本模式独立的回滚胶囊与已接受候选，重新排空、保全当前账号资料，恢复原 wheel、源码、
+两端 origin 字段的旧值或缺失状态，并核验模型、MCP 和执行器保持原设置。普通 `recover` 只处理
+未完成事务，不能作为成功上线后的主动回滚。WeKnora 的数据库和用户资料不随 RWB 源码回滚而清空。
+
+Tailscale Serve 9443 仅将现有 WeKnora 前端 `127.0.0.1:18181` 提供给私网设备；原 443 RWB 和
+8443 SuperAgent 路由保持。Ollama 内部监听不向组网发布。正式用户自行注册并在 RWB 设置登录，
+bootstrap 公开验收账号及其状态独立留存，不自动迁移给正式身份。部署、同机私网链路与另一设备验证分别留证。
+
+本模式的 Serve 预检同时核对维护围栏准备和切换检查点：必须有原443与固定9443；若存在8443，
+只接受 HTTPS 根路由到 `http://127.0.0.1:8097`。9443只接受 HTTPS 根路由到
+`http://127.0.0.1:18181`。未知端口、主机、附加路径、转发目标或 Funnel 均拒绝；其他升级模式沿原443合同。
+
 ## 策略验证常驻升级
 
 `model_provider_upgrade apply-strategy-validation` 绑定已接受的 `3be8a17b48ca5c57a71837bdc806efaf386a68b8` 和 PR #308 的合并产品 `4983949df4aac654dd95415be1d5d6a654170ff5`。执行器只接受该产品和受审部署文件的组合。以现有生产解释器从 GitHub 最新已审且干净的同仓工作树执行 `python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-strategy-validation --source <该工作树>`。

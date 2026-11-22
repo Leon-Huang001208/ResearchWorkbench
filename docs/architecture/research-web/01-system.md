@@ -1,5 +1,24 @@
 # 部署与模块职责
 
+附接 MCP 保全的两处复核仍在原 Native 联合操作员、BirthFence SQLite EX 和安装作用域内完成。
+当前五模式的 forward apply／限定 preparing 恢复复核前版后才推进，失败保留准备 journal；
+Trial、完成后回滚和其他阶段保持原职责。主实例、附接网关、账号 Host、唯一 DSH 及部署图
+节点均不变，详见[围栏内复核](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
+管理员持久构建队列沿原 `rwb-docker` 管理平面、操作锁和 builder 执行，不增加业务节点、
+Web API 或常驻调度器；业务容器、网络、Native/DSH及 owner-handoff 生命周期保持。
+本次不修改 Docker 内存设置，实际构建/健康仍须另验。见[管理合同](../../research-web-docker.md#持久构建队列)。
+
+单轮资料范围授权仍由原账号 Host 接收明确首条消息，在原 Store 提交回执保存 grant，再由唯一 DSH 的 query／hit_id 工具读取。它增加原 Host 内的原生根会话／首 turn／requestId 复核分支，未新增服务、数据库或执行器；普通 current 同步和既有报告职责保持。来源、图文与真实验收分别记录，见[单轮资料合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
+
+本地知识库 Native 升级在既有私网入口中核对443 RWB、9443 WeKnora和可选8443 SuperAgent。
+WeKnora仍由原前端18181提供，SuperAgent仍由8097提供；这是维护操作员对既有部署的核验，
+不增加代理节点、研究执行器或监听端口。完整路由约束见[部署合同](../../research-web-gateway-upgrade.md#rwb-本地知识库受管升级)。
+
+Stage 注册在既有 Docker 管理器内支持显式网段和原空资源接续，资源及运行拓扑继续按原账本管理。
+
+Stage 业主交接位于现有 Docker 管理器与管理员操作锁内，独立记录预留交接和业务未完成状态。
+
 FinGPT 完成切换后的显式回滚沿现有 Native 联合事务同时恢复本机与私网网关的前一版本及配置。
 
 Native resident 在既有上线验收后复核实际运行版本，再对已绑定 Git 源仓库内的白名单工作树执行退役检查。沿现有准入锁和 Git 管理命令处理，无新增服务、端口或部署节点。
@@ -37,7 +56,7 @@ global-v1 是现有公开来源适配中的独立九指数合同，不新增服�
 
 ## 可选外部资料服务（2026-11-06）
 
-账号 Host 内新增 `knowledge_backend/` 薄适配，按原生用户 JWT 访问固定 WeKnora v0.9.0 origin；默认未配置，不启动外部服务或第二执行器。WeKnora 是研究资料原件／索引的目标边界，金融快照、模板和正式成果保留 RWB。新增网络与冻结数据边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开；Native／Docker、私网网关及唯一 DSH 的既有运行角色不变。0002实例级只检索profile只有源码实现；部署、UI零生成、业务替换均未由源码认证。[合同](../../research-web-weknora.md)
+账号 Host 的 `knowledge_backend/` 按原生用户JWT访问固定WeKnora v0.9.0 origin，默认未配置。明确启用后由原Host生命周期每60秒同步固定本机目录，逐账号SQLite保存快照／版本，当前检索产生会话回执；本机Ollama仅承担Embedding，云端研究宿主只接必要片段。WeKnora原实例、目录／账号状态与回执冻结边在[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)展开。金融快照、模板和正式成果继续由RWB管理，私网网关和既有研究执行角色保持。冷备恢复、实际模型、零生成和业务替换分别留证，不能由配置或源码认证。[合同](../../research-web-weknora.md)
 
 统一导航固定profile复用既有Native primary、私网gateway和恢复事务；只在原操作员加入5ff→b192身份，不新增服务／端口／运行节点。controller及自动名单不变；不采用缺全账号原子保全的旧static-ui分步路径。
 

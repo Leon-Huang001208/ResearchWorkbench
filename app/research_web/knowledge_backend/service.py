@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from datetime import datetime
 from functools import wraps
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
@@ -15,6 +17,7 @@ from ..credential_backend import default_credential_backend
 from ..store import StoreError
 from .client import WeKnoraClient
 from .configuration import checked_origin
+from .current import CurrentResearch
 from .storage import KnowledgeStore, canonical, digest, fail
 
 log = get_logger(__name__)
@@ -56,8 +59,9 @@ def timestamp(value: str):
         fail("knowledge_source_time_unknown", 422)
 
 
-class KnowledgeService:
+class KnowledgeService(CurrentResearch):
     def __init__(self, store, *, credentials=None, client_factory=WeKnoraClient, origin=None):
+        self.owner_store = store
         self.store = KnowledgeStore(store.root)
         self.credentials = credentials
         self.client_factory = client_factory
@@ -66,6 +70,9 @@ class KnowledgeService:
         )
         self.namespace = "ResearchWorkbench.WeKnora." + self.store.owner
         self.lock = asyncio.Lock()
+        from .sync import KnowledgeSyncService
+
+        self.sync = KnowledgeSyncService(store.root, self._authorized)
 
     def status(self):
         binding = self.store.binding()
@@ -73,6 +80,11 @@ class KnowledgeService:
             origin = checked_origin(self.origin) if self.origin else None
         except StoreError:
             origin = None
+        connection = self.store.connection()
+        if binding and any(
+            connection.get(key) != binding[key] for key in ("origin", "user_id", "workspace_id")
+        ):
+            connection = {}
         return {
             "enabled": origin is not None,
             "configured": binding is not None,
@@ -80,12 +92,40 @@ class KnowledgeService:
             "expected_source_commit": SOURCE_COMMIT,
             "workspace_id": binding["workspace_id"] if binding else None,
             "user_id": binding["user_id"] if binding else None,
-            "connectivity": "not_verified",
+            "connectivity": connection.get("connectivity", "not_verified"),
+            "last_verified_at": connection.get("last_verified_at"),
             "live_acceptance": "NOT_RUN",
             "report_acceptance": "NOT_RUN",
             "management_url": origin,
             "credential_cleanup_pending": bool(binding and binding.get("retained_credentials")),
+            "sync": self.sync_status(),
         }
+
+    def sync_status(self):
+        state = self.sync.status()
+        binding = self.store.binding()
+        if state.get("configured") and (not binding or not self.sync.matches_binding(binding)):
+            from .sync import DEFAULT_ROOT
+
+            return {
+                "configured": False,
+                "enabled": False,
+                "reconfiguration_required": True,
+                "source_root": str(DEFAULT_ROOT),
+                "knowledge_base_id": None,
+                "kb_id": None,
+                "running": False,
+                "last_scan_at": None,
+                "last_scan_result": "not_run",
+                "last_error": "knowledge_sync_binding_changed",
+                "connectivity": "authentication_required",
+                "current_count": 0,
+                "pending_count": 0,
+                "error_count": 0,
+                "document_count": 0,
+                "items": [],
+            }
+        return {**state, "reconfiguration_required": False}
 
     def _credentials(self):
         return self.credentials if self.credentials is not None else default_credential_backend()
@@ -106,13 +146,36 @@ class KnowledgeService:
         return self.client_factory(self.origin, token, binding["workspace_id"]), binding
 
     async def _authorized(self):
-        client, binding = self._client()
-        identity = await client.identity()
+        try:
+            client, binding = self._client()
+            identity = await client.identity()
+        except StoreError as exc:
+            self.store.save_connection(
+                {
+                    "connectivity": (
+                        "authentication_required" if exc.status in {401, 403} else "unavailable"
+                    ),
+                    "code": exc.code,
+                }
+            )
+            raise
         if (
             identity.get("user_id") != binding["user_id"]
             or identity.get("workspace_id") != binding["workspace_id"]
         ):
+            self.store.save_connection(
+                {"connectivity": "authentication_required", "code": "knowledge_identity_changed"}
+            )
             fail("knowledge_identity_changed", 403)
+        self.store.save_connection(
+            {
+                "origin": binding["origin"],
+                "user_id": binding["user_id"],
+                "workspace_id": binding["workspace_id"],
+                "connectivity": "verified",
+                "last_verified_at": time.time(),
+            }
+        )
         return client, binding
 
     async def _still_authorized(self, binding):
@@ -121,7 +184,7 @@ class KnowledgeService:
             fail("knowledge_binding_changed", 409)
 
     @bounded
-    async def bind(self, token: str, workspace_id: str):
+    async def bind(self, token: str, workspace_id: str, *, expected_user_id=None):
         if not self.origin:
             fail("knowledge_backend_disabled", 409)
         async with self.lock:
@@ -129,6 +192,8 @@ class KnowledgeService:
             identity = await client.identity()
             if identity.get("workspace_id") != workspace_id:
                 fail("knowledge_workspace_mismatch", 403)
+            if expected_user_id is not None and identity.get("user_id") != expected_user_id:
+                fail("knowledge_identity_changed", 403)
             reference = uuid4().hex
             old = self.store.binding()
             retained = list(
@@ -176,8 +241,61 @@ class KnowledgeService:
                     remaining.append(old_ref)
             if remaining != retained:
                 self.store.save_binding({**new_binding, "retained_credentials": remaining})
+            self.store.save_connection(
+                {
+                    "origin": self.origin,
+                    "user_id": identity["user_id"],
+                    "workspace_id": workspace_id,
+                    "connectivity": "verified",
+                    "last_verified_at": time.time(),
+                }
+            )
             log.info("knowledge_user_bound")
             return self.status()
+
+    @bounded
+    async def login(self, email, password):
+        if not self.origin:
+            fail("knowledge_backend_disabled", 409)
+        checked_origin(self.origin)
+        try:
+            result = await WeKnoraClient.login(self.origin, email, password)
+            return await self.bind(
+                result["token"], result["workspace_id"], expected_user_id=result["user_id"]
+            )
+        except StoreError as exc:
+            if exc.status in {401, 403}:
+                fail("knowledge_login_failed", 401)
+            raise
+
+    @bounded
+    async def current_query(self, body, *, host=None, caller_session_id=None):
+        grant = await self._formal_grant(body.session_id, host, caller_session_id)
+        if grant is None:
+            return await self._current_query(body)
+        return await self._formal_query(body, grant, host)
+
+    @bounded
+    async def current_read(self, body, *, host=None, caller_session_id=None):
+        grant = await self._formal_grant(body.session_id, host, caller_session_id)
+        if grant is None:
+            return await self._current_read(body)
+        return await self._formal_read(body, grant, host)
+
+    @bounded
+    async def current_freeze(self, body):
+        return await self._current_freeze(body)
+
+    @bounded
+    async def configure_sync(self, body):
+        return await self.sync.configure(body.knowledge_base_id, body.enabled)
+
+    @bounded
+    async def scan_sync(self):
+        _, binding = await self._authorized()
+        if self.sync.status().get("configured") and not self.sync.matches_binding(binding):
+            fail("knowledge_sync_binding_changed", 403)
+        return await self.sync.scan(force=True)
 
     @bounded
     async def bases(self):
@@ -188,6 +306,29 @@ class KnowledgeService:
         scope = self.store.read("scopes", identifier)
         if any(scope.get(key) != binding[key] for key in ("user_id", "workspace_id", "origin")):
             fail("knowledge_scope_identity_mismatch", 403)
+        return scope
+
+    @bounded
+    async def research_scope(self, identifier, as_of=None):
+        client, binding = await self._authorized()
+        scope = self._scope(identifier, binding)
+        if (
+            as_of
+            and timestamp(scope["cutoff"]).astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat()
+            > as_of
+        ):
+            fail("knowledge_scope_after_research_cutoff", 422)
+        if len({row["kb_id"] for row in scope["documents"]}) > 10:
+            fail("knowledge_research_scope_too_wide", 422)
+        available = {item["id"] for item in await client.knowledge_bases()}
+        if not {row["kb_id"] for row in scope["documents"]} <= available:
+            fail("knowledge_library_access_revoked", 403)
+        for row in scope["documents"]:
+            meta = await client.document(row["document_id"])
+            self._ready(meta)
+            if meta["kb_id"] != row["kb_id"]:
+                fail("knowledge_upstream_scope_violation", 502)
+        await self._still_authorized(binding)
         return scope
 
     @bounded
@@ -248,7 +389,7 @@ class KnowledgeService:
         return raw, chunks
 
     @bounded
-    async def search(self, body):
+    async def search(self, body, *, canonical_hits=False):
         client, binding = await self._authorized()
         ids = body.document_ids
         bases = body.knowledge_base_ids
@@ -264,7 +405,9 @@ class KnowledgeService:
             approved_chunks = {}
             for identifier in ids:
                 _, chunks = await self._verify_document(client, allowed[identifier])
-                approved_chunks.update({chunk["chunk_id"]: chunk for chunk in chunks})
+                approved_chunks.update(
+                    {(chunk["document_id"], chunk["chunk_id"]): chunk for chunk in chunks}
+                )
         hits = await client.search(body.query, bases, ids, limit=8)
         if scope and any(
             hit["document_id"] not in ids or hit["kb_id"] != allowed[hit["document_id"]]["kb_id"]
@@ -273,7 +416,7 @@ class KnowledgeService:
             fail("knowledge_upstream_scope_violation", 502)
         if scope:
             for hit in hits:
-                original = approved_chunks.get(hit["chunk_id"])
+                original = approved_chunks.get((hit["document_id"], hit["chunk_id"]))
                 if (
                     original is None
                     or hit["document_id"] != original["document_id"]
@@ -281,6 +424,8 @@ class KnowledgeService:
                     or hit["content"] not in original["content"]
                 ):
                     fail("knowledge_chunks_changed")
+        if scope and canonical_hits:
+            hits = [approved_chunks[(hit["document_id"], hit["chunk_id"])] for hit in hits]
         await self._still_authorized(binding)
         return {"items": hits, "scope_id": body.scope_id, "generated_answer": False}
 

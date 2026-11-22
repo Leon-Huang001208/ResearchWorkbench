@@ -65,6 +65,32 @@ def test_observed_source_with_note_lineage_can_pass_non_numeric_report():
     assert assess_quality(contract, report, sources)["status"] == "passed"
 
 
+def test_exact_current_knowledge_citation_is_valid_but_unknown_source_time_cannot_pass():
+    from app.research_web.resources.research_report import canonical_source, evidence_section
+
+    contract, report, sources = example()
+    identity = "knowledge:" + "a" * 64
+    report["sources"][0]["id"] = identity
+    report["sections"][0]["citations"] = [identity]
+    report["notes"][0]["citations"] = [identity]
+    sources[0].update(
+        id=identity,
+        historical_eligible=False,
+        admission={"report_admitted": False},
+        limitations=["source_time_unknown"],
+    )
+    validate_payload(report)
+    assert canonical_source(sources, identity)["id"] == identity
+    assert evidence_section("risk", "风险", "存在经营不确定性。", [identity], ["r1"])
+    assessment = assess_quality(contract, report, sources)
+    assert assessment["status"] == "incomplete"
+    assert "source_not_report_admitted:" + identity in assessment["issues"]
+    assert "source_date_unknown:" + identity in assessment["issues"]
+    report["sources"][0]["id"] = "knowledge:guessed"
+    with pytest.raises(ValueError, match="research_report_source_invalid"):
+        validate_payload(report)
+
+
 def test_contradictory_or_unobserved_qualitative_findings_remain_unverified():
     contract, report, sources = example()
     sources[0]["content"] = "经营亏损且存在风险。"

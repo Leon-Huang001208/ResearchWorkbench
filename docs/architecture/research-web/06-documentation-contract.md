@@ -1,5 +1,7 @@
 # 图文更新清单契约与门禁
 
+视觉包含性在原strict无横纵溢出之外，仅兼容已知Reader的明确可读纵滚合同：`adaptive`／`authored`／`intrinsic-height`及有限自洽的四视口度量、横向零溢出、至少6px投影字号、readability与viewerChrome、legend／dock间距均须满足。真实浏览器须可滚到底、末端内容可达且无裁剪遮挡；原图源／HTML／deliver／四视口截图字节哈希和实际审阅保持绑定，不以普通 `ok` 声明或新工具的总通过结论替代。精确规则见[门禁说明](../../research-web-documentation.md#检查内容与核对标记)，不改变研究执行或业务验收资格。
+
 API Atlas 的策略验证分类来自实际同源端点声明。字段、研究用途和逐笔合同维护在[策略验证](../../research-web-strategy-validation.md)。
 
 ## WeKnora 图文登记（2026-11-06）

@@ -15,6 +15,7 @@ from uuid import uuid4
 log = logging.getLogger("research_web.report")
 _REPORT_FORMATS = ("html", "docx", "pdf")
 _NATIVE_FORMATS = (*_REPORT_FORMATS, "png", "pptx")
+_SOURCE_REFERENCE = r"(?:(?:file|web|dataset):[A-Za-z0-9_-]{1,80}|knowledge:[a-f0-9]{64})"
 
 
 def _report_formats(formats):
@@ -312,7 +313,7 @@ def canonical_source(sources, identity):
         if any(
             not isinstance(s, dict)
             or not isinstance(s.get("id"), str)
-            or not re.fullmatch(r"(?:file|web|dataset):[A-Za-z0-9_-]{1,80}", s["id"])
+            or not re.fullmatch(_SOURCE_REFERENCE, s["id"])
             or not isinstance(s.get("title"), str)
             for s in sources
         ):
@@ -324,7 +325,7 @@ def canonical_source(sources, identity):
             for s in sources
             if (
                 s["id"] == identity
-                if identity.startswith(("file:", "web:", "dataset:"))
+                if identity.startswith(("file:", "web:", "dataset:", "knowledge:"))
                 else s["title"] == identity
             )
         ]
@@ -389,7 +390,7 @@ def evidence_section(identifier, heading, text, citations, requirement_ids):
         ):
             raise ValueError("research_evidence_section_invalid")
         for values, pattern in (
-            (citations, r"(?:file|web|dataset):[A-Za-z0-9_-]{1,80}"),
+            (citations, _SOURCE_REFERENCE),
             (requirement_ids, r"[A-Za-z0-9_-]{1,80}"),
         ):
             if (
@@ -910,7 +911,7 @@ def validate_payload(value):
     ids = set()
     for item in sources:
         if not isinstance(item, dict) or not re.fullmatch(
-            r"(?:web|file|dataset):[a-zA-Z0-9_-]{1,80}", str(item.get("id", ""))
+            _SOURCE_REFERENCE, str(item.get("id", ""))
         ):
             raise ValueError("research_report_source_invalid")
         if item["id"] in ids or not isinstance(item.get("title"), str) or len(item["title"]) > 1000:
@@ -1158,9 +1159,7 @@ def archive_report_version(output, expected_task_id=None):
                 for row in artifacts
             )
             or len({row["name"].rsplit(".", 1)[-1] for row in artifacts}) != len(artifacts)
-            or not {row["name"].rsplit(".", 1)[-1] for row in artifacts}.issubset(
-                _NATIVE_FORMATS
-            )
+            or not {row["name"].rsplit(".", 1)[-1] for row in artifacts}.issubset(_NATIVE_FORMATS)
         ):
             raise ValueError("research_report_archive_artifact_invalid")
         artifacts = artifacts + audit_descriptors(payload)

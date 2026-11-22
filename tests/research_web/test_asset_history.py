@@ -1270,9 +1270,12 @@ def test_raw_history_checks_every_numeric_alias_and_its_declared_unit(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("cancel_during_drain", [False, True])
+@pytest.mark.parametrize("exit_before_release", [False, True])
 async def test_history_deadline_keeps_owned_call_draining_until_real_executor_exits(
-    tmp_path, monkeypatch, cancel_during_drain
+    tmp_path, monkeypatch, cancel_during_drain, exit_before_release
 ):
+    from contextlib import nullcontext
+
     import app.research_web.datahub as datahub_module
     from app.research_web.datahub import providers_akshare
     from app.research_web.datahub.providers import Result
@@ -1281,6 +1284,63 @@ async def test_history_deadline_keeps_owned_call_draining_until_real_executor_ex
     monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": {"configured": False}})
     monkeypatch.setattr(datahub_module, "TOTAL_DEADLINE", 0.03)
     entered, release = threading.Event(), threading.Event()
+    original_query = hub._query
+    original_execute = datahub_module.execute
+    real_time = datahub_module.time
+    clock = [0.0]
+    expired = asyncio.Event()
+    timers = []
+    budgets = []
+
+    class DeadlineLoop:
+        def __getattr__(self, name):
+            return getattr(asyncio.get_running_loop(), name)
+
+        def call_later(self, delay, callback, *args, **kwargs):
+            if callback.__name__ != "expire":
+                return asyncio.get_running_loop().call_later(delay, callback, *args, **kwargs)
+            assert delay == datahub_module.TOTAL_DEADLINE
+            # Hold only this DataHub owner's expiry until its real SDK has entered.
+            handle = asyncio.get_running_loop().call_later(delay, lambda: None)
+            timers.append((callback, args))
+            return handle
+
+    class DeadlineAsyncio:
+        def __getattr__(self, name):
+            return getattr(asyncio, name)
+
+        def get_running_loop(self):
+            return DeadlineLoop()
+
+        async def wait(self, tasks, *, timeout):
+            if not all(task.get_name() == "datahub-query" for task in tasks):
+                return await asyncio.wait(tasks, timeout=timeout)
+            assert 0 <= timeout <= datahub_module.TOTAL_DEADLINE
+            await expired.wait()
+            return await asyncio.wait(tasks, timeout=0)
+
+    class DeadlineTime:
+        def __getattr__(self, name):
+            return getattr(real_time, name)
+
+        def monotonic(self):
+            return clock[0]
+
+    async def checked_execute(**kwargs):
+        budgets.append(kwargs["budget"])
+        assert 0 < kwargs["budget"] <= 0.03
+        return await original_execute(**kwargs)
+
+    monkeypatch.setattr(datahub_module, "asyncio", DeadlineAsyncio())
+    monkeypatch.setattr(datahub_module, "time", DeadlineTime())
+    monkeypatch.setattr(datahub_module, "execute", checked_execute)
+
+    async def delayed_query(*args):
+        # Reproduce admission/scheduling latency exceeding the old 30ms fixture budget.
+        await asyncio.sleep(0.1)
+        return await original_query(*args)
+
+    monkeypatch.setattr(hub, "_query", delayed_query)
 
     def invoke(_query):
         entered.set()
@@ -1290,47 +1350,106 @@ async def test_history_deadline_keeps_owned_call_draining_until_real_executor_ex
         )
 
     monkeypatch.setattr(providers_akshare, "_invoke", invoke)
-    job = await ws.history_jobs.create(
-        oid,
-        HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
-        "deadline-drain-key",
+    expected = (
+        pytest.raises(RuntimeError, match="^fixture_exit_before_release$")
+        if exit_before_release
+        else nullcontext()
     )
-    try:
-        assert await asyncio.to_thread(entered.wait, 2)
-        await asyncio.sleep(0.08)
-        current = ws.history_jobs.get(oid, job["id"])
-        record = ws.store.data["asset_history_jobs"][job["id"]]
-        assert current["state"] == "draining"
-        assert current["retryable"] is False and ws.history_jobs.active(oid)
-        assert record.get("child_call_id")
-        assert providers_akshare.active_futures() and len(hub.tasks) == 1
-        with pytest.raises(StoreError) as busy:
-            await ws.history_jobs.create(
+    with expected:
+        try:
+            job = await ws.history_jobs.create(
                 oid,
                 HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
-                "deadline-busy-key",
+                "deadline-drain-key",
             )
-        assert busy.value.code == "history_busy"
-        if cancel_during_drain:
-            await ws.history_jobs.cancel(oid, job["id"])
-            assert ws.history_jobs.active(oid)
-            assert record.get("child_call_id") and providers_akshare.active_futures()
-        release.set()
+            assert await asyncio.to_thread(entered.wait, 2)
+            assert budgets and len(timers) == 1
+            clock[0] += datahub_module.TOTAL_DEADLINE
+            callback, args = timers[0]
+            callback(*args)
+            expired.set()
+            for _ in range(100):
+                if ws.history_jobs.get(oid, job["id"])["state"] == "draining":
+                    break
+                await asyncio.sleep(0.001)
+            current = ws.history_jobs.get(oid, job["id"])
+            record = ws.store.data["asset_history_jobs"][job["id"]]
+            assert current["state"] == "draining"
+            assert current["retryable"] is False and ws.history_jobs.active(oid)
+            assert record.get("child_call_id")
+            assert providers_akshare.active_futures() and len(hub.tasks) == 1
+            with pytest.raises(StoreError) as busy:
+                await ws.history_jobs.create(
+                    oid,
+                    HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+                    "deadline-busy-key",
+                )
+            assert busy.value.code == "history_busy"
+            if cancel_during_drain:
+                await ws.history_jobs.cancel(oid, job["id"])
+                assert ws.history_jobs.active(oid)
+                assert record.get("child_call_id") and providers_akshare.active_futures()
+            if exit_before_release:
+                raise RuntimeError("fixture_exit_before_release")
+        finally:
+            expired.set()
+            release.set()
+            await settle(ws)
+            await hub.close()
+
+    current = ws.history_jobs.get(oid, job["id"])
+    assert current["state"] == ("cancelled" if cancel_during_drain else "failed")
+    assert current["failure_code"] == (
+        "history_cancelled" if cancel_during_drain else "data_query_deadline"
+    )
+    assert current["retryable"] is True
+    assert (
+        not record.get("child_call_id") and not providers_akshare.active_futures() and not hub.tasks
+    )
+    assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+
+
+@pytest.mark.asyncio
+async def test_history_total_deadline_before_executor_entry_rejects_without_sdk(
+    tmp_path, monkeypatch
+):
+    import time
+
+    import app.research_web.datahub as datahub_module
+    from app.research_web.datahub import providers_akshare
+
+    ws, hub, oid, _, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": {"configured": False}})
+    monkeypatch.setattr(datahub_module, "TOTAL_DEADLINE", 0.03)
+    original_authorize = hub._authorize_query
+    entered = threading.Event()
+
+    def delayed_authorize(*args, **kwargs):
+        # Slow synchronous admission within the owned task consumes its real budget.
+        if asyncio.current_task().get_name() == "datahub-query":
+            time.sleep(0.1)
+        return original_authorize(*args, **kwargs)
+
+    def deny_sdk(_query):
+        entered.set()
+        pytest.fail("an exhausted pre-executor deadline must not enter the SDK")
+
+    monkeypatch.setattr(hub, "_authorize_query", delayed_authorize)
+    monkeypatch.setattr(providers_akshare, "_invoke", deny_sdk)
+    try:
+        job = await ws.history_jobs.create(
+            oid,
+            HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+            "deadline-before-entry-key",
+        )
         await settle(ws)
         current = ws.history_jobs.get(oid, job["id"])
-        assert current["state"] == ("cancelled" if cancel_during_drain else "failed")
-        assert current["failure_code"] == (
-            "history_cancelled" if cancel_during_drain else "data_query_deadline"
-        )
-        assert current["retryable"] is True
-        assert (
-            not record.get("child_call_id")
-            and not providers_akshare.active_futures()
-            and not hub.tasks
-        )
+        assert current["state"] == "failed"
+        assert current["failure_code"] == "data_query_deadline"
+        assert not entered.is_set() and not providers_akshare.active_futures()
+        assert not hub.tasks and not ws.history_jobs.active(oid)
         assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
     finally:
-        release.set()
         await settle(ws)
         await hub.close()
 

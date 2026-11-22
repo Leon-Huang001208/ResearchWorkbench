@@ -62,19 +62,20 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "6af9f4d767adfd21a0970e4c2f45974137df71b22fbc036cc7304b662325bea9",
-      "specificationSha256": "14511c1848032dc6daffb3e081b4e00599adefec38bf1796c1c293f397511be8",
+      "artifactSha256": "1fc6429c8a8bb04a374c8bec881a0fee6fb22e3dbe315e61bb538002b039a96e",
+      "specificationSha256": "dba70d856f0216b9a891577f546cb08b5a03ef0e4b20ef4560c9e58ee8c6d9bc",
       "status": "reviewed",
-      "reviewer": "Codex child agent (actual screenshot inspection, not business acceptance)",
-      "date": "2026-11-06",
+      "reviewer": "Codex child agent (actual screenshot inspection, not human approval)",
+      "date": "2026-11-22",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.light.png",
         "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
       "findings": [
-        "原完整总览细字需缩放；WeKnora专用focus视图可单独阅读。"
+        "1440/1600视口按Reader声明纵向滚动保留可读字号；项目已对已知Reader合同完成独立兼容审查，旧strict包含分支仍保留。",
+        "总览辅助小字接近6px阅读下限，需使用原focus视图或放大细读。"
       ],
-      "notes": "已实际查看最终同哈希1440浅色与2048深色截图；新增资料入口、用户JWT薄适配、外部WeKnora、独立冻结和待验报告宿主分支可定位，未见穿线/遮挡/裁剪。9项showcase零错误零警告，四视口无溢出。第一次小视口29px纵向溢出经移除图底空白后重验通过，原失败回执保留于任务logs；未缩字或隐藏溢出。图只说明源码/候选边界，不认证部署、UI零生成或业务报告。"
+      "notes": "实际查看本次同哈希1440浅色和2048深色截图。原DataHub/current/同步/Embedding拓扑与新增范围批准、原提交回执、原生首turn grant分支均可定位，未观察到新增线条穿节点或正文标签相互遮盖；保留catalogView和绕开Embedding的正式范围路径提示。Archify真实finalize四门及visual-check自动门通过，1440/1600为Reader明确接受的纵向滚动、1920/2048无溢出；已知Reader兼容门155项独立测试通过，原视觉回执未改写。另以相同HTML字节在Chrome实际滚动1440/1600至底部，图末节点、权限说明与节点索引可达，无clip或dock遮挡。交互状态包含完整说明卡片，高度与原read-state分别留证，不冒称度量相同。此Agent看图记录不代表用户或真人批准，也不认证真实服务、模型、业务报告或部署。"
     },
     {
       "id": "06-run-state",

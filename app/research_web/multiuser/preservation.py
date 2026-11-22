@@ -34,6 +34,7 @@ def snapshot(root: Path, *, create_dossier_lock: bool = True) -> dict:
         files = {}
         from ..dossier_preservation import snapshot_dossiers
         from ..knowledge_backend.storage import KnowledgeStore
+        from ..knowledge_backend.sync import KnowledgeSyncService
 
         dossiers = snapshot_dossiers(root, create_lock=create_dossier_lock)
         if dossiers is not None:
@@ -41,6 +42,9 @@ def snapshot(root: Path, *, create_dossier_lock: bool = True) -> dict:
         knowledge = KnowledgeStore(root).preservation(create_lock=create_dossier_lock)
         if knowledge is not None:
             files.update(knowledge["files"])
+        synced = KnowledgeSyncService(root).preservation()
+        if synced is not None:
+            files.update(synced["files"])
         folders = [root / "sessions", root / "runtime/home/sessions"]
         if dossiers is not None:
             # Pinned public material and its private originals form one proof.
