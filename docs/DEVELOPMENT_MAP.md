@@ -42,6 +42,10 @@ Research Bot 的请求模型和专用 HTTP 路由位于 `research_bot_models.py`
 
 ## WeKnora 资料适配（2026-11-06）
 
+Host批准知识scope、原生query/read运行合同及0004可选源码资产分别显式路由L4；离线formal/current/API/store、runtime Node与补丁文本catalog分开，保留Constraints/Checks/MacBootstrap及Windows/Linux交接，未认证真实KB/模型或上游应用。
+
+单轮范围接线位于 `main.py` 的 Prompt／明确动作、`service.py` 的新会话提交、`store.py` 的同回执原子 reserve，以及 `knowledge_backend/routes.py`／`current.py` 的持久 grant 与原生首 turn 复核。正式检索和读取复用 CurrentQuery／CurrentRead 和不透明 hit_id，不另注册同名工具；`runtime/public-data.mjs` 仅从原生执行上下文传可信 caller，guard 保留正式拒绝且不回退 current。离线回归在 `test_weknora_formal_scope.py`、原 current/API/store 测试与知识工具 Node 合同；这组检查不认证真实模型／服务。0004仅为未应用上游可选资产，其manifest与文本合同在原 `test_weknora_kb_settings_patch.py` 验证。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
 `deploy/weknora/docreader/plain_text_entrypoint.py` 在原DocReader启动检查后补严格UTF-8 TXT解析，保留原解析器和原件；离线回归为 `test_weknora_plain_text.py`，随原Checks步骤执行。现场只读挂载与真实入库另验，不由兼容层测试推定服务通过。
 
 `app/research_web/knowledge_backend/` 分离固定上游客户端、原生用户认证、严格请求模型、内容寻址保全、服务与路由；`sync.py` 管固定目录观察／上传／current切换，`sync_storage.py` 管逐账号有界 SQLite 与内容快照，`current.py` 管会话命中、读取与用户冻结。`service.py`／Host 沿原生命周期管理60秒同步，`runtime/public-data.mjs`、`research-tools.mjs`／guard 将只读知识工具绑定可信会话，来源及质量链核对 Host 回执。`ui/knowledge-settings.mjs` 提供绑定、库选择和同步状态／明确动作；`scripts/weknora_candidate.py` 继续只读核对盘点、容量及20题对照。旧九份 `test_weknora_client/service/api/integrity/candidate/upstream_patch/retrieval_profile/cli/kb_settings_patch.py` 全保留，新增 `test_weknora_sync/sync_client/current/current_api.py`，JS 沿 `research_web_knowledge.test.mjs` 与质量工具合同执行。原上传、DataHub、档案及报告链不自动迁移；本轮仅检索的本机服务与实际模型、权限撤销、浏览器和正式报告分别验收。见[资料合同](research-web-weknora.md)。

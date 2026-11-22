@@ -65,6 +65,10 @@ const SAFE_ERROR_CODES = new Set([
   'knowledge_hit_identity_mismatch', 'knowledge_session_unconfirmed',
   'knowledge_current_query_budget', 'knowledge_current_chunk_budget',
   'knowledge_maintenance_busy', 'knowledge_credentials_unavailable',
+  'knowledge_run_not_authorized', 'knowledge_run_not_active',
+  'knowledge_native_turn_unverified', 'knowledge_document_outside_scope',
+  'knowledge_scope_identity_mismatch', 'knowledge_original_changed',
+  'knowledge_chunks_changed',
 ]);
 
 function isDenseStringArray(value) {
@@ -258,13 +262,16 @@ export async function executeResearchQuality(ctx, exec, config) {
 export async function executeKnowledgeTool(ctx, exec, config, operation, args) {
   if (!['query','read'].includes(operation)) throw Error('knowledge_arguments_invalid');
   const cwd = await trustedDirectory(ctx,exec,config);
+  const callerSession = exec.agent.session.header.id;
+  if (typeof callerSession !== 'string' || !/^[A-Za-z0-9_.-]{1,120}$/.test(callerSession)) throw Error('knowledge_native_identity_invalid');
   exec.signal.throwIfAborted();
   const control = await privateControl(config.researchRoot);
   const signal = AbortSignal.any([exec.signal,AbortSignal.timeout(30000)]);
   const session_id = basename(cwd);
   const field = operation === 'query' ? 'query' : 'hit_id';
   const response = await fetch(control.url + `/api/research/internal/data/knowledge-${operation}`, {
-    method:'POST',headers:{'Content-Type':'application/json','X-Research-Data-Key':control.token},
+    method:'POST',headers:{'Content-Type':'application/json','X-Research-Data-Key':control.token,
+      'X-Research-Native-Session':callerSession},
     body:JSON.stringify({session_id,[field]:args[field]}),redirect:'error',credentials:'omit',signal,
   });
   // Eight 16K-character excerpts can exceed 256 KiB once encoded as UTF-8.

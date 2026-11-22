@@ -1163,7 +1163,8 @@
         "tests/research_web/test_weknora_sync_client.py",
         "tests/research_web/test_weknora_current.py",
         "tests/research_web/test_weknora_current_api.py",
-        "tests/research_web/test_weknora_plain_text.py"
+        "tests/research_web/test_weknora_plain_text.py",
+        "tests/research_web/test_weknora_formal_scope.py"
       ]
     },
     {
@@ -2181,10 +2182,51 @@
             "knowledgeReport"
           ],
           "source": "app/research_web/runtime/public-data.mjs"
+        },
+        {
+          "subjects": [
+            "knowledgeApproval",
+            "knowledgeApprove"
+          ],
+          "source": "app/research_web/main.py",
+          "contains": "knowledge_user_action_required"
+        },
+        {
+          "subjects": [
+            "knowledgeGrant",
+            "knowledgeGrantRead"
+          ],
+          "source": "app/research_web/store.py",
+          "contains": "knowledge_single_turn"
+        },
+        {
+          "subjects": [
+            "knowledgeTurn",
+            "knowledgeFormalRoute",
+            "knowledgeFormalSearch",
+            "knowledgeFormalReceipt"
+          ],
+          "source": "app/research_web/knowledge_backend/current.py",
+          "contains": "_formal_grant"
+        },
+        {
+          "subjects": [
+            "knowledgeTurn"
+          ],
+          "source": "app/research_web/knowledge_backend/routes.py",
+          "contains": "knowledge_native_turn_unverified"
+        },
+        {
+          "subjects": [
+            "knowledgeConsumer",
+            "knowledgeFormalCaller"
+          ],
+          "source": "app/research_web/runtime/public-data.mjs",
+          "contains": "X-Research-Native-Session"
         }
       ],
       "level": "flows",
-      "summary": "DataHub原件与冻结交接；本机目录经账号SQLite版本同步至WeKnora，本机向量化、会话命中及独立证据保全。"
+      "summary": "DataHub原件与冻结交接；普通本机资料按账号版本同步，单轮批准范围绑定Host回执与原生首turn，必要片段和正式报告资格分开。"
     },
     {
       "id": "05-capability-flow",
@@ -6449,7 +6491,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "1df9843f51c9dd90946e6d31969b4cca89eff26b"
+      "revision": "ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7"
     },
     "levels": [
       {
@@ -6721,7 +6763,7 @@
         "id": "knowledge-backend",
         "group": "knowledge-backend",
         "title": "研究资料与证据",
-        "summary": "固定本机目录同步、原生用户鉴权、current版本检索和会话冻结；本机Embedding及真实链路分别验收。",
+        "summary": "固定目录current资料与显式scope单轮grant；原生身份、命中回执和独立冻结，真实链路与报告资格分别验收。",
         "category": "研究资料与证据",
         "diagrams": [
           "04-data-file-flow"

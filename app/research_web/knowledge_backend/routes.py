@@ -3,8 +3,10 @@
 from fastapi import APIRouter, Request, Response
 from pydantic import TypeAdapter, ValidationError
 
+from ..delivery import FINAL
 from ..store import StoreError
 from . import models
+from .storage import fail
 
 router = APIRouter(tags=["knowledge"])
 PUBLIC = "/api/research/knowledge"
@@ -87,8 +89,13 @@ async def scope(request: Request):
 async def query(request: Request):
     value = await body(request, models.CurrentQuery | models.Search)
     if isinstance(value, models.CurrentQuery):
-        return await service(request).current_query(value)
-    if request.url.path.startswith(INTERNAL) and value.scope_id is None:
+        return await service(request).current_query(
+            value,
+            host=request.app.state.research,
+            caller_session_id=request.headers.get("X-Research-Native-Session"),
+        )
+    if request.url.path.startswith(INTERNAL):
+        # Native tools select a session, never a model-supplied approval ID.
         raise StoreError("报告检索需要已批准的范围", "knowledge_scope_required", 403)
     return await service(request).search(value)
 
@@ -98,10 +105,80 @@ async def query(request: Request):
 async def read(request: Request):
     value = await body(request, models.CurrentRead | models.Read)
     if isinstance(value, models.CurrentRead):
-        return await service(request).current_read(value)
-    if request.url.path.startswith(INTERNAL) and value.scope_id is None:
+        return await service(request).current_read(
+            value,
+            host=request.app.state.research,
+            caller_session_id=request.headers.get("X-Research-Native-Session"),
+        )
+    if request.url.path.startswith(INTERNAL):
         raise StoreError("报告读取需要已批准的范围", "knowledge_scope_required", 403)
     return await service(request).read(value)
+
+
+def current_grant(host, sid):
+    row = host.store.session(sid)
+    receipt = host.store.data["receipts"].get(f"{sid}:{row.get('delivery_key')}", {})
+    scope = receipt.get("knowledge_scope_id")
+    delivery = receipt.get("delivery", {})
+    if (
+        row.get("knowledge_single_turn") is not True
+        or not scope
+        or receipt.get("status") not in {"pending", "accepted"}
+        or delivery.get("status") in FINAL
+        or delivery.get("cancel_request")
+        or host.connected != {"mux", "host"}
+    ):
+        fail("knowledge_run_not_authorized", 403)
+    return scope, delivery.get("task_id")
+
+
+def grant_snapshot(host, sid):
+    scope, request_id = current_grant(host, sid)
+    row = host.store.session(sid)
+    receipt = host.store.data["receipts"].get(f"{sid}:{row.get('delivery_key')}", {})
+    request_digest, payload_digest = (
+        receipt.get("knowledge_request_digest"),
+        receipt.get("digest"),
+    )
+    if not request_id or not request_digest or not payload_digest:
+        fail("knowledge_run_not_authorized", 403)
+    return scope, request_id, request_digest, payload_digest
+
+
+async def active_scope(host, sid):
+    await host.ensure_owned()
+    grant = grant_snapshot(host, sid)
+    entries = await host.client.history(sid)
+    native = await host.client.rpc("session.list", {})
+    items = native.get("items")
+    parents = (
+        [item for item in items if isinstance(item, dict) and item.get("sessionId") == sid]
+        if isinstance(items, list)
+        else []
+    )
+    if (
+        native.get("diagnostics")
+        or len(parents) != 1
+        or parents[0].get("running") is not True
+        or parents[0].get("parentSessionId")
+    ):
+        fail("knowledge_run_not_active", 403)
+    if grant_snapshot(host, sid) != grant:
+        fail("knowledge_run_not_authorized", 403)
+    scope, request_id, _, _ = grant
+    events = [entry["event"] for entry in entries]
+    boundaries = [event for event in events if event["type"] in {"turn/start", "turn/end"}]
+    messages = [event for event in events if event["type"] == "user/message"]
+    if (
+        len(boundaries) != 1
+        or boundaries[0]["type"] != "turn/start"
+        or boundaries[0]["data"].get("turn") != 1
+        or len(messages) != 1
+        or not request_id
+        or (messages[0]["data"].get("source") or {}).get("rpcId") != request_id
+    ):
+        fail("knowledge_native_turn_unverified", 403)
+    return scope
 
 
 @router.post("/api/research/knowledge/freeze")

@@ -1,5 +1,7 @@
 # Research Workbench 文档门户
 
+当前架构图的[视觉包含性合同](research-web-documentation.md#检查内容与核对标记)保留原strict页面规则，并精确识别有完整度量、可读字号与真实滚动验证的Reader纵滚。四视口、图源／HTML／截图哈希、来源证据和实际看图审阅仍分别核对；任意溢出或单一通过布尔值不能放行。资料、模型、CI与部署验收不由图册检查推定完成。
+
 策略模拟的[策略验证](research-web-strategy-validation.md)记录冻结日线导入、配置与逐笔结果的使用合同。
 
 ## WeKnora 资料候选

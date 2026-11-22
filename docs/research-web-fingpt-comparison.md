@@ -4,6 +4,8 @@
 原模型质量门与真实比较记录不变；当前 nodeid/JUnit/脱敏失败证据链保留，不退回旧直接 pytest。
 队列工程或期限夹具通过不提高 FinGPT/Claw 比较结论，实际模型、安装、构建与业务验收分别取证。
 
+单轮知识grant与原生query/read合同的精确L4路径验证只覆盖Host授权、会话回执、运行边界及0004可选资产文本。它复用原Constraints／Checks／MacBootstrap，不构成FinGPT模型、费用、真实资料检索或完整报告质量的比较证据；Windows/Linux验收仍交对应真机，实际KB／模型／上游应用分别留证。[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)
+
 知识同步和会话命中合同在原Checks及Mac安装步骤验收，本机Embedding的实测身份与资料回执独立记录。它们不构成FinGPT三组模型、费用或完整报告质量的比较证据；旧付费调用台账缺口也不能由新零生成观测补填。见[资料合同](research-web-weknora.md)。
 
 FinGPT 的 stage 预留业主交接独立记录业务 `INCOMPLETE`；固定源码候选部署及真实报告验收各保存实际结果。

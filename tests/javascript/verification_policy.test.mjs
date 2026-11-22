@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {fileURLToPath} from "node:url";
+import {planVerification} from "../../scripts/plan_verification.mjs";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const plannerPath = path.join(repositoryRoot, "scripts/plan_verification.mjs");
@@ -775,7 +776,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 20);
+  assert.equal(catalogs.length, 22);
   assert.ok(catalogs.some(([id]) => id === "research-web-inbound-mcp"));
   assert.ok(catalogs.some(([id]) => id === "research-web-asset-history-python"));
   for (const [id, item] of catalogs) {
@@ -2249,4 +2250,154 @@ test("asset history deadline regressions select their focused suite without unkn
   assert.equal(plan.tests.some(item => item.id === "research-web-asset-history-python"), true);
   assert.equal(plan.requiredLevel, "L2");
   assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-asset-history-tests"]);
+});
+
+const knowledgeScopeRoutes = [
+  ["deploy/weknora/patches/0004-retrieval-only-native-upload.patch", "research-web-weknora-optional-upload-asset", "research-web-weknora-upload-asset"],
+  ["deploy/weknora/patches/native-upload-manifest.json", "research-web-weknora-optional-upload-asset", "research-web-weknora-upload-asset"],
+  ["tests/javascript/research_web_public_data.test.mjs", "research-web-knowledge-runtime", "research-web-knowledge-runtime"],
+  ["tests/research_web/test_capabilities_native.py", "research-web-weknora-formal-scope", "research-web-weknora-formal-scope"],
+  ["tests/research_web/test_store.py", "research-web-weknora-formal-scope", "research-web-weknora-formal-scope"],
+  ["tests/research_web/test_weknora_api.py", "research-web-weknora-formal-scope", "research-web-weknora-formal-scope"],
+  ["tests/research_web/test_weknora_client.py", "research-web-weknora-formal-scope", "research-web-weknora-formal-scope"],
+  ["tests/research_web/test_weknora_formal_scope.py", "research-web-weknora-formal-scope", "research-web-weknora-formal-scope"],
+  ["tests/research_web/test_weknora_kb_settings_patch.py", "research-web-weknora-optional-upload-asset", "research-web-weknora-upload-asset"],
+];
+
+function assertKnowledgeScopeRoute(plan, file, ruleId, focusedGateId) {
+  assert.equal(plan.risk, "full-delivery", file);
+  assert.equal(plan.requiredLevel, "L4", file);
+  assert.deepEqual(plan.uncoveredRisks, [], file);
+  assert.equal(plan.reasons.some(item => item.code === "unknown_path"), false, file);
+  assert.ok(plan.changeSummary.ruleIds.includes(ruleId), file);
+  for (const id of [focusedGateId, "research-web-architecture", "project-constraints-local", "research-web-verification-full", "documentation-governance", "python-file-index"]) {
+    assert.ok(plan.receiptTemplate.requiredValidationIds.includes(id), `${file}: ${id}`);
+  }
+  assert.deepEqual(plan.ci.map(item => item.id), [
+    "project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-windows-verify",
+  ], file);
+  assert.deepEqual(plan.realMachine, [], `${file}: offline routing must not assert real-service acceptance`);
+  for (const id of ["native-macos-desktop", "native-windows-desktop", "desktop-packaging", "research-web-docker"]) {
+    assert.equal(gateIds(plan).includes(id), false, `${file}: ${id}`);
+  }
+}
+
+for (const [file, ruleId, focusedGateId] of knowledgeScopeRoutes) {
+  test(`knowledge scope test or optional source asset has an explicit full route: ${file}`, () => {
+    assertKnowledgeScopeRoute(success(run(repositoryRoot, [file])), file, ruleId, focusedGateId);
+  });
+}
+
+test("formal knowledge sources select the same focused closure without rerouting generic backend code", () => {
+  for (const file of [
+    "app/research_web/knowledge_backend/current.py",
+    "app/research_web/knowledge_backend/routes.py",
+    "app/research_web/knowledge_backend/service.py",
+    "app/research_web/capabilities/tools.py",
+    "app/research_web/tenant_policy.py",
+  ]) {
+    assertKnowledgeScopeRoute(success(run(repositoryRoot, [file])), file, "research-web-weknora-formal-scope", "research-web-weknora-formal-scope");
+  }
+  for (const file of ["app/research_web/runtime/public-data.mjs", "app/research_web/runtime/research-tools.mjs"]) {
+    assertKnowledgeScopeRoute(success(run(repositoryRoot, [file])), file, "research-web-knowledge-runtime", "research-web-knowledge-runtime");
+  }
+  for (const file of ["app/research_web/main.py", "app/research_web/service.py", "app/research_web/store.py"]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.requiredLevel, "L1", file);
+    assert.equal(plan.changeSummary.ruleIds.includes("research-web-weknora-formal-scope"), false, file);
+  }
+});
+
+test("knowledge scope catalogs declare offline focused commands with original full checks intact", () => {
+  const actual = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".agents/verification-policy.json"), "utf8"));
+  assert.deepEqual(actual.catalogs.tests["research-web-weknora-formal-scope"], catalog(
+    "L2",
+    "python -m pytest tests/research_web/test_weknora_formal_scope.py tests/research_web/test_weknora_current.py tests/research_web/test_weknora_current_api.py tests/research_web/test_weknora_api.py tests/research_web/test_weknora_client.py tests/research_web/test_capabilities_native.py tests/research_web/test_store.py --confcutdir=tests/research_web",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-knowledge-runtime"], catalog(
+    "L2",
+    "node --test tests/javascript/research_web_public_data.test.mjs tests/javascript/research_web_guard.test.mjs tests/javascript/research_web_knowledge.test.mjs",
+  ));
+  assert.deepEqual(actual.catalogs.tests["research-web-weknora-upload-asset"], catalog(
+    "L2", "python -m pytest tests/research_web/test_weknora_kb_settings_patch.py --confcutdir=tests/research_web",
+  ));
+  assert.equal(actual.catalogs.tests["research-web-verification-full"].value,
+    "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs");
+  for (const [file, ruleId] of knowledgeScopeRoutes) {
+    const match = actual.rules.find(item => item.id === ruleId).match;
+    assert.ok(match.files.includes(file));
+    for (const key of ["prefixes", "segments", "suffixes"]) assert.deepEqual(match[key], []);
+  }
+});
+
+test("combined knowledge paths deduplicate focused gates and retain host task plus platform handoff catalogs", () => {
+  const hostPlatform = {darwin: "macos", linux: "linux", win32: "windows"}[process.platform];
+  const task = {
+    hostPlatform, taskKind: hostPlatform === "macos" ? "feature-development" : "platform-adaptation",
+    objective: "Offline routing regression", acceptanceScope: "Host source checks; real KB and model acceptance separate",
+    candidateCommit: "1".repeat(40), candidateBaseCommit: "2".repeat(40), supplementalGateIds: [],
+  };
+  const plan = planVerification({projectRoot: repositoryRoot, changedFiles: knowledgeScopeRoutes.map(([file]) => file), task});
+  assert.equal(plan.schemaVersion, 4);
+  assert.deepEqual(plan.task, task);
+  assert.deepEqual(plan.uncoveredRisks, []);
+  for (const id of ["research-web-weknora-formal-scope", "research-web-knowledge-runtime", "research-web-weknora-upload-asset"]) {
+    assert.equal(plan.tests.filter(item => item.id === id).length, 1, id);
+  }
+  assert.deepEqual(plan.ci.find(item => item.id === "research-web-bootstrap").platforms, ["macos"]);
+  assert.deepEqual(plan.ci.find(item => item.id === "research-web-windows-verify").platforms, ["windows"]);
+  assert.deepEqual(plan.ci.filter(item => ["project-constraints", "research-web-checks"].includes(item.id)).map(item => item.platforms), [["linux"], ["linux"]]);
+  assert.deepEqual(plan.realMachine, []);
+});
+
+test("unregistered knowledge tests and upload patch neighbors still fail closed", () => {
+  for (const file of [
+    "tests/research_web/test_weknora_future.py",
+    "tests/research_web/test_store_future.py",
+    "tests/javascript/research_web_public_data_future.test.mjs",
+    "deploy/weknora/patches/0005-unreviewed.patch",
+    "deploy/weknora/patches/native-upload-future.json",
+  ]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.requiredLevel, "L4", file);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], file);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], file);
+  }
+});
+
+const architectureGeneratedPaths = [
+  "outputs/research-web-architecture/04-data-file-flow.delivery.json",
+  "outputs/research-web-architecture/04-data-file-flow.html",
+  "outputs/research-web-architecture/04-data-file-flow.receipt.json",
+  "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png",
+  "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png",
+  "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png",
+  "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png",
+  "outputs/research-web-architecture/04-data-file-flow.visual-check.html",
+  "outputs/research-web-architecture/04-data-file-flow.visual-check.json",
+  "outputs/research-web-architecture/api-atlas.html",
+  "outputs/research-web-architecture/index.html",
+];
+
+for (const file of architectureGeneratedPaths) {
+  test(`generated architecture artifact retains the full authored-source closure: ${file}`, () => {
+    assertKnowledgeScopeRoute(success(run(repositoryRoot, [file])), file, "research-web-architecture-generated", "research-web-architecture");
+  });
+}
+
+test("generated architecture mapping is an exact artifact list and does not accept neighbor receipts", () => {
+  const actual = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".agents/verification-policy.json"), "utf8"));
+  const match = actual.rules.find(item => item.id === "research-web-architecture-generated").match;
+  assert.deepEqual(match, {files: architectureGeneratedPaths, prefixes: [], segments: [], suffixes: []});
+  for (const file of [
+    "outputs/research-web-architecture/05-future.html",
+    "outputs/research-web-architecture/04-data-file-flow.extra.receipt.json",
+    "outputs/research-web-architecture/04-data-file-flow.visual-check.800x600.dark.png",
+    "outputs/research-web-architecture/api-atlas.receipt.json",
+  ]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.requiredLevel, "L4", file);
+    assert.deepEqual(plan.uncoveredRisks, ["unknown_impact_boundary"], file);
+    assert.deepEqual(plan.changeSummary.ruleIds, ["fallback"], file);
+  }
 });

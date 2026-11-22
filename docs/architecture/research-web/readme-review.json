@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核管理员持久构建队列的可选CLI与既有Docker安装入口；README正文保持。",
-  "reason": "README的Docker新实例说明仍对应原有纯Docker命令；新增capacity、build --wait、resume仅为明确选择的管理员入口，需要已有Python3.12和Git，不改变公开安装、业务拓扑、模型、账号或平台支持。队列与恢复细则、历史12GiB方案及实际构建NOT_RUN写在Docker/安装/工作流文档；现有分层架构与图源保持，不以此回执冒充实机或图形验收。"
+  "summary": "复核管理员持久构建队列与Host批准范围的单轮知识研究；README现有Docker安装、资料合同入口及验收边界仍适用，正文保持。",
+  "reason": "README的Docker新实例说明仍对应原有纯Docker命令；capacity、build --wait、resume仅为明确选择且需要已有Python3.12和Git的管理员入口。单轮研究将批准scope、首条消息摘要与原提交回执绑定，仍使用query/hit_id；两项均不增加公开安装入口、服务、依赖、账号迁移、同步格式或平台支持。队列恢复及历史12GiB方案见Docker/安装/工作流文档，知识API、原生身份、失败关闭及0004未应用可选补丁见资料合同与当前架构文档。实际构建、宿主、模型、图形和部署验收分别留证，本回执不认证未执行项。"
 }

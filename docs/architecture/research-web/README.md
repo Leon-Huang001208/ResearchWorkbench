@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-11-22 单轮资料授权的源码阅读检查点为 `ba30c3fbe1ef3ac0cee330a001e8be1ac0aea8d7`，包含当前 query／hit_id、普通同步 current 和 Host grant 分支。图04的逐节点证据固定到该本地提交，保留真实 SSH origin 并使用 local-only 链接；Atlas 的同提交 GitHub 链接须待正式发布后可访问。最终图文提交、CI、原生宿主及部署另由各自回执认证。
+
 Research Bot 的 Radar 批次新鲜度、缓存标志及冻结原件分别见[资料说明](03-data-files.md)和[接口合同](04-api.md)。
 
 Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation → DSH 执行。专用 API、冻结资料和失败恢复分别见本目录的接口、资料及运行章节。
@@ -7,6 +9,8 @@ Research Bot 是本机内置研究入口，沿 Web Shell → Host → Automation
 2026-11-06 WeKnora资料适配的源码阅读及Atlas链接固定到实际提交 `26e730cbf73d2edcce753d7f84c4f49cf68ec68c`。该检查点包含RWB薄适配与接口，不证明最终文档候选CI、上游Go、第三方运行版本、资料替换或报告接受。
 
 ## WeKnora 资料候选（2026-11-06）
+
+Host 批准范围的单轮研究复用原消息、Store 回执与 query／hit_id 工具，在图04中增加显式 grant、原生首 turn 与会话命中的条件分支；普通同步 current 链保持。源码冻结检查点、图件自动门与真实宿主／服务／报告验收分别记录，不沿用旧截图证明新图已复核。见[单轮合同](../../research-web-weknora.md#host-批准范围的单轮研究)。
 
 [资料合同](../../research-web-weknora.md)描述严格身份、固定目录同步、当前会话命中和独立冻结接口；[图04](../../../outputs/research-web-architecture/04-data-file-flow.html)区分本机目录／账号SQLite、WeKnora、本机Embedding及证据分支。原实例恢复、新链路／模型、零生成、浏览器与真实周报逐项取证，图文和配置状态不能代替验收；原运行与报告图继续描述既有生产链。
 

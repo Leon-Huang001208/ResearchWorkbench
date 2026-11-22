@@ -1,5 +1,7 @@
 # Research Web 前端
 
+单轮知识范围由原消息 API 的 `Prompt.knowledge_scope_id` 和明确动作接入，Host 校验新会话首轮与持久 grant；本次未增加设置卡片中的 scope 选择器或改变普通 current 检索界面。0004仅为未应用的上游 WeKnora 详情页上传校验资产，不据该文件宣布现役界面或浏览器上传已通过。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
+
 Research Bot 历史 Run 继续展示冻结来源，后端同时保留本次 Radar 资料采用的缓存标志或源批次时点。
 
 Research Bot 从主导航进入，提供配置、启停、立即运行及分页历史。新建或编辑保存后处于停用状态。列表显示最近一次运行摘要，打开历史后才读取该 Bot 的冻结来源。

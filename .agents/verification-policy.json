@@ -323,6 +323,33 @@
         ],
         "value": "node --test tests/javascript/research_web_guard.test.mjs"
       },
+      "research-web-weknora-formal-scope": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_weknora_formal_scope.py tests/research_web/test_weknora_current.py tests/research_web/test_weknora_current_api.py tests/research_web/test_weknora_api.py tests/research_web/test_weknora_client.py tests/research_web/test_capabilities_native.py tests/research_web/test_store.py --confcutdir=tests/research_web"
+      },
+      "research-web-knowledge-runtime": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "node --test tests/javascript/research_web_public_data.test.mjs tests/javascript/research_web_guard.test.mjs tests/javascript/research_web_knowledge.test.mjs"
+      },
+      "research-web-weknora-upload-asset": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_weknora_kb_settings_patch.py --confcutdir=tests/research_web"
+      },
       "research-web-inbound-mcp": {
         "level": "L2",
         "lane": "local",
@@ -461,6 +488,195 @@
     }
   },
   "rules": [
+    {
+      "id": "research-web-architecture-generated",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "generated_architecture_source_binding_change",
+      "impact": [
+        "research-web-architecture"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "outputs/research-web-architecture/04-data-file-flow.delivery.json",
+          "outputs/research-web-architecture/04-data-file-flow.html",
+          "outputs/research-web-architecture/04-data-file-flow.receipt.json",
+          "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.dark.png",
+          "outputs/research-web-architecture/04-data-file-flow.visual-check.1440x900.light.png",
+          "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.dark.png",
+          "outputs/research-web-architecture/04-data-file-flow.visual-check.2048x1320.light.png",
+          "outputs/research-web-architecture/04-data-file-flow.visual-check.html",
+          "outputs/research-web-architecture/04-data-file-flow.visual-check.json",
+          "outputs/research-web-architecture/api-atlas.html",
+          "outputs/research-web-architecture/index.html"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-weknora-formal-scope",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "host_approved_knowledge_scope_boundary",
+      "impact": [
+        "security-boundary",
+        "knowledge-scope"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/knowledge_backend/current.py",
+          "app/research_web/knowledge_backend/routes.py",
+          "app/research_web/knowledge_backend/service.py",
+          "app/research_web/capabilities/tools.py",
+          "app/research_web/tenant_policy.py",
+          "tests/research_web/test_capabilities_native.py",
+          "tests/research_web/test_store.py",
+          "tests/research_web/test_weknora_api.py",
+          "tests/research_web/test_weknora_client.py",
+          "tests/research_web/test_weknora_formal_scope.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-weknora-formal-scope",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-knowledge-runtime",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "native_knowledge_tool_scope_boundary",
+      "impact": [
+        "security-boundary",
+        "research-web-runtime"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/runtime/public-data.mjs",
+          "app/research_web/runtime/research-tools.mjs",
+          "tests/javascript/research_web_public_data.test.mjs",
+          "tests/javascript/research_web_knowledge.test.mjs"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-knowledge-runtime",
+        "research-web-service-manager",
+        "research-web-architecture",
+        "research-web-local-integrations",
+        "project-constraints-local",
+        "research-web-critical-smoke",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
+    {
+      "id": "research-web-weknora-optional-upload-asset",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "optional_weknora_upload_source_asset_change",
+      "impact": [
+        "upstream-source-asset"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "deploy/weknora/patches/0004-retrieval-only-native-upload.patch",
+          "deploy/weknora/patches/native-upload-manifest.json",
+          "tests/research_web/test_weknora_kb_settings_patch.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-weknora-upload-asset",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
     {
       "id": "research-web-inbound-mcp",
       "risk": "full-delivery",

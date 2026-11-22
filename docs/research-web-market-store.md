@@ -1,6 +1,6 @@
 # DataHub 研究数据仓库内核
 
-知识目录的 `knowledge-sync/state.sqlite3` 是逐账号的资料观察／版本／内容快照库，256MiB预算含17MiB日志预留，独立纳入保全；它不写入MarketStore或改变金融仓schema。知识命中未知时点不获得仓库PIT资格。见[资料合同](research-web-weknora.md)。
+知识目录的 `knowledge-sync/state.sqlite3` 是逐账号的资料观察／版本／内容快照库，写入按实际卷余量准入，独立纳入流式保全；它不写入MarketStore或改变金融仓schema。单轮scope grant保存在原Store提交回执，正式命中绑定原生请求与原件哈希，也不会向金融仓写入或授予PIT资格；普通current版本保留。见[资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
 
 财经日历短期内存快照只服务当前账号界面，无数据库持久化，亦不增加正式 PIT 或回测资格。
 

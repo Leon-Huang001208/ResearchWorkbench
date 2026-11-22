@@ -1,0 +1,55 @@
+diff --git a/frontend/src/views/knowledge/KnowledgeBase.vue b/frontend/src/views/knowledge/KnowledgeBase.vue
+--- a/frontend/src/views/knowledge/KnowledgeBase.vue
++++ b/frontend/src/views/knowledge/KnowledgeBase.vue
+@@ -43,6 +43,8 @@
+ } from "@/api/knowledge-base/index";
+ import { isBatchDownloadableKnowledge } from './knowledgeDownloadFileName';
+ import { waitForKnowledgeDeletion } from '@/utils/knowledgeDeletion';
++import { getCurrentConfigByKB } from '@/api/initialization';
++import { requiresKBChatModel } from '@/utils/retrievalOnlyKBSettings.mjs';
+ import { knowledgeSpansPayloadHasTrace } from '@/utils/knowledgeTrace';
+ import FAQEntryManager from './components/FAQEntryManager.vue';
+ import DocumentListView from './components/DocumentListView.vue';
+@@ -92,6 +94,7 @@
+ const { t } = useI18n();
+ const kbId = computed(() => (route.params as any).kbId as string || '');
+ const kbInfo = ref<any>(null);
++const retrievalOnly = ref(false);
+ const uploadSourceRef = ref<InstanceType<typeof KbUploadSourceDropdown> | null>(null);
+ const kbLoading = ref(false);
+ const docListLoading = ref(true);
+@@ -1144,6 +1147,7 @@
+ };
+ 
+ const loadKnowledgeBaseInfo = async (targetKbId: string, force = false) => {
++  retrievalOnly.value = false;
+   if (!targetKbId) {
+     kbInfo.value = null;
+     cardList.value = [];
+@@ -1155,6 +1159,17 @@
+     const data = await chatResources.fetchKnowledgeBaseById(targetKbId, force);
+     if (!isCurrentKb(targetKbId)) return;
+ 
++    let isRetrievalOnly = false;
++    if (data && requiresKBChatModel(false, data.summary_model_id)) {
++      try {
++        const profile = await getCurrentConfigByKB(targetKbId);
++        isRetrievalOnly = profile.retrievalOnly === true;
++      } catch {
++        console.warn('knowledge_upload_profile_unverified');
++      }
++    }
++    if (!isCurrentKb(targetKbId)) return;
++    retrievalOnly.value = isRetrievalOnly;
+     kbInfo.value = data;
+     selectedTagIds.value = [];
+     selectedTagNames.value = {};
+@@ -1823,7 +1838,7 @@
+     MessagePlugin.warning(t('knowledgeEditor.messages.missingId'));
+     return false;
+   }
+-  if (!kbInfo.value || !kbInfo.value.summary_model_id) {
++  if (kbInfo.value?.id !== kbId.value || requiresKBChatModel(retrievalOnly.value, kbInfo.value.summary_model_id)) {
+     MessagePlugin.warning(t('knowledgeBase.notInitialized'));
+     return false;
+   }

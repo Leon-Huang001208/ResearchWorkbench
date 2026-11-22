@@ -32,6 +32,12 @@ WeKnora 普通初始化向导要求 LLM，摘要默认开启，表格摘要还�
 
 2026-11-06的独立上游 Node 纯函数8项通过，只证明当时的设置逻辑；原生 Go 完成编译，但测试初始化在上游 `go-m1cpu` 崩溃，两次 Docker 编译受容量门阻断。旧失败与固定 manifest 原样保留，本轮恢复、实际向量化和浏览器入库另取证；RWB 的隔离浏览器结果也不能代替这些检查或业务报告接受。
 
+### 原生详情页上传补丁0004（可选源码资产）
+
+`0004-retrieval-only-native-upload.patch` 仅补齐 `KnowledgeBase.vue` 详情页的上传前校验，与0003的设置页分开。只有认证的 `GET /api/v1/initialization/config/:kbId` 返回当前库的只检索 profile，才允许缺少摘要模型；未取得 profile、普通模式或切库后旧响应到达均不能沿用该例外。Embedding 与存储校验保持。补丁及固定前后像见[native-upload manifest](../deploy/weknora/patches/native-upload-manifest.json)。
+
+0004是未应用的可选上游源码资产，不属于当前实例的必需补丁链，也不证明现役标准版的上传或零生成已通过。其离线文本／哈希检查、上游补丁应用、前端构建、真实服务和浏览器上传分别取证；此前 Lite／Vue／向量化证据不认证本次候选或 #318／#319 的运行状态。
+
 ## 本机目录同步与当前研究
 
 账号设置绑定 WeKnora 原生用户 JWT、workspace 和一个当前可见的自有知识库，再以明确动作启用固定目录 `/Volumes/WorkDisk/Data/RWB/knowledge-inbox`。来源目录的 owner 标记同时绑定 RWB 账号根、origin、用户、workspace 和知识库；其他账号或共享／跨空间库不能占用同一目录，调用方不能改 root。访问 WorkDisk 时校验实际 APFS 卷 UUID，磁盘不可用时拒绝写入。
@@ -45,6 +51,16 @@ Host 持有现有账号生命周期内的60秒同步巡检，只恢复明确启�
 当前研究工具 `research_search_knowledge` 接收查询，`research_read_knowledge` 接收已有命中句柄；Host 注入当前 `session_id`，模型不能选择账号、资料库、文档白名单或写入范围。检索只召回同步清单中 current 的原件，核对原件 SHA-256、完整分块指纹和权限后发布最多8个会话命中回执。读取仅接受同会话 `hit_id`，源变化、删除或被替代时返回对应状态并保留原命中片段。用户可明确选择最多8个回执冻结实际原件和分块，历史证据不随重新索引或删除改变。
 
 当前资料的 `available_at`／`time_evidence` 未知，结果固定 `historical_eligible=false`、`source_time_unknown`；检索命中与冻结均不授予历史 PIT、回测或正式报告资格。质量链只登记可信 Host 回执，沿原来源选择与准入复核；固定报告继续使用下述显式批准的 scope 流程。
+
+## Host 批准范围的单轮研究
+
+认证用户可先经原 `POST /api/research/knowledge/scopes` 批准原件、截止期和来源时间证据，再在全新研究会话的首条消息中提交 `Prompt.knowledge_scope_id`，同时携带 `X-Research-User-Action: ?1`。Host 在既有提交回执中原子保存 scope、完整请求摘要及实际提交摘要，并把会话标记为 `knowledge_single_turn`；该持久 grant 由 Host 派生，模型文本或 DataKey 不能创建。已受理的相同请求沿原幂等回执返回，新的追问不能复用此会话授权。
+
+正式范围可以包含最多10个获准知识库，不依赖普通 current 同步所选的单库。它继续使用唯一一组工具协议：`research_search_knowledge(query)` 产生不透明的会话 `hit_id`，`research_read_knowledge(hit_id)` 只读取该句柄；不新增同名的 operation／document／chunk 工具。模型不能指定 scope、库或文档白名单。Host 在内部 DataKey 回调中根据持久会话选择正式分支；原生桥另从实际执行元数据注入 `X-Research-Native-Session`，正式调用要求 caller 与获准根会话一致，不能把子会话折叠为根会话来继承授权。
+
+每次正式检索／读取均核对当前 grant、取消／终态、唯一运行中的原生根会话、首个且尚未结束的 turn，以及原生用户消息的 `requestId`。上游 await 后、发布回执或返回正文前再次复核；撤权、取消、原件／分块漂移或 grant 改变即拒绝。正式命中回执同时绑定 scope、原生请求和提交摘要，不能跨会话、跨请求或使用普通 current 回执；失败不回退到 current 检索。没有单轮 grant 的普通 current、登录、tenant、同步及版本 pin 合同保持。
+
+来源时间批准只保存用户提供的证据，不自动获得历史 PIT 或正式报告资格；正式分支仍返回 `historical_eligible=false`，未知来源时点仍标为 `source_time_unknown`。资料冻结、质量复核与正式定稿继续走各自的原入口。本节描述源码合同，不代表真实原生宿主、模型、上游服务或业务报告验收已完成。
 
 ## 接口与权限
 
@@ -67,8 +83,8 @@ Host 持有现有账号生命周期内的60秒同步巡检，只恢复明确启�
 | `POST /api/research/knowledge/freeze` | 明确用户动作；`{session_id, hit_ids}` 冻结当前研究回执，或沿旧 scope 冻结所选分块及原件，独立写入证据。 |
 | `GET /api/research/knowledge/evidence/{identifier}` | 当前 RWB 账号读取本地不可变证据，复核 manifest 和已存原件。 |
 | `GET /api/research/knowledge/evidence/{identifier}/original/{sha}` | 当前 RWB 账号下载该证据实际包含的原件，不解析任意路径。 |
-| `POST /api/research/internal/data/knowledge-query` | 原 DataKey 回调；当前研究使用 `{session_id, query}` 并核对可信会话，旧报告流程仍须已有 `scope_id`。 |
-| `POST /api/research/internal/data/knowledge-read` | 原 DataKey 回调；当前研究使用 `{session_id, hit_id}`，旧报告流程仍须已有 `scope_id`；不开放配置、扫描或冻结。 |
+| `POST /api/research/internal/data/knowledge-query` | 原 DataKey 回调；仅接受 `{session_id, query}`，Host 依据持久会话选择普通 current 或单轮 grant；正式分支另核对可信原生 caller，不接收模型自选 scope。 |
+| `POST /api/research/internal/data/knowledge-read` | 原 DataKey 回调；仅接受 `{session_id, hit_id}`，正式句柄绑定当前 scope／请求／grant；不开放配置、扫描或冻结。 |
 
 资料异步操作在网络读取、授权复核和存储提交全过程持有既有 resident `admission`；维护冻结生效时拒绝新操作，返回 `knowledge_maintenance_busy`，不通过查询通道绕过停机门。绑定元数据写前及读取同为16 KiB上限，超限不写入不可恢复的大记录。
 

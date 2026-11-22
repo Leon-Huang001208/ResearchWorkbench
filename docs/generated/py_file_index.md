@@ -7723,7 +7723,7 @@ Imports:
 
 Classes:
 - `CurrentResearch`
-  - methods: _session, _current_authorized, _receipt, _current_config, _projection, _current_query, _receipt_status, _current_read, _current_freeze, _freeze_source_status, registered_sources
+  - methods: _session, _formal_grant, _formal_check, _formal_query, _formal_read, _current_authorized, _receipt, _current_config, _projection, _current_query, _receipt_status, _current_read, _current_freeze, _freeze_source_status, registered_sources
 
 
 ## `app/research_web/knowledge_backend/diagnostics.py`
@@ -7775,8 +7775,10 @@ Module docstring:
 > Authenticated settings and explicit evidence writes, separate from read-only MCP.
 
 Imports:
+- `delivery`
 - `fastapi`
 - `pydantic`
+- `storage`
 - `store`
 
 Functions:
@@ -7792,6 +7794,9 @@ Functions:
 - `scope`
 - `query`
 - `read`
+- `current_grant`
+- `grant_snapshot`
+- `active_scope`
 - `freeze`
 - `evidence`
 - `original`
@@ -7818,10 +7823,11 @@ Imports:
 - `store`
 - `time`
 - `uuid`
+- `zoneinfo`
 
 Classes:
 - `KnowledgeService`
-  - methods: __init__, status, sync_status, _credentials, _client, _authorized, _still_authorized, bind, login, current_query, current_read, current_freeze, configure_sync, scan_sync, bases, _scope, create_scope, _ready, _verify_document, search, read, freeze
+  - methods: __init__, status, sync_status, _credentials, _client, _authorized, _still_authorized, bind, login, current_query, current_read, current_freeze, configure_sync, scan_sync, bases, _scope, research_scope, create_scope, _ready, _verify_document, search, read, freeze
 
 Functions:
 - `bounded`

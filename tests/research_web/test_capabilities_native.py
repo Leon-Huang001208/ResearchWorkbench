@@ -155,3 +155,29 @@ console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))))
         for key, value in schema["properties"].items():
             # DataHub has additional business validation layered over native JSON schema.
             assert value["type"] == properties[key]["type"]
+
+
+def test_knowledge_tool_catalog_keeps_unique_query_and_hit_registrations(source):
+    script = r"""
+import { pathToFileURL } from 'node:url';
+import { join } from 'node:path';
+const root = process.argv[1];
+const tools = [];
+const ctx = {tools:{register(tool){tools.push(tool);}},logger:{info(){},warn(){}}};
+const plugin = await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')));
+plugin.apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used'});
+console.log(JSON.stringify(tools.filter(tool=>['research_search_knowledge','research_read_knowledge'].includes(tool.name)).map(tool=>({id:tool.name,parameters:tool.parameters}))));
+"""
+    native = json.loads(node(source, script, Path(__file__).parents[2]))
+    assert [item["id"] for item in native] == [
+        "research_search_knowledge",
+        "research_read_knowledge",
+    ]
+    for item, field in zip(native, ["query", "hit_id"], strict=True):
+        entry = next(row for row in tool_catalog()["items"] if row["id"] == item["id"])
+        assert entry["selectable"] is False
+        assert entry["parameters"]["required"] == item["parameters"]["required"] == [field]
+        assert set(entry["parameters"]["properties"]) == {field}
+        assert set(item["parameters"]["properties"]) == {field}
+        assert item["parameters"]["additionalProperties"] is False
+        assert entry["parameters"]["properties"][field]["type"] == "string"
