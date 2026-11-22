@@ -30,6 +30,9 @@
 
 成功后仍生成原 FinGPT 完成后回滚 capsule。`rollback-fingpt --rollback-target EXACT_ACCEPTED_TARGET_SHA`
 和中断后的 `recover --home /absolute/private-home` 从原 capsule／journal 读取前后版本，并核对本机、私网两端；不额外传入版本参数。
+显式 FinGPT 回滚成功后保留已有 quarantine，不将已接受目标标为失败；完成核对及必要的中断恢复后，
+可用相同的已审目标和显式前后版本参数再次 `apply-fingpt`。真正上线失败仍隔离目标并拒绝普通同 SHA 重试；
+回滚未完成或终态不明确时仍须沿原 `recover` 核对，不自动清除失败隔离。
 不传显式版本参数的历史固定 FinGPT 入口及旧 capsule 保留原资格，不能用动态参数为旧回执改写前版。
 
 ## 附接 MCP 保全的围栏内复核

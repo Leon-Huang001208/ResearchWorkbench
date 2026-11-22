@@ -3414,7 +3414,14 @@ class Operations:
             c.atomic(self.root / "config.json", state["config"])
             c.atomic(self.root / "accepted.json", state["accepted"])
             c.atomic(self.root / "candidate.json", state["candidate_before"])
-            c.atomic(self.root / "quarantine.json", {"sha": state["target"]})
+            # An explicit, completed rollback of an accepted FinGPT target is
+            # a rehearsal, not a failed apply; preserve any existing quarantine.
+            if not (
+                result == "rolled_back"
+                and state.get("mode") == FINGPT_MODE
+                and state.get("fingpt_post_deploy_rollback") is True
+            ):
+                c.atomic(self.root / "quarantine.json", {"sha": state["target"]})
         record = {
             "status": result,
             "target": state["target"],
@@ -4048,6 +4055,12 @@ def resume_fingpt_rollback_completion(home, state):
             raise UpdateBlocked(f"{prefix}_rollback_completion_unverified")
         return None
     previous = state["previous"]
+    quarantine = root / "quarantine.json"
+    quarantine_verified = (
+        read_json(quarantine) == {"sha": state["target"]}
+        if local_knowledge
+        else not quarantine.exists() or read_json(quarantine).get("sha") != state["target"]
+    )
     if (
         record.get("status") != "rolled_back"
         or record.get("target") != state["target"]
@@ -4056,7 +4069,7 @@ def resume_fingpt_rollback_completion(home, state):
         or read_json(root / "accepted.json") != state["accepted"]
         or read_json(root / "candidate.json") != state["candidate_before"]
         or read_json(root / "config.json") != state["config"]
-        or read_json(root / "quarantine.json") != {"sha": state["target"]}
+        or not quarantine_verified
         or read_json(home / "install/manifest.json") != state["manifest"]
         or not gateway_configuration_matches(state, read_json(server / "resident.json"), True)
     ):
