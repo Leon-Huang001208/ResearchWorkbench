@@ -1,7 +1,5 @@
 # GitHub Actions 免费额度治理
 
-主账号数据源入口修复只在现有 Mac Bootstrap PR/push 清单各加四个确切路径，并在原静态冒烟步骤比较两个 wheel 资源字节，复用原 Mac job 和预算／时限，不新增 job、runner、权限、依赖或其他平台 dispatch。实际最终候选 CI 待跑，远端动作仍按本文件实时核对 visibility 与额度，不把本地检查计作 CI 通过。
-
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的

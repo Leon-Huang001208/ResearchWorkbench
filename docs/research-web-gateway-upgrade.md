@@ -1,5 +1,19 @@
 # Mac mini 空私有池网关升级
 
+## 已审完整版本的联合升级
+
+显式 `apply-reviewed` 将原 version 4 Host＋gateway 事务用于最新已审完整 master，不再为每个提交增加固定产品 profile：
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-reviewed \
+  --home /absolute/private-home --source /absolute/clean-reviewed-master \
+  --expected-previous EXACT_CURRENT_ACCEPTED_SHA --expected-target EXACT_REVIEWED_MASTER_SHA
+```
+
+前版必须与原 accepted、安装 manifest、baseline 及两端实际 revision 一致，目标必须同时等于干净 source HEAD 和当前 master，并通过原 managed delivery／独评／三 CI 的完整树资格。候选回执沿 source 自身的 Git common 查询；候选与两端 release 各自的 common、inode、origin 继续按原身份核对。完整前后树和动态版本写入原 journal，恢复仍使用原 `recover`，不依赖历史模式的固定前版。
+
+该入口只安装本项目 wheel；`requirements/web.lock` 与 `runtimes/research_web.json` 必须和前版相同，不借完整源码升级安装新依赖或更换 DSH。原三锁、BirthFence、安装作用域、全账号／模型／业务索引保全、永久恢复包、优雅排空、双端健康及失败回滚保持；MCP、AlphaDesk、WeKnora 及已有私网服务配置按现场保留，不自动开关。源码和离线回归通过不代表实际升级、生产登录或业务验收完成，执行仍由唯一生产维护窗口承担。
+
 ## 附接 MCP 保全的围栏内复核
 
 原 PR #284 只将两项仍有效的保护前移到当前联合操作员，不恢复旧财经日历固定部署 profile。

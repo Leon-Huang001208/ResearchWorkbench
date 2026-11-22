@@ -2,5 +2,5 @@
   "schemaVersion": 1,
   "disposition": "unchanged",
   "summary": "复核主账号数据源入口、apply-ui候选交付查询和既有Mac安装CI覆盖；README公开安装和功能入口保持，正文无需修改。",
-  "reason": "本次按服务器可信primary恢复既有数据源菜单，apply-ui仅改从候选source实际Git common查询已审交付，现役网关身份仍由原common校验；既有Mac Bootstrap补四个确切路径及两个wheel资源字节比较。没有新增公开入口、安装步骤、配置、依赖、服务、job或平台支持。README现有安装命令与验收边界仍适用，局部测试和浏览器证据不代替最终候选CI、生产登录或实际部署。"
+  "reason": "本次按服务器可信primary恢复既有数据源菜单，apply-ui仅改从候选source实际Git common查询已审交付，现役网关身份仍由原common校验；既有Mac Bootstrap补四个确切路径及两个wheel资源字节比较。模块文档检查按既有结构决定只要求适用文档，不新增评审机制。没有新增公开入口、安装步骤、配置、依赖、服务、job或平台支持。README现有安装命令与验收边界仍适用，局部测试和浏览器证据不代替最终候选CI、生产登录或实际部署。"
 }

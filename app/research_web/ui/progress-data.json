@@ -1,7 +1,26 @@
 {
   "schemaVersion": 1,
-  "asOf": "2026-11-22",
+  "asOf": "2026-11-23",
   "features": [
+    {
+      "id": "primary-data-source-settings",
+      "module": "账户与设置",
+      "title": "主账号数据源设置入口",
+      "summary": "恢复主账号在设置中打开数据源管理的入口。",
+      "scope": "主账号菜单可见性与原有账户权限。",
+      "next": "完成同候选检查、正式部署及真实账号页面复验。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-ui.md",
+      "updated": "2026-11-23",
+      "status": "validating",
+      "platforms": [
+        "macos"
+      ],
+      "included": true,
+      "activation": "unknown",
+      "limitations": "本地浏览器验证通过，尚未据此声明常驻页面已更新。",
+      "evidence": []
+    },
     {
       "id": "approved-knowledge-research-turn",
       "module": "研究与报告",
