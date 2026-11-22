@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核主账号数据源入口、apply-ui候选交付查询和既有Mac安装CI覆盖；README公开安装和功能入口保持，正文无需修改。",
-  "reason": "本次按服务器可信primary恢复既有数据源菜单，apply-ui仅改从候选source实际Git common查询已审交付，现役网关身份仍由原common校验；既有Mac Bootstrap补四个确切路径及两个wheel资源字节比较。模块文档检查按既有结构决定只要求适用文档，不新增评审机制。没有新增公开入口、安装步骤、配置、依赖、服务、job或平台支持。README现有安装命令与验收边界仍适用，局部测试和浏览器证据不代替最终候选CI、生产登录或实际部署。"
+  "disposition": "updated",
+  "summary": "保留当前公开安装与金融产品入口，说明显式DataHub查询scope与旧冻结资料只读的区别。",
+  "reason": "仅明确同意的WeKnora客户端可对所属账户调用公开FRED/BLS查询、快照和取消；rwb.read不扩权，连接与发现不取数，专业源与报告质量仍保留RWB。README同步新接口合同，不把隔离样本、外部App和源代码交付冒充生产接管或跨平台通过；无新产品依赖或数据迁移。"
 }

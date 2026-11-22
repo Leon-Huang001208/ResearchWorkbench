@@ -280,6 +280,7 @@ _SERVICE_ONLY_READ_PATTERN = re.compile(
     r"|knowledge/evidence/[a-f0-9]{64}(?:/original/[a-f0-9]{64})?"
     r"|sessions/[a-f0-9-]{36}(?:/files(?:/[a-f0-9]{24}/(?:download|preview))?"
     r"|/datasets(?:/[^/]+(?:/rows|/files/[^/]+)?)?)?"
+    r"|data/queries/[a-f0-9-]{36}"
 )
 _SERVICE_ONLY_KNOWLEDGE_POST = frozenset(
     {
@@ -303,7 +304,11 @@ def _service_only_route_allowed(method: str, path: str) -> bool:
     route = path[len(prefix) :]
     if method in {"GET", "HEAD"}:
         return route in _SERVICE_ONLY_READ or bool(_SERVICE_ONLY_READ_PATTERN.fullmatch(route))
-    return method == "POST" and route in _SERVICE_ONLY_KNOWLEDGE_POST
+    return method == "POST" and (
+        route in _SERVICE_ONLY_KNOWLEDGE_POST
+        or route in {"data/contexts", "data/queries"}
+        or bool(re.fullmatch(r"data/queries/[a-f0-9-]{36}/cancel", route))
+    )
 
 
 def create_app(service: ResearchService | None = None) -> FastAPI:

@@ -108,6 +108,9 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
   自洽的实际度量。四个固定视口仍逐一核对且横向零溢出；节点／上下文与边标签的实际投影字号
   不低于6px；回执须为 `read`／`still` 状态且Chrome可用，readability／viewerChrome、
   legend／dock不相交及至少10px舞台间距均须通过。
+  Archify 3.2 的实际几何可为启用正数Chrome预留，或无需预留的明确 `viewerChromeActive=false`／
+  `viewerChromeReserve=0`；后者仍须Dock真实存在、上述间距及零交叠、stage/chrome通过，缺值、
+  非布尔、负数及active与reserve不匹配均拒绝，不为满足旧字段强改布局或篡改回执。
   同图源／HTML、当前provenance、deliver身份、四视口记录、截图字节哈希和实际看图审阅继续绑定；
   普通 `ok: true` 或单一布尔声明不能放行。实际浏览器还须确认内容可滚到底、末端节点与文字可达，
   无 `overflow: hidden`／clip 截断或dock遮挡；不同Reader显示状态的高度分别留证，不改写原始回执来对齐。

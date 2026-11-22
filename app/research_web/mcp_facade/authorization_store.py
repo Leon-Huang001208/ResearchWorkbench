@@ -41,6 +41,8 @@ from .models import (
     Grant,
     TokenPair,
     TokenRecord,
+    client_scopes,
+    valid_scopes,
 )
 
 log = get_logger(__name__)
@@ -71,7 +73,7 @@ def _consent(row: sqlite3.Row) -> ConsentRequest:
         row["client_id"],
         row["issuer"],
         row["resource"],
-        (row["scope"],),
+        tuple(row["scope"].split()),
         row["redirect_uri"],
         row["challenge"],
         row["state"],
@@ -104,7 +106,7 @@ def _grant_record(row: sqlite3.Row) -> Grant:
         row["client_id"],
         row["issuer"],
         row["resource"],
-        (row["scope"],),
+        tuple(row["scope"].split()),
         row["expires_at"],
         bool(row["revoked"]),
     )
@@ -156,7 +158,9 @@ class AuthorizationStore:
             "none",
         ):
             _reject("invalid_client")
-        return FixedClient(client_id=client_id, redirect_uris=(callback,))
+        return FixedClient(
+            client_id=client_id, redirect_uris=(callback,), scopes=client_scopes(client_id)
+        )
 
     def load_client(self, client_id: str) -> FixedClient:
         with self.accounts._connection() as db:
@@ -204,8 +208,8 @@ class AuthorizationStore:
             _reject("invalid_target")
 
     @staticmethod
-    def _scopes(scopes: Sequence[str]) -> None:
-        if list(scopes) != [SCOPE]:
+    def _scopes(scopes: Sequence[str], client_id: str = CLIENT_ID) -> None:
+        if not valid_scopes(scopes, client_id):
             _reject("invalid_scope")
 
     def _account(self, db: sqlite3.Connection, user_id: str) -> None:
@@ -216,7 +220,12 @@ class AuthorizationStore:
         if (
             row is None
             or not self.client_enabled(row["client_id"])
-            or (row["issuer"], row["resource"], row["scope"]) != (self.issuer, self.resource, SCOPE)
+            or (row["issuer"], row["resource"]) != (self.issuer, self.resource)
+            or not valid_scopes(tuple(row["scope"].split()), row["client_id"])
+            or row["scope"]
+            != " ".join(
+                scope for scope in client_scopes(row["client_id"]) if scope in row["scope"].split()
+            )
         ):
             _reject()
         self._load_client(db, row["client_id"])
@@ -251,7 +260,8 @@ class AuthorizationStore:
     ) -> ConsentRequest:
         self.validate_redirect(redirect_uri, client_id=client_id)
         self._resource(resource)
-        self._scopes(scopes)
+        self._scopes(scopes, client_id)
+        scopes = tuple(scope for scope in client_scopes(client_id) if scope in scopes)
         if (
             code_challenge_method != "S256"
             or not isinstance(code_challenge, str)
@@ -273,7 +283,7 @@ class AuthorizationStore:
                     client_id,
                     self.issuer,
                     self.resource,
-                    SCOPE,
+                    " ".join(scopes),
                     redirect_uri,
                     code_challenge,
                     state,
@@ -325,7 +335,7 @@ class AuthorizationStore:
                     request["client_id"],
                     self.issuer,
                     self.resource,
-                    SCOPE,
+                    request["scope"],
                     now,
                     now + REFRESH_TTL,
                 ),
@@ -405,7 +415,7 @@ class AuthorizationStore:
                 "INSERT INTO mcp_oauth_tokens VALUES (?,?,?,?,?,0)",
                 (_digest(raw), kind, grant["id"], now, expiry),
             )
-        return TokenPair(access, refresh, int(access_expiry - now), SCOPE, self.resource)
+        return TokenPair(access, refresh, int(access_expiry - now), grant["scope"], self.resource)
 
     def _token(self, db: sqlite3.Connection, raw: str, kind: str) -> TokenRecord:
         row = db.execute(
@@ -422,7 +432,7 @@ class AuthorizationStore:
             grant["client_id"],
             grant["issuer"],
             grant["resource"],
-            (grant["scope"],),
+            tuple(grant["scope"].split()),
             row["expires_at"],
         )
 
@@ -461,7 +471,7 @@ class AuthorizationStore:
                 grant["client_id"],
                 grant["issuer"],
                 grant["resource"],
-                (grant["scope"],),
+                tuple(grant["scope"].split()),
                 row["expires_at"],
             ),
             replay,
@@ -477,9 +487,11 @@ class AuthorizationStore:
     ) -> TokenPair:
         self._resource(resource)
         if scopes is not None:
-            self._scopes(scopes)
+            self._scopes(scopes, client_id)
         with self.accounts._connection() as db:
             record, replay = self._refresh(db, token, client_id)
+            if scopes is not None and set(scopes) != set(record.scopes):
+                _reject("invalid_scope")
             if not replay:
                 db.execute(
                     "UPDATE mcp_oauth_tokens SET consumed=1 WHERE digest=?", (_digest(token),)

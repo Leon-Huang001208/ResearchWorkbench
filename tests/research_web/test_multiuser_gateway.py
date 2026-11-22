@@ -416,6 +416,42 @@ def test_invalid_server_origin_rejected_without_network(tmp_path):
             create_gateway(store, Pool(), origin=origin)
 
 
+def test_mcp_metadata_and_boundaries_preserve_a_tailnet_https_port(tmp_path):
+    store = AccountStore(tmp_path / "state")
+    origin = "https://research.tail123.ts.net:9543"
+    pool = Pool()
+    app = create_gateway(
+        store,
+        pool,
+        origin=origin,
+        mcp_enabled=True,
+        weknora_oauth_origin="http://127.0.0.1:18181",
+    )
+    with TestClient(app, base_url=origin) as client:
+        metadata = client.get("/.well-known/oauth-authorization-server")
+        assert metadata.status_code == 200
+        assert metadata.json()["issuer"] == origin
+        assert metadata.json()["token_endpoint"] == origin + "/token"
+        resource = client.get("/.well-known/oauth-protected-resource/mcp")
+        assert resource.status_code == 200
+        assert resource.json()["resource"] == origin + "/mcp"
+        assert client.get("/api/server/health").status_code == 200
+        assert (
+            client.get(
+                "/api/server/health", headers={"Host": "research.tail123.ts.net:9443"}
+            ).status_code
+            == 403
+        )
+        assert (
+            client.get(
+                "/.well-known/oauth-authorization-server",
+                headers={"Origin": "https://research.tail123.ts.net:9443"},
+            ).status_code
+            == 403
+        )
+    assert pool.users == []
+
+
 def test_revoked_while_starting_backend_cannot_submit_request(server):
     browser, store, pool, _, forwarded = server
     login(browser)
