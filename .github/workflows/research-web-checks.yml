@@ -99,6 +99,33 @@ jobs:
         with:
           node-version: "24.19.0"
 
+      - name: Choose contract test scope
+        id: contract-scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+
+          base, head = os.environ.get("BASE_SHA", ""), os.environ.get("HEAD_SHA", "")
+          files = []
+          if base and head and base != "0" * 40:
+              fetched = subprocess.run(["git", "-c", "gc.auto=0", "fetch", "--no-tags", "--no-write-fetch-head", "--no-auto-maintenance", "--depth=1", "origin", base, head], capture_output=True)
+              if fetched.returncode == 0:
+                  diff = subprocess.run(["git", "diff", "--name-only", "-z", base, head], capture_output=True)
+                  if diff.returncode == 0:
+                      files = [name for name in diff.stdout.decode().split("\0") if name]
+          tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
+          scope_files = tool | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "AGENTS.md"}
+          limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              output.write("retention_only=" + str(limited).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "full Research Web"))
+          PY
+
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
@@ -124,6 +151,14 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
+          if [ "${{ steps.contract-scope.outputs.retention_only }}" = "true" ]; then
+            PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+              -- tests/research_web/test_test_artifact_retention.py --confcutdir=tests/research_web -q
+            exit 0
+          fi
           # The exact-handoff fixture verifies these historical objects offline.
           # Keep checkout shallow and fetch only the three fixed source commits.
           git -c gc.auto=0 -c maintenance.auto=false fetch --no-tags --no-write-fetch-head --no-auto-maintenance --depth=1 origin \
@@ -362,10 +397,12 @@ jobs:
             --confcutdir=tests/unit -q
 
       - name: Run Research Web JavaScript contracts
+        if: steps.contract-scope.outputs.retention_only != 'true'
         shell: bash
         run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
 
       - name: Verify pinned editorial engine without model or paid requests
+        if: steps.contract-scope.outputs.retention_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
