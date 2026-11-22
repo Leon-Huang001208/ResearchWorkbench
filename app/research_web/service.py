@@ -543,12 +543,11 @@ class ResearchService(ModelProfilesMixin):
             )
 
     async def start(self):
-        await self.maintenance.start_control(self)
-
         if self.service_only:
             await self.start_knowledge_sync()
             log.info("research_service_only_started")
             return
+        await self.maintenance.start_control(self)
         await self.frameworks.start()
         await self.mcp_registry.start()
         await self.mcp_runtime.start()

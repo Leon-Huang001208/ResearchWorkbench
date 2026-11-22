@@ -190,6 +190,7 @@ jobs:
               tests/research_web/test_api.py::test_no_dsh_connection_no_fake_success \
               tests/research_web/test_api.py::test_unowned_instance_is_read_only \
               tests/research_web/test_api.py::test_model_backend_failure_preserves_runtime_health_and_unknown_credential \
+              tests/research_web/test_weknora_current_api.py::test_service_only_start_arms_existing_scheduler_without_automation_history \
               tests/research_web/test_automation_research_task.py::test_queued_run_uses_prior_definition_when_task_changes \
               tests/research_web/test_automation_research_task.py::test_native_research_run_uses_independent_session_without_fake_skill \
               tests/research_web/test_report_workflow_integration.py::test_refresh_success_delegates_once_to_claw_and_locks_version \

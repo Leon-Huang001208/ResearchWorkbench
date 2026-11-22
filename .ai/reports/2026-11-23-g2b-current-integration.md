@@ -27,3 +27,5 @@
 ## CI 范围修正
 
 Mac 安装与 Project Constraints 已实际通过。原 Checks 在无关全 Web Python 合同中运行约20分钟，改为复用原 scope selector：仅明确的 G2B 源码、维护接点及具体回归清单进入相关 suite，未知和混合产品变更仍走 full，retention 选择不变。保留公共 Host/API、协议与 Automation/报告准入，跳过无关知识库、市场研究矩阵和编辑引擎。新增两个范围/真实 bash 分支反例，加原 retention 范围共3项定点检查通过；没有重复110项本地业务检查，也没有新增验证服务或框架。
+
+原 full CI 最终发现一个真实启动回归：G2B 的维护控制被放在 service-only 早返回之前，破坏纯数据 Host 仅启动已有同步调度器的合同。已将控制启动移到该分支之后，不新增属性兜底，也不改旧断言。既有定点 `test_service_only_start_arms_existing_scheduler_without_automation_history` 实际通过并纳入 G2B scope；相关3个 scope/分支检查再次通过。失败事实保留简短来源，临时下载的完整 artifact 已删除，未借调整测试范围隐藏失败。

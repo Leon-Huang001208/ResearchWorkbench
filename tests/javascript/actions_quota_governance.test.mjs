@@ -293,8 +293,10 @@ test('G2B CI executes its release and public Host contracts once without the unr
   }
   assert.ok(args.includes('tests/research_web/test_api.py::test_release_idle_includes_current_datahub_and_plugin_work'));
   assert.ok(args.includes('tests/research_web/test_api.py::test_unowned_instance_is_read_only'));
+  assert.ok(args.includes('tests/research_web/test_weknora_current_api.py::test_service_only_start_arms_existing_scheduler_without_automation_history'));
   assert.ok(args.includes('tests/research_web/test_report_workflow_integration.py::test_delivery_retry_consumes_late_payload_without_starting_another_claw_session'));
-  assert.ok(!args.some(value => /weknora|event_studies|fingpt_cutover|tests\/unit\//.test(value)));
+  assert.ok(!args.includes('tests/research_web/test_weknora_current_api.py'));
+  assert.ok(!args.some(value => /event_studies|fingpt_cutover|tests\/unit\//.test(value)));
   const js = workflows.checks.split('      - name: Run Research Web JavaScript contracts\n')[1]?.split('\n      - name:')[0];
   assert.match(js, /docker_runtime_contract\.test\.mjs/);
   assert.match(js, /actions_quota_governance\.test\.mjs/);
