@@ -399,7 +399,6 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         except RuntimeFailure as exc:
             return JSONResponse({"error": {"code": exc.code, "message": str(exc)}}, status_code=503)
 
-
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
     app.include_router(datahub_router)

@@ -203,8 +203,12 @@ def test_release_idle_includes_current_datahub_and_plugin_work(api, monkeypatch,
     client, _, service = api
     storage_runner = service.datahub.storage_runner
     directory_task = object()
-    monkeypatch.setattr(worker_activity, "active_futures", lambda: (object(),) if source == "sdk" else ())
-    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": source == "wind_api"})
+    monkeypatch.setattr(
+        worker_activity, "active_futures", lambda: (object(),) if source == "sdk" else ()
+    )
+    monkeypatch.setattr(
+        providers_wind_api, "activity_witness", lambda: {"active": source == "wind_api"}
+    )
     if source == "storage":
         service.datahub.storage_runner = SimpleNamespace(active=True)
     if source == "directory":

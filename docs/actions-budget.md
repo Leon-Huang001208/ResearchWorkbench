@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+G2B 当前源码前移只在原 Research Web Checks 增加 `test_docker_release.py` 与 `test_release_maintenance.py` 两份离线合同；既有 Manager/API 检查沿用，不新增 workflow、job、依赖或平台 dispatch。Mac 安装与最终 release 实机验证分开，CI 不调用模型、不操作生产或业务卷。
+
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的
