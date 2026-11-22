@@ -1,5 +1,12 @@
 # 安全边界与验证方法
 
+附接 MCP 五模式仅在 forward apply 与非完成后回滚的 preparing 恢复中，于真实持有的
+BirthFence SQLite EX、安装作用域和原 Operations 内复查配置及前版健康／MCP／账号保全。
+两项都成功才 execute 或删除准备 journal；任一失败保留原记录并拒绝 stop／checkpoint／切源。
+回归应核对实际围栏顺序及失败传播，不能以替身调用计数冒充真实锁或部署证明。
+Trial、Local Knowledge 完成后回滚及其他模式／阶段不泛化，原授权和身份门不变。
+详见[范围与顺序](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 管理员队列只接受固定构建参数，保留私有文件归属/no-follow、干净源码与提交归档检查。
 等待不持锁，真正构建在原锁内复核 stage 归属/预留和硬容量，不降低5GiB builder、2GiB余量及20GiB缓存上限；
 不停止其他容器、退休他人账本或清未知锁。Docker设置、真实构建/健康与平台回执分别认证。

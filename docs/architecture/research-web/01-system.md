@@ -1,5 +1,10 @@
 # 部署与模块职责
 
+附接 MCP 保全的两处复核仍在原 Native 联合操作员、BirthFence SQLite EX 和安装作用域内完成。
+当前五模式的 forward apply／限定 preparing 恢复复核前版后才推进，失败保留准备 journal；
+Trial、完成后回滚和其他阶段保持原职责。主实例、附接网关、账号 Host、唯一 DSH 及部署图
+节点均不变，详见[围栏内复核](../../research-web-gateway-upgrade.md#附接-mcp-保全的围栏内复核)。
+
 管理员持久构建队列沿原 `rwb-docker` 管理平面、操作锁和 builder 执行，不增加业务节点、
 Web API 或常驻调度器；业务容器、网络、Native/DSH及 owner-handoff 生命周期保持。
 本次不修改 Docker 内存设置，实际构建/健康仍须另验。见[管理合同](../../research-web-docker.md#持久构建队列)。
