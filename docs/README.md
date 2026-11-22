@@ -57,6 +57,9 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 ## 开发
 
+- [Super Agent 任务生命周期](super-agent/task-lifecycle.md)：同根输入、Chief 计划、产物与独立 QA、原 PR／CI、总结和恢复。
+- [Super Agent 三端责任与证据关联](super-agent/unified-integration.md)：Paperclip、GitHub 与飞书的责任、映射及缺项处理。
+- [GitHub 来源准入与原 PR 接续](super-agent/github-intake.md)：Issue 输入、来源去重、授权上界与读取故障交接。
 - [Super Agent 个人自动化接入](super-agent/README.md)：本人 `/chief` 项目命令、Mac 原生 Codex、按需岗位与独立 QA、原根预算及 RWB 授权交付边界；历史试点证据不替代当前验收。
 - [Agent 工作流](AGENT_WORKFLOW.md)：GitHub/master/短期分支、Mac 开发、Windows 验证、worktree、Platform-aware Minimal Acceptance 和交付证据。
 - [最小验收规划兼容入口](../.claude/commands/verify-task.md)：仅把 Claude 命令转交给项目只读规划器；规则真源仍是 `.agents/verification-policy.json`。
@@ -95,5 +98,3 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 平台与运行方式的能力边界及真实证据见 [Research Web 支持矩阵](research-web-platform-support.md)；任务机器验收和交付摘要见 [Agent 工作流](AGENT_WORKFLOW.md)。
 
 API Atlas 采用领域目录与单列表查阅，领域、Method 和关键词联合筛选；筛选统计分别计算唯一 Method + Path 与源码声明，重复声明保留独立行。主题和密度仅为页内状态，源码完整路径保留在链接的可访问名称与提示中，窄屏使用领域选择器；分类 URL 参数及原搜索/分类 DOM 合同保留。无外部资源、接口调试请求或存储依赖。
-
-- [task-lifecycle](super-agent/task-lifecycle.md)
