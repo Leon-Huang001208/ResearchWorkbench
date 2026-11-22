@@ -551,7 +551,7 @@ test('pytest evidence staging uses the no-follow allowlist helper and exact arti
     );
   }
   assert.match(workflows.checks, /scripts\/stage_ci_pytest_evidence\.py/);
-  assert.match(workflows.checks, /if: always\(\) && steps\.stage-safe-evidence\.outcome == 'success'/);
+  assert.match(workflows.checks, /if: always\(\) && steps\.contract-scope\.outputs\.architecture_only != 'true' && steps\.stage-safe-evidence\.outcome == 'success'/);
   assert.match(workflows.checks, /path: artifacts\/research-web-checks\n/);
   assert.doesNotMatch(workflows.checks, /cp "\$root\/\$relative"/);
   assert.doesNotMatch(workflows.checks, /\[ -f "\$root\/\$relative" \]/);
