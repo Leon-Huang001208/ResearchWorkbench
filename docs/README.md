@@ -63,6 +63,8 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 - [Super Agent 三端责任与证据关联](super-agent/unified-integration.md)：Paperclip、GitHub 与飞书的责任、映射及缺项处理。
 - [GitHub 来源准入与原 PR 接续](super-agent/github-intake.md)：Issue 输入、来源去重、授权上界与读取故障交接。
 - [Super Agent 个人自动化接入](super-agent/README.md)：本人 `/chief` 项目命令、Mac 原生 Codex、按需岗位与独立 QA、原根预算及 RWB 授权交付边界；历史试点证据不替代当前验收。
+- [飞书交付证据核对](super-agent/feishu-auto-delivery.md)：任务、输入、候选、原 PR／CI 与结果通知的关联；格式和能力分别核对。
+- [Chief 结果核对与原操作恢复](super-agent/chief-daily-result-recovery.md)：找回原结果、确认当前候选与 CI、对账原操作并按实际状态接续。
 - [Agent 工作流](AGENT_WORKFLOW.md)：GitHub/master/短期分支、Mac 开发、Windows 验证、worktree、Platform-aware Minimal Acceptance 和交付证据。
 - [最小验收规划兼容入口](../.claude/commands/verify-task.md)：仅把 Claude 命令转交给项目只读规划器；规则真源仍是 `.agents/verification-policy.json`。
 - [共享验收内核接入回执](../.ai/reports/2026-09-29-leon-verification-shared-runtime.md)：受管 runtime 版本、兼容验证与未运行外部门。
