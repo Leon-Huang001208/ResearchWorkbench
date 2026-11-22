@@ -38,7 +38,7 @@ Product-Progress: not-required — 本仓改动记录选型与来源证据；独
 
 用户允许全部功能。现役 standard-r2 五服务：`v0.9.0`/`f17ee8a`，固定镜像 `0fae…`；本地补丁二进制未完整重算，不冒称上游逐字相同。已在原操作锁内将 `WEKNORA_RETRIEVAL_ONLY` 从 `1` 改为 `0`，只重建 app，健康通过；其他四服务身份及镜像、原数据挂载保持。`/mcp/endpoint` 从专用 profile 403 变为正常 Bearer 401，证明全局限制已解除、认证仍在。保留 KB、账号、原文、embedding、摘要/图谱配置与恢复材料，不批量回填；功能配置与业务验收另列。
 
-后续认证检查发现原 RWB 正式绑定 JWT 已过期；一次沿现有登录引用的正常登录虽然成功，返回身份却与该绑定不同，因此在读取资源之前停止，未改绑定、未写入新 token 或使用其他账号替代。模型、Agent、Skills、MCP 和沙箱的已配置状态仍未取得正式用户验收，不能将模式解除写成全部已配置可用。
+认证检查先发现原 RWB 正式绑定 JWT 已过期；已有旧登录引用对应另一身份，资源读取前已停止。用户随后在原 RWB 设置中重新登录绑定，实际 `/auth/me` 已核对当前绑定身份、workspace 与 `owner` 权限一致。六项只读配置 API 均已可读：现有一个 `bge-m3` Embedding 模型、四个内置 Agent，Skill 目录／MCP 服务／沙箱配置为空；Agent 工具目录可读。原 RWB `admin` 登录账号不因绑定 WeKnora 改名。此证据证明认证与目录链路，尚无生成模型／工具执行或金融质量验收，不能写成全部功能已配置可用。
 
 | v0.9 能力 | RWB 当前边界/验收 |
 |---|---|
@@ -108,7 +108,7 @@ V5 是 `obb.fred`/`obb.bls` 命名空间，非 V4 共享 model/router；15 个�
 | 阶段 | 已取得证据 | 尚未取得 |
 |---|---|---|
 | S0 盘点 | 13 导航、7 底座、8 组条件退出，新旧基线分开 | 业务替换未完成 |
-| S1 工作区/知识 | 早期 DSH Web200/RWBClient/浏览器有限链；本次真实 Gateway 登录、固定 DSH bootstrap、Host spawn；独立仅服务 Web Host 的认证／目录读取通过；WeKnora 全模式已应用 | DSH Host 等待 Keychain 授权而超时，session/events/文件未执行；WeKnora 模型、工具、金融业务待验 |
+| S1 工作区/知识 | 早期 DSH Web200/RWBClient/浏览器有限链；本次真实 Gateway 登录、固定 DSH bootstrap、Host spawn；独立仅服务 Web Host 的认证／目录读取通过；WeKnora 全模式与当前真实用户身份／六项配置读取通过 | DSH Host 等待 Keychain 授权而超时，session/events/文件未执行；WeKnora 仅有 Embedding，生成模型、工具执行与金融业务待验 |
 | S2 Skill／SOP | 腾讯读取/一次下载、15 文件 SHA-256 相符；LoopForge 官方边界已核 | namespace 歧义、包许可未建、未验签/安装/执行；讯飞分发、LoopForge SOP 未运行 |
 | S3 数据 | FRED 7 行 snapshot；BLS403 | OpenBB 未安装/对拍；PIT/业务未验 |
 | S4 统一验收 | 原 Native 两轮独立 QA 拒绝记录保留；本次报告待精确候选独立评审 | 全部能力端到端尚未通过，不宣称完成产品替换 |
