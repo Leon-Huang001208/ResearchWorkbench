@@ -2136,15 +2136,29 @@ function quota(repository, options) {
   const runs = githubJson(['run', 'list', '--repo', result.nameWithOwner, '--limit', '20', '--json', 'status,conclusion'], repository, options);
   if (!runs.some(item => item.status === 'in_progress' || item.status === 'completed' && item.conclusion === 'success')) fail('ACTIONS_RUN_UNPROVEN');
 }
+function publicationSnapshot(repository, receipt, options) {
+  verifiedFeatureRepair({projectRoot: repository.repositoryRoot, receipt}, options);
+  const candidate = output(git(receipt.integrationWorktree, ['rev-parse', 'HEAD'], options));
+  if (output(git(receipt.integrationWorktree, ['symbolic-ref', '--short', 'HEAD'], options)) !== receipt.integrationBranch ||
+      git(repository.repositoryRoot, ['merge-base', '--is-ancestor', receipt.integrationCommit, candidate], options, {allowFailure: true}).status !== 0) fail('PUBLISH_CANDIDATE_UNVERIFIED');
+  return {...receipt, integrationCommit: candidate};
+}
 function publicationRunner(repository, receipt, options, verification) {
   const repo = githubRepo(receipt);
   const controllerResult = result => ({...result, stdout: result.stdout?.toString() ?? '', stderr: result.stderr?.toString() ?? ''});
   return (_executable, args, extra) => {
+    if (output(git(receipt.integrationWorktree, ['rev-parse', 'HEAD'], options)) !== receipt.integrationCommit ||
+        output(git(receipt.integrationWorktree, ['symbolic-ref', '--short', 'HEAD'], options)) !== receipt.integrationBranch ||
+        output(git(repository.repositoryRoot, ['remote', 'get-url', receipt.remote], options)) !== receipt.remoteUrl) fail('PUBLISH_CANDIDATE_CHANGED');
     if (args[0] === 'pr' && args[1] === 'merge' && args.includes('--auto')) return {status: 0, stdout: '', stderr: ''};
     if (args[0] !== 'pr' || args[1] !== 'create') return controllerResult(gh(args, extra.cwd, options));
     const existing = githubJson(['pr', 'list', '--repo', repo, '--head', receipt.integrationBranch, '--base', 'master', '--state', 'open', '--json', 'url,headRefOid'], repository, options);
+    if (!Array.isArray(existing)) fail('PR_IDENTITY_UNPROVEN');
     if (existing.length > 1) fail('PR_IDENTITY_AMBIGUOUS');
     if (existing.length) {
+      const url = existing[0]?.url;
+      const identity = typeof url === 'string' && url.match(/^https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/([1-9][0-9]*)$/);
+      if (!identity || identity[1].toLowerCase() !== repo.toLowerCase()) fail('PR_IDENTITY_UNPROVEN');
       if (existing[0].headRefOid !== receipt.integrationCommit) fail('PR_HEAD_MISMATCH');
       return {status: 0, stdout: existing[0].url + '\n', stderr: ''};
     }
@@ -2288,7 +2302,8 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (closeoutEnabled(repository)) refreshFeatureRecord(repository, receipt, options);
         resourcePhase(repository, taskId, 'record', options);
         receipt = advancePublishedHead(repository, controller.readDeliveryReceipt(common), options);
-        result = advancePublishedHead(repository, controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, receipt, options, params.verification)}), options);
+        const publication = publicationSnapshot(repository, receipt, options);
+        result = advancePublishedHead(repository, controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, publication, options, params.verification)}), options);
         result = {...result, safetyAutoMergeDeferred: true};
       }
       if (action === 'status') {

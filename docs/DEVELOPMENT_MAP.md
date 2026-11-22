@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+原PR续接的发布候选冻结位于 `scripts/git_safety.mjs`，复用原 `publishDelivery`；回归在 `tests/javascript/git_safety.test.mjs` 使用真实共享控制器与独立磁盘回执，防止同一对象替身掩盖旧快照。原prepared-amend合同与所有任务历史保持，参见[发布合同](AGENT_WORKFLOW.md#原-pr-发布候选快照)。
+
 Docker 管理器的 `register --subnet` 与 `--resume-registration` 接续显式网段及未写账本的空 stage 资源；回归沿 `test_docker_manager.py`。
 
 FinGPT 完成切换后的双入口回滚位于 `resident/model_provider_upgrade.py`。它根据已接受版本绑定旧配置和工件，重新冻结当前保全资料，并使用原联合事务的恢复步骤。回归位于 `tests/research_web/test_model_provider_upgrade.py`。
