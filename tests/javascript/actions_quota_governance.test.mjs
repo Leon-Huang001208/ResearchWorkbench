@@ -209,6 +209,36 @@ test('documentation-only changes use only the lightweight constraints workflow',
   assert.equal(triggersForPath(workflows.desktop, 'push', file), false);
 });
 
+test('retention-only changes select their tool contracts while product changes retain the full scope', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-retention-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const toolFiles = ['scripts/test_artifact_retention.py', 'tests/research_web/test_test_artifact_retention.py',
+    'AGENTS.md', 'docs/research-web-storage-retention.md', 'docs/generated/py_file_index.md',
+    '.ai/reports/fix.md', '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs'];
+  for (const [files, base, expected] of [[toolFiles, 'a'.repeat(40), true],
+    [[...toolFiles, 'app/research_web/api.py'], 'a'.repeat(40), false],
+    [['.github/workflows/research-web-checks.yml'], 'a'.repeat(40), false], [toolFiles, '', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv, **kwargs):\n    assert argv[-2:]==[os.environ['BASE_SHA'],os.environ['HEAD_SHA']]\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    assert argv[:4]==['git','diff','--name-only','-z']\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output, SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(output, 'utf8').trim(), `retention_only=${expected}`);
+  }
+  assert.match(workflows.checks, /BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before \}\}/);
+  assert.match(workflows.checks, /HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \|\| github\.sha \}\}/);
+  assert.match(workflows.checks, /-- tests\/research_web\/test_test_artifact_retention\.py --confcutdir=tests\/research_web -q/);
+  for (const name of ['Run Research Web JavaScript contracts', 'Verify pinned editorial engine without model or paid requests']) {
+    const block = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    assert.match(block, /if: steps\.contract-scope\.outputs\.retention_only != 'true'/);
+  }
+});
+
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',

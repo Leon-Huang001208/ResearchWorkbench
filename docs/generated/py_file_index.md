@@ -27119,7 +27119,7 @@ Imports:
 ## `scripts/test_artifact_retention.py`
 
 Module docstring:
-> Register and retire local pytest temp roots after independent PASS evidence is sealed.
+> Retire owned pytest temp roots while preserving the real test outcome.
 
 Imports:
 - `__future__`

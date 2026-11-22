@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+测试临时根工具的纯局部修补沿原 Checks 作业运行 `test_test_artifact_retention.py` 的31项分片回归，
+不运行无关 Web、Node 和编辑引擎测试。范围来自真实事件 base/head 的差异；产品改动或范围未知仍运行原完整路径，
+不新增作业、依赖、runner、权限或超时。
+
 ## 原 PR #284 围栏内复核前移预算
 
 两处复核及其回归复用 Research Web Checks 已登记的
