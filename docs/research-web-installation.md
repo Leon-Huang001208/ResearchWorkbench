@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+可选管理员持久构建队列使用宿主已有 Python 3.12 标准库和 Git，不新增 Python 包，
+不修改 `web.in`、`web.lock` 或公开安装器。原有纯 Docker 命令不新增宿主 Python 前置条件；
+`capacity`、`build --wait` 或 `resume` 缺少兼容解释器时明确拒绝，不自动安装。
+本次不调整 Docker 内存或重启引擎；入口及恢复合同见[Docker手册](research-web-docker.md#持久构建队列)。
+
 `apply-local-knowledge` 在开始更新、准备维护围栏和切换检查点复核现有 Tailscale Serve。
 本模式要求443 RWB及9443 WeKnora固定 HTTPS 路由；已有8443 SuperAgent须匹配原目标。
 路由不符时停止更新并保留原服务，按[部署合同](research-web-gateway-upgrade.md#rwb-本地知识库受管升级)核对现场；

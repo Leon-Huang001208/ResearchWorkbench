@@ -1,5 +1,22 @@
 # GitHub Actions 免费额度治理
 
+## Docker 持久队列前移（2026-11-22）
+
+管理员构建队列只在 Research Web Checks 原有 Python contracts 分片清单增加
+`test_docker_build_queue.py`，不新增 workflow、job、runner、依赖、平台 dispatch 或超时。
+沿当前45分钟作业上限及既有 concurrency；定点离线测试增量预留30秒，实际时长由最终候选回执记录。
+
+原2026-10-26后继为超时前的孤立失败增加详细 nodeid 输出。当前主线已由
+`run_ci_pytest_partitions.py` 冻结完整收集与 worker 分配，JUnit 保留 `rwb_nodeid`，
+`stage_ci_pytest_evidence.py` 按白名单输出脱敏 nodeid 和失败阶段；本次保留该链，
+不退回直接 pytest 或附加旧 `-vv`。旧超时和 runner 通信失败仍属原候选证据，
+不能以本地期限夹具或队列测试通过改写为 CI 通过。
+旧后继 `test_asset_history.py` 的期限/排空时序测试单独前移，使用局部事件控制并保留实际线程、
+Future、取消和排空断言；不修改生产 DataHub，也不把测试中的供应商替身宣称为真实 SDK 验收。
+
+Mac Docker Desktop 的实际构建、健康及负载和同候选 Mac 安装分别取证；本次源码前移不调整
+Docker 内存或重启引擎，不触发金融/模型请求。远端写入前仍须重新核对仓库 visibility 与额度。
+
 ## 本机资料同步与当前研究预算（2026-11-20）
 
 沿 Research Web Checks 既有 Python 步骤增加 `test_weknora_sync.py`、`test_weknora_sync_client.py`、
