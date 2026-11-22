@@ -51,7 +51,7 @@ test('authorized applications link appears only for explicit enabled gateway fla
 test('server bootstrap preserves only exact enabled flag for the modern account menu', async () => {
   const bootstrap = readFileSync(new URL('../../app/research_web/ui/server/session.mjs', import.meta.url), 'utf8').replace(/^import .*;$/gm, '').replace("await import('/static/app.mjs');", '');
   for (const flag of [true, false, undefined, 'true']) {
-    const context = { window: { fetch: async () => ({ ok: true, json: async () => ({ user: { id: 'synthetic', username: '<user>', role: 'user', mcp_readonly_enabled: flag } }) }), EventSource: class {} }, document: { createElement: () => ({}), head: { append() {} }, body: {}, querySelector: () => null }, MutationObserver: class { observe() {} }, mountLegacyAccountMenu() {}, mountLegacyAccountWorkspace() {}, safeLog() {}, location: {}, URL, Request };
+    const context = { window: { fetch: async () => ({ ok: true, json: async () => ({ user: { id: 'synthetic', username: '<user>', role: 'user', mcp_readonly_enabled: flag } }) }), EventSource: class {} }, document: { documentElement: { dataset: {} }, createElement: () => ({}), head: { append() {} }, body: {}, querySelector: () => null }, MutationObserver: class { observe() {} }, mountLegacyAccountMenu() {}, mountLegacyAccountWorkspace() {}, safeLog() {}, location: {}, URL, Request };
     await vm.runInNewContext(`(async()=>{${bootstrap}})()`, context);
     assert.equal(renderAccountMenu(context.__RWB_ACCOUNT__).includes('/mcp/applications'), flag === true);
     assert.equal(renderAccountMenu(context.__RWB_ACCOUNT__).includes('<user>'), false);

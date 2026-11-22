@@ -753,9 +753,12 @@ def apply(
             clean(source, tool_revision)
         else:
             reviewed = review(source, target, primary)
-        github = GitHubEvidence(
-            Path(resident["gh"]), resident["repository"], Path(resident["source_common"])
+        delivery_common = (
+            git(source, "rev-parse", "--path-format=absolute", "--git-common-dir")
+            if static_ui
+            else resident["source_common"]
         )
+        github = GitHubEvidence(Path(resident["gh"]), resident["repository"], Path(delivery_common))
         if github.latest() != tool_revision:
             raise UpdateBlocked("resident_master_moved")
         proof = github.qualify(target)

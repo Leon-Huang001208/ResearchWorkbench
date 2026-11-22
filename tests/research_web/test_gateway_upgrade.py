@@ -939,6 +939,70 @@ def test_apply_ui_qualifies_tool_and_payload_and_never_deploys_tool(ui_apply):
     assert journal["proof"]["sha"] == payload and journal["tool_proof"]["sha"] == tool
 
 
+@pytest.mark.parametrize("gateway_common_changed", [False, True])
+def test_apply_ui_reads_candidate_delivery_without_rebinding_gateway(
+    ui_apply, monkeypatch, gateway_common_changed
+):
+    import json
+
+    g, home, root, source, previous, payload, tool, state, events = ui_apply
+    candidate_common, running_common = home / "candidate-common", home / "running-common"
+    deliveries = candidate_common / "leon-engineering/deliveries"
+    deliveries.mkdir(parents=True)
+    running_common.mkdir()
+    (deliveries / "reviewed.json").write_text(
+        json.dumps({"status": "ci_passed", "target": payload, "tool": tool})
+    )
+    configured, git, evidence = g.configured, g.git, g.GitHubEvidence
+
+    def resident(actual_home):
+        directory, config = configured(actual_home)
+        return directory, {**config, "source_common": str(running_common)}
+
+    def source_identity(project, *args):
+        if args == ("rev-parse", "--path-format=absolute", "--git-common-dir"):
+            if project == source:
+                return str(candidate_common)
+            return str(home / "replaced-common" if gateway_common_changed else running_common)
+        return git(project, *args)
+
+    def reviewed_delivery(gh, repository, common):
+        if not (common / "leon-engineering/deliveries").is_dir():
+            raise g.UpdateBlocked("resident_delivery_missing")
+        record = g.read_json(common / "leon-engineering/deliveries/reviewed.json")
+        assert record == {"status": "ci_passed", "target": payload, "tool": tool}
+        return evidence(gh, repository, common)
+
+    monkeypatch.setattr(g, "configured", resident)
+    monkeypatch.setattr(g, "git", source_identity)
+    monkeypatch.setattr(g, "GitHubEvidence", reviewed_delivery)
+    if gateway_common_changed:
+        with pytest.raises(g.UpdateBlocked, match="gateway_source_identity_changed"):
+            g.apply(home, source, payload, payload, expected_gateway=previous)
+        assert "signal" not in events and "install_tool_recovery" not in events
+        assert not (root / "run/gateway-upgrade.json").exists()
+        assert state["sha"] == previous
+    else:
+
+        class CandidateAdmitted(Exception):
+            pass
+
+        verify_primary = g.verify_primary
+
+        def admitted(*args):
+            verify_primary(*args)
+            raise CandidateAdmitted
+
+        monkeypatch.setattr(g, "verify_primary", admitted)
+        with pytest.raises(CandidateAdmitted):
+            g.apply(home, source, payload, payload, expected_gateway=previous)
+        assert "qualify:b" in events and "qualify:c" in events
+        assert "primary_idle" in events
+        assert "signal" not in events and "install_tool_recovery" not in events
+        assert not (root / "run/gateway-upgrade.json").exists()
+        assert state["sha"] == previous
+
+
 def test_apply_ui_requires_payload_equal_to_actual_primary(ui_apply):
     g, home, root, source, previous, payload, _tool, _state, events = ui_apply
     with pytest.raises(g.UpdateBlocked, match="gateway_static_revision_invalid"):

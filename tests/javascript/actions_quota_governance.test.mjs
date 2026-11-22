@@ -268,6 +268,75 @@ test('research pack changes select Host interfaces while unrelated product chang
   assert.match(workflows.checks, /test_weknora_formal_scope\.py/);
 });
 
+test('reviewed upgrades select only their maintenance and account UI contracts', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-reviewed-upgrade-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const operator = 'research_workbench_entrypoint/resident/model_provider_upgrade.py';
+  const files = [operator, 'research_workbench_entrypoint/resident/gateway_upgrade.py',
+    'tests/research_web/test_model_provider_upgrade.py', 'tests/research_web/test_gateway_upgrade.py',
+    'app/research_web/ui/server/session.mjs', 'app/research_web/ui/server/profile.css',
+    'tests/javascript/research_web_multiuser_session.test.mjs', 'tests/javascript/research_web_mcp_login.test.mjs',
+    'app/research_web/ui/progress-data.json', 'docs/CHANGELOG.md', 'docs/architecture/research-web/readme-review.json',
+    '.ai/reports/fix.md', '.github/workflows/research-web-checks.yml', '.github/workflows/research-web-bootstrap.yml',
+    'tests/javascript/actions_quota_governance.test.mjs'];
+  for (const [paths, base, gitFailure, expected] of [[files, 'a'.repeat(40), '', true],
+    [[...files, 'app/research_web/workbench.py'], 'a'.repeat(40), '', false],
+    [[...files, '.github/workflows/desktop-verify.yml'], 'a'.repeat(40), '', false],
+    [[...files, 'tests/research_web/test_protocol.py'], 'a'.repeat(40), '', false],
+    [[files[4], 'docs/research-web-ui.md'], 'a'.repeat(40), '', false],
+    [files, '', '', false], [files, 'a'.repeat(40), 'fetch', false], [files, 'a'.repeat(40), 'diff', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=1 if os.environ['SCOPE_GIT_FAILURE']=='fetch' else 0)\n    return SimpleNamespace(returncode=1 if os.environ['SCOPE_GIT_FAILURE']=='diff' else 0,stdout=bytes([0]).join(name.encode() for name in json.loads(os.environ['SCOPE_FILES']))+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: 'b'.repeat(40), GITHUB_OUTPUT: output,
+        SCOPE_FILES: JSON.stringify(paths), SCOPE_GIT_FAILURE: gitFailure}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const scope = Object.fromEntries(fs.readFileSync(output, 'utf8').trim().split('\n').map(line => line.split('=')));
+    assert.equal(scope.reviewed_upgrade_only, String(expected));
+    for (const flag of ['retention_only', 'architecture_only', 'g2b_release_only']) assert.equal(scope[flag], 'false');
+  }
+});
+
+test('reviewed upgrades run both complete maintenance modules and the bounded account UI group', t => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-reviewed-upgrade-commands-')));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  fs.mkdirSync(path.join(root, '.venv/bin'), {recursive: true});fs.mkdirSync(path.join(root, 'bin'));
+  const calls = path.join(root, 'calls.jsonl');
+  for (const [file, kind] of [['.venv/bin/python', 'python'], ['bin/git', 'git'], ['bin/node', 'node']]) {
+    fs.writeFileSync(path.join(root, file), `#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify({kind:${JSON.stringify(kind)},args:process.argv.slice(2)})+'\\n');\n`, {mode: 0o700});
+  }
+  for (const name of ['Run Research Web Python contracts', 'Run Research Web JavaScript contracts']) {
+    const step = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
+    const script = step.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n');
+    const command = script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false')
+      .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'false')
+      .replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}', 'false')
+      .replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}', 'true');
+    const result = spawnSync('/bin/bash', ['-e', '-c', command], {cwd: root,
+      env: {...process.env, PATH: path.join(root, 'bin') + path.delimiter + process.env.PATH,
+        RUNNER_TEMP: root, GITHUB_RUN_ID: '1', GITHUB_RUN_ATTEMPT: '1', CI_SCOPE_RECORD: calls}, encoding: 'utf8', timeout: 10000});
+    assert.equal(result.status, 0, `${name}: ${result.stderr}`);
+  }
+  const commands = fs.readFileSync(calls, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  const python = commands.filter(item => item.kind === 'python');assert.equal(python.length, 1);
+  assert.equal(python[0].args[0], 'scripts/run_ci_pytest_partitions.py');
+  assert.deepEqual(python[0].args.slice(python[0].args.indexOf('--') + 1), [
+    'tests/research_web/test_model_provider_upgrade.py', 'tests/research_web/test_gateway_upgrade.py', '--confcutdir=tests/research_web', '-q']);
+  const git = commands.filter(item => item.kind === 'git');assert.equal(git.length, 1);
+  assert.deepEqual(git[0].args.slice(-3), ['b800e50366d1a0868372bbf173822976066c143f',
+    'db2ae9a48ceca365852072e622aa6627aa7d0b83', '1529c3189b008b9861a2bee1511f051feefa76eb']);
+  const node = commands.filter(item => item.kind === 'node');assert.equal(node.length, 1);
+  assert.deepEqual(node[0].args, ['--test', ...['multiuser_session', 'mcp_login', 'account_menu', 'account_workspace',
+    'module_navigation', 'progress'].map(name => `tests/javascript/research_web_${name}.test.mjs`),
+    'tests/javascript/actions_quota_governance.test.mjs']);
+  const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
+  assert.match(editorial, /reviewed_upgrade_only != 'true'/);
+});
+
 test('installation changes trigger the GitHub macOS bootstrap gate', () => {
   for (const file of [
     'setup-web.sh',

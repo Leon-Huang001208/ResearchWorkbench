@@ -293,6 +293,7 @@ DOSSIERS_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 FINGPT_MODE = "reviewed-fingpt-alphadesk-v1"
 FINGPT_PREVIOUS = "33b3044dd68197106c5018e31482762cb1e02ea1"
 FINGPT_PAYLOAD = "1be11cf89adecce37f415ef031fc4cb38c7eb4d7"
+REVIEWED_MODE = "reviewed-full-upgrade-v1"
 ASSET_MODES = frozenset(
     (
         ASSET_MODE,
@@ -327,6 +328,7 @@ ASSET_MODES = frozenset(
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
+BUSINESS_INDEX_MODES = ASSET_MODES | {REVIEWED_MODE}
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
 CONTROLLER_SHA256 = "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
@@ -404,7 +406,11 @@ def execute(ops, state, *, recovering=False):
         return {"status": "recovery_required"}
 
 
-def previous_for(mode):
+def previous_for(mode, previous=None):
+    if mode == REVIEWED_MODE:
+        if not isinstance(previous, str) or not g.SHA.fullmatch(previous):
+            raise UpdateBlocked("reviewed_upgrade_previous_invalid")
+        return previous
     if mode in TRIAL_MODES:
         return TRIAL_PREVIOUS
     if mode == MODE:
@@ -765,13 +771,19 @@ def verify_primary(home, expected, mode):
         DOSSIERS_MODE,
         DISCOVERY_MODE,
         FINGPT_MODE,
+        REVIEWED_MODE,
         ETF_WEEKLY_V2_MODE,
         ETF_HISTORICAL_MODE,
         ETF_WEEKLY_ADMISSION_MODE,
         ETF_WEEKLY_ADMISSION_V2_MODE,
     }:
         result = g.verify_primary(home, expected, index_reader=read_business_index)
-        if mode in {*EVENT_PRESERVATION_MODES, *ATTACHED_MCP_PRESERVATION_MODES, FINGPT_MODE}:
+        if mode in {
+            *EVENT_PRESERVATION_MODES,
+            *ATTACHED_MCP_PRESERVATION_MODES,
+            FINGPT_MODE,
+            REVIEWED_MODE,
+        }:
             observed = weekly_primary_identity_precheck(home, expected)
             if observed.get("active") is not False:
                 raise MaintenanceBusy("research_active_or_unknown")
@@ -869,7 +881,7 @@ def asset_index_snapshot(home: Path):
 
 
 def validate_asset_snapshot(state):
-    if state.get("mode") not in ASSET_MODES:
+    if state.get("mode") not in BUSINESS_INDEX_MODES:
         return
     value = state.get("asset_index_before")
     if (
@@ -887,18 +899,36 @@ def validate_asset_snapshot(state):
 
 
 def verify_asset_index(home: Path, state):
-    if state.get("mode") in ASSET_MODES:
+    if state.get("mode") in BUSINESS_INDEX_MODES:
         validate_asset_snapshot(state)
         if asset_index_snapshot(home) != state["asset_index_before"]:
             log.error("asset_upgrade_business_index_changed")
             raise UpdateBlocked("asset_upgrade_business_index_changed")
 
 
-def review_assets(source: Path, target: str, mode=ASSET_MODE):
+def review_assets(source: Path, target: str, mode=ASSET_MODE, previous=None):
     """Freeze the selected reviewed product, including paths reverted from the diff."""
-    if mode not in ASSET_MODES:
+    if mode not in ASSET_MODES and mode != REVIEWED_MODE:
         raise UpdateBlocked("model_upgrade_profile_unknown")
-    previous = previous_for(mode)
+    previous = previous_for(mode, previous)
+    if mode == REVIEWED_MODE:
+        if not isinstance(target, str) or not g.SHA.fullmatch(target) or target == previous:
+            raise UpdateBlocked("reviewed_upgrade_revisions_invalid")
+        c.clean(source, target)
+        c.git(source, "merge-base", "--is-ancestor", previous, target)
+        for name in ("requirements/web.lock", "runtimes/research_web.json"):
+            if c.git(source, "rev-parse", f"{previous}:{name}") != c.git(
+                source, "rev-parse", f"{target}:{name}"
+            ):
+                raise UpdateBlocked("reviewed_upgrade_dependencies_changed")
+        result = {
+            "previous": previous,
+            "target": target,
+            "previous_tree": c.git(source, "rev-parse", f"{previous}^{{tree}}"),
+            "product_tree": c.git(source, "rev-parse", f"{target}^{{tree}}"),
+        }
+        log.info("reviewed_upgrade_product_verified previous=%s target=%s", previous, target)
+        return result
     payload = {
         ASSET_MODE: ASSET_PAYLOAD,
         ASSET_V2_MODE: ASSET_V2_PAYLOAD,
@@ -1192,9 +1222,11 @@ def review_storage_identity(source: Path, target: str):
     )
 
 
-def review(source: Path, target: str, mode=MODE):
+def review(source: Path, target: str, mode=MODE, previous=None):
     """Only the reviewed model payload plus this operator, its test and documentation."""
-    previous_for(mode)
+    previous_for(mode, previous)
+    if mode == REVIEWED_MODE:
+        return review_assets(source, target, mode, previous)
     if mode in TRIAL_MODES:
         if target != TRIAL_PAYLOAD:
             raise UpdateBlocked("trial_retirement_product_changed")
@@ -1338,14 +1370,18 @@ def verify_serve(origin, mode=None):
     web = value.get("Web", {})
     handlers = web.get(authority, {}).get("Handlers", {})
     extra_web, extra_tcp = {}, {}
-    if mode == LOCAL_KNOWLEDGE_MODE:
+    if mode == LOCAL_KNOWLEDGE_MODE or (
+        mode == REVIEWED_MODE and (host + ":9443" in web or "9443" in value.get("TCP", {}))
+    ):
         extra_web[host + ":9443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:18181"}}}
         extra_tcp["9443"] = {"HTTPS": True}
         # SuperAgent is independently managed. Its route may be absent, but
         # when either half exists both Web and TCP must match the fixed service.
-        if host + ":8443" in web or "8443" in value.get("TCP", {}):
-            extra_web[host + ":8443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}}
-            extra_tcp["8443"] = {"HTTPS": True}
+    if mode in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE} and (
+        host + ":8443" in web or "8443" in value.get("TCP", {})
+    ):
+        extra_web[host + ":8443"] = {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8097"}}}
+        extra_tcp["8443"] = {"HTTPS": True}
     # Existing /collections is a separate private service and is never changed.
     if (
         value.get("AllowFunnel")
@@ -1355,7 +1391,7 @@ def verify_serve(origin, mode=None):
         or any(web.get(key) != expected for key, expected in extra_web.items())
         or value.get("TCP") != {"443": {"HTTPS": True}, **extra_tcp}
         or (
-            mode == LOCAL_KNOWLEDGE_MODE
+            mode in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE}
             and any(route.get("HTTPS") is not True for route in value["TCP"].values())
         )
     ):
@@ -1495,7 +1531,7 @@ def activate_recovery_source(home: Path) -> None:
             return
         if (
             state.get("version") != 4
-            or state.get("mode") not in {MODE, *TRIAL_MODES, *ASSET_MODES}
+            or state.get("mode") not in {MODE, REVIEWED_MODE, *TRIAL_MODES, *ASSET_MODES}
             or str(artifact) != state["recovery"]["artifact"]
             or c.digest(artifact) != state["recovery"]["sha256"]
             or not re.fullmatch(r"[a-f0-9]{40}", state["target"])
@@ -1652,10 +1688,16 @@ def validate_state(home, state, *, executor_source=None):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     if (
         state.get("version") != (5 if state.get("mode") == TRIAL_SUCCESSOR_MODE else 4)
-        or state.get("mode") not in {MODE, *TRIAL_MODES, *ASSET_MODES}
-        or state.get("previous") != previous_for(state["mode"])
+        or state.get("mode") not in {MODE, REVIEWED_MODE, *TRIAL_MODES, *ASSET_MODES}
+        or state.get("previous") != previous_for(state["mode"], state.get("previous"))
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
+    if state.get("mode") == REVIEWED_MODE and (
+        state["previous"] != state.get("manifest", {}).get("code_commit")
+        or state["previous"] != state.get("accepted", {}).get("target")
+        or state["previous"] != state.get("config", {}).get("baseline")
+    ):
+        raise UpdateBlocked("reviewed_upgrade_previous_changed")
     if not g.SHA.fullmatch(state.get("target", "")) or state.get("phase") not in (
         "prepared",
         "preparing",
@@ -1712,13 +1754,26 @@ def validate_state(home, state, *, executor_source=None):
     if (
         source != expected
         or source.resolve() != source
-        or review(source, state["target"], state["mode"]) != state["reviewed"]
+        or (
+            review(source, state["target"], state["mode"], state["previous"])
+            if state["mode"] == REVIEWED_MODE
+            else review(source, state["target"], state["mode"])
+        )
+        != state["reviewed"]
     ):
+        raise UpdateBlocked("model_upgrade_source_changed")
+    if state["mode"] == REVIEWED_MODE and repository_identity(
+        source, state["config"]["repository"]
+    ) != state.get("source_repository"):
         raise UpdateBlocked("model_upgrade_source_changed")
     if c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") != (
         validate_trial_rebind(state)["source_common"]
         if state.get("mode") in TRIAL_MODES
-        else state["config"]["source_common"]
+        else (
+            state["source_repository"]["common"]
+            if state["mode"] == REVIEWED_MODE
+            else state["config"]["source_common"]
+        )
     ):
         raise UpdateBlocked("model_upgrade_source_changed")
     if (
@@ -1796,7 +1851,7 @@ def validate_state(home, state, *, executor_source=None):
             raise UpdateBlocked("model_upgrade_project_changed")
         verify_release_repository(state, role)
         actual = c.git(p, "rev-parse", "HEAD")
-        if actual not in (previous_for(state["mode"]), state["target"]):
+        if actual not in (previous_for(state["mode"], state.get("previous")), state["target"]):
             raise UpdateBlocked("model_upgrade_revision_unknown")
         c.clean(p, actual)
     if c.digest(Path(state["gateway_plist"])) != state["gateway_plist_sha256"]:
@@ -1889,6 +1944,7 @@ def gateway_configuration_matches(state, actual, previous):
         *EVENT_PRESERVATION_MODES,
         *ATTACHED_MCP_PRESERVATION_MODES,
         FINGPT_MODE,
+        REVIEWED_MODE,
     }:
         return actual == expected
     # JSON equality preserves boolean/number distinctions and missing fields.
@@ -2439,7 +2495,7 @@ class Operations:
         if state.get("mode") in EVENT_PRESERVATION_MODES:
             verify_event_schedules(self.home, state)
         state["before"] = g.preservation(self.home)
-        if state.get("mode") in ASSET_MODES or state.get("mode") in TRIAL_MODES:
+        if state.get("mode") in BUSINESS_INDEX_MODES or state.get("mode") in TRIAL_MODES:
             state["asset_index_before"] = asset_index_snapshot(self.home)
         if state.get("mode") in ATTACHED_MCP_PRESERVATION_MODES:
             self.research_bot_gateway_health(previous=not post_deploy_rollback(state), fenced=False)
@@ -2458,6 +2514,7 @@ class Operations:
         if self.state.get("mode") in {
             DISCOVERY_MODE,
             FINGPT_MODE,
+            REVIEWED_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
             MARKET_PREVIEW_MODE,
@@ -2492,7 +2549,12 @@ class Operations:
             native = self.manager._active_research_read_only(runtime)
             if native or (
                 self.state.get("mode")
-                in {*EVENT_PRESERVATION_MODES, *ATTACHED_MCP_PRESERVATION_MODES, FINGPT_MODE}
+                in {
+                    *EVENT_PRESERVATION_MODES,
+                    *ATTACHED_MCP_PRESERVATION_MODES,
+                    FINGPT_MODE,
+                    REVIEWED_MODE,
+                }
                 and type(native) is not list
             ):
                 return False
@@ -2515,7 +2577,10 @@ class Operations:
                 data.get("enabled") is not True
                 or data.get("active") is not False
                 or data.get("revision")
-                not in (previous_for(self.state.get("mode", MODE)), self.state["target"])
+                not in (
+                    previous_for(self.state.get("mode", MODE), self.state.get("previous")),
+                    self.state["target"],
+                )
             ):
                 return False
         if running["web"]["running"] and self.state.get("mode") in {
@@ -2530,6 +2595,7 @@ class Operations:
             MARKET_DAILY_MODE,
             *ATTACHED_MCP_PRESERVATION_MODES,
             UNIFIED_NAVIGATION_MODE,
+            REVIEWED_MODE,
             ASSET_V7_MODE,
             ASSET_V8_MODE,
             ASSET_V9_MODE,
@@ -2552,7 +2618,7 @@ class Operations:
                 log.info("market_upgrade_collectors_active_or_unknown")
                 return False
         index = read_business_index(self.home / "research-web/index.json")
-        if self.state.get("mode") in ASSET_MODES and not asset_queries_idle(index):
+        if self.state.get("mode") in BUSINESS_INDEX_MODES and not asset_queries_idle(index):
             log.info("asset_upgrade_queries_active_or_unknown")
             return False
         rows = index.get("automation_runs")
@@ -2654,12 +2720,19 @@ class Operations:
         )
 
     def install(self, previous):
-        sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
+        sha = (
+            previous_for(self.state.get("mode", MODE), self.state.get("previous"))
+            if previous
+            else self.state["target"]
+        )
         for role in ("primary", "gateway"):
             p = Path(self.state[role + "_project"])
             verify_release_repository(self.state, role)
             actual = c.git(p, "rev-parse", "HEAD")
-            if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
+            if actual not in (
+                previous_for(self.state.get("mode", MODE), self.state.get("previous")),
+                self.state["target"],
+            ):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
             if self.state.get("mode") in {
@@ -2741,7 +2814,9 @@ class Operations:
                 self.home, self.state["trial_retirement"], transaction=self.state["transaction"]
             )
         os.environ["RESEARCH_RESIDENT_REVISION"] = (
-            previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
+            previous_for(self.state.get("mode", MODE), self.state.get("previous"))
+            if previous
+            else self.state["target"]
         )
         ports = self.state["config"]["web_port"], self.state["config"]["runtime_port"]
         self.begin_successor_spawn(("web", "runtime"), previous=previous)
@@ -2849,13 +2924,17 @@ class Operations:
         return observed
 
     def verify(self, previous):
-        sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
+        sha = (
+            previous_for(self.state.get("mode", MODE), self.state.get("previous"))
+            if previous
+            else self.state["target"]
+        )
         if self.state.get("mode") in TRIAL_MODES:
             trial_primary_identity(self.home, sha, self.state)
         else:
             verify_primary(self.home, sha, self.state.get("mode", MODE))
         gateway = read_json(self.server / "resident.json")
-        if self.state.get("mode") in {*EVENT_PRESERVATION_MODES, FINGPT_MODE}:
+        if self.state.get("mode") in {*EVENT_PRESERVATION_MODES, FINGPT_MODE, REVIEWED_MODE}:
             validate_configuration(self.home, self.state)
             if not gateway_configuration_matches(self.state, gateway, previous):
                 raise UpdateBlocked("model_upgrade_gateway_configuration_changed")
@@ -2867,7 +2946,7 @@ class Operations:
             remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
             if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
                 raise UpdateBlocked("model_upgrade_private_health_failed")
-        if self.state.get("mode") == LOCAL_KNOWLEDGE_MODE:
+        if self.state.get("mode") in {LOCAL_KNOWLEDGE_MODE, REVIEWED_MODE}:
             primary = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/resident"
             )
@@ -2886,6 +2965,18 @@ class Operations:
                 ) is not old.get("alphadesk_qa", False):
                     log.warning("local_knowledge_upgrade_execution_mode_changed")
                     raise UpdateBlocked("local_knowledge_upgrade_execution_mode_changed")
+            if self.state.get("mode") == REVIEWED_MODE and (
+                any(
+                    value.get("mcp_readonly_enabled", False)
+                    is not self.state["gateway_config"].get("mcp_readonly_enabled", False)
+                    for value in (local, remote)
+                )
+                or not gateway_configuration_matches(
+                    self.state, read_json(self.server / "resident.json"), previous
+                )
+                or self.event_gateway_identity() != gateway_identity
+            ):
+                raise UpdateBlocked("reviewed_upgrade_gateway_mode_changed")
         if self.state.get("mode") == FINGPT_MODE:
             primary = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/resident"
@@ -3318,7 +3409,9 @@ class Operations:
             "status": result,
             "target": state["target"],
             "revision": (
-                state["target"] if result == "deployed" else previous_for(state.get("mode", MODE))
+                state["target"]
+                if result == "deployed"
+                else previous_for(state.get("mode", MODE), state.get("previous"))
             ),
             "preserved": state.get("mode") not in TRIAL_MODES,
             **(
@@ -4080,7 +4173,21 @@ def operate(
     trial_backup_parent=None,
     trial_terminal_receipt=None,
     rollback_target=None,
+    expected_previous=None,
+    expected_target=None,
 ):
+    if mode == REVIEWED_MODE and not recovering:
+        if (
+            source is None
+            or not isinstance(expected_previous, str)
+            or not g.SHA.fullmatch(expected_previous)
+            or not isinstance(expected_target, str)
+            or not g.SHA.fullmatch(expected_target)
+            or expected_previous == expected_target
+        ):
+            raise UpdateBlocked("reviewed_upgrade_arguments_invalid")
+    elif expected_previous is not None or expected_target is not None:
+        raise UpdateBlocked("reviewed_upgrade_arguments_forbidden")
     if rollback_target is not None and (
         recovering or mode not in {FINGPT_MODE, LOCAL_KNOWLEDGE_MODE} or source is not None
     ):
@@ -4105,7 +4212,7 @@ def operate(
         raise UpdateBlocked("trial_retirement_flags_forbidden")
     if not recovering and mode in TRIAL_MODES and any(value is None for value in trial_flags):
         raise UpdateBlocked("trial_retirement_authorization_required")
-    previous = previous_for(mode)
+    previous = previous_for(mode, expected_previous)
     if sys.platform != "darwin":
         raise UpdateBlocked("model_upgrade_macos_only")
     root, config = c.configured(home)
@@ -4142,7 +4249,7 @@ def operate(
             completed_rollback = resume_fingpt_rollback_completion(home, state)
             if completed_rollback is not None:
                 return completed_rollback
-            previous = previous_for(state["mode"])
+            previous = previous_for(state["mode"], state.get("previous"))
             # BirthFence journals describe both staged and releasing slots.
             # Its own identity-checked recovery handles these intermediate
             # states, before the activity probe interprets owner records.
@@ -4168,17 +4275,28 @@ def operate(
             )
             if source is None:
                 raise UpdateBlocked("model_upgrade_source_required")
+            if mode == REVIEWED_MODE and config.get("baseline") != previous:
+                raise UpdateBlocked("reviewed_upgrade_previous_changed")
             executor_revision = c.git(source, "rev-parse", "HEAD")
             target = TRIAL_PAYLOAD if mode in TRIAL_MODES else executor_revision
+            if mode == REVIEWED_MODE and target != expected_target:
+                raise UpdateBlocked("reviewed_upgrade_target_changed")
             validate_executor(source, executor_revision)
             source_transition = trial_rebind(source, config) if mode in TRIAL_MODES else None
+            source_repository = (
+                repository_identity(source, config["repository"]) if mode == REVIEWED_MODE else None
+            )
             if c.git(source, "rev-parse", "--path-format=absolute", "--git-common-dir") != (
                 source_transition["after"]["common"]
                 if source_transition
-                else config["source_common"]
+                else (source_repository["common"] if source_repository else config["source_common"])
             ):
                 raise UpdateBlocked("model_upgrade_source_changed")
-            reviewed = review(source, target, mode) if mode not in TRIAL_MODES else None
+            reviewed = (
+                review(source, target, mode, previous)
+                if mode == REVIEWED_MODE
+                else (review(source, target, mode) if mode not in TRIAL_MODES else None)
+            )
             if c.digest(root / "controller.pyz") != CONTROLLER_SHA256:
                 raise UpdateBlocked("model_upgrade_controller_unreviewed")
             with zipfile.ZipFile(root / "controller.pyz") as original:
@@ -4196,7 +4314,11 @@ def operate(
                 Path(
                     source_transition["after"]["common"]
                     if source_transition
-                    else config["source_common"]
+                    else (
+                        source_repository["common"]
+                        if source_repository
+                        else config["source_common"]
+                    )
                 ),
             )
             if github.latest() != (executor_revision if mode in TRIAL_MODES else target):
@@ -4291,10 +4413,12 @@ def operate(
                 "controller_sha256": c.digest(root / "controller.pyz"),
                 "supervisor_plist_sha256": supervisor_hash,
             }
+            if source_repository is not None:
+                state["source_repository"] = source_repository
             if mode in EVENT_PRESERVATION_MODES:
                 state["event_schedules_before"] = event_before
                 verify_event_schedules(home, state)
-            if mode in ASSET_MODES:
+            if mode in BUSINESS_INDEX_MODES:
                 state["asset_index_before"] = asset_index_snapshot(home)
             for role in ("primary", "gateway"):
                 project = Path(state[role + "_project"])
@@ -4406,7 +4530,7 @@ def operate(
         ):
             return {"status": "recovery_required" if recovering else "deferred"}
         recheck_previous = not post_deploy_rollback(state) and (
-            state["mode"] in ATTACHED_MCP_PRESERVATION_MODES
+            state["mode"] in {*ATTACHED_MCP_PRESERVATION_MODES, REVIEWED_MODE}
         )
         if not recovering:
             # Establish recovery ownership BEFORE BirthFence publishes any
@@ -4577,6 +4701,7 @@ def main(argv=None):
         "command",
         choices=(
             "apply",
+            "apply-reviewed",
             "apply-assets",
             "apply-assets-v2",
             "apply-assets-v3",
@@ -4620,6 +4745,8 @@ def main(argv=None):
     )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
+    parser.add_argument("--expected-previous")
+    parser.add_argument("--expected-target")
     parser.add_argument("--rollback-target")
     parser.add_argument("--end-weekly-waiting", action="store_true")
     parser.add_argument("--weekly-monitoring-action", type=Path)
@@ -4633,6 +4760,16 @@ def main(argv=None):
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/model-upgrade.log", level=logging.INFO)
     try:
+        if args.command == "apply-reviewed":
+            if (
+                args.source is None
+                or not g.SHA.fullmatch(args.expected_previous or "")
+                or not g.SHA.fullmatch(args.expected_target or "")
+                or args.expected_previous == args.expected_target
+            ):
+                raise UpdateBlocked("reviewed_upgrade_arguments_invalid")
+        elif args.expected_previous is not None or args.expected_target is not None:
+            raise UpdateBlocked("reviewed_upgrade_arguments_forbidden")
         handoff_values = (
             args.handoff_journal_sha256,
             args.handoff_journal_dev,
@@ -4681,8 +4818,17 @@ def main(argv=None):
             args.home,
             args.source,
             recovering=args.command == "recover",
+            **(
+                {
+                    "expected_previous": args.expected_previous,
+                    "expected_target": args.expected_target,
+                }
+                if args.command == "apply-reviewed"
+                else {}
+            ),
             **({"rollback_target": args.rollback_target} if args.rollback_target else {}),
             mode={
+                "apply-reviewed": REVIEWED_MODE,
                 "apply-assets": ASSET_MODE,
                 "apply-assets-v2": ASSET_V2_MODE,
                 "apply-assets-v3": ASSET_V3_MODE,
