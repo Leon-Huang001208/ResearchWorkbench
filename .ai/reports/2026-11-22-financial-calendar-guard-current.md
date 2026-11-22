@@ -9,6 +9,7 @@
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"仅在既有Native联合操作员的BirthFence SQLite排他锁及安装作用域内前移配置和前版复核，主实例、附接网关、安装入口与唯一DSH职责不变；不增加运行节点、依赖、模式或容器，不需要改动现有部署图。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"沿原账号身份、前版双健康、MCP实际值与账号资料保全读取复核，准备恢复失败保留原journal；数据库、认证边界、业务接口、授权和恢复数据路径均未改变，无新增拓扑或图示节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只为既有维护操作员与测试增加两个精确选择器、完整模块catalog及原Bootstrap的PR/push测试路径；L0-L4规划、原三CI作业与runner、回执协议和跨平台交接链保持，未新增验证节点、执行通道或模型比较，不改变08-iteration-docs图的拓扑。","diagrams":[]} -->
 
 Product-Progress: not-required — 本次仅加强既有本机维护操作员的锁内验证顺序，不增加浏览器功能或改变用户产品流程。
 
@@ -79,7 +80,9 @@ Trial／完成后回滚方向、真实中断恢复、dossiers 保全及 finish �
 完整 `test_model_provider_upgrade.py` catalog 带原 `--confcutdir=tests/research_web`，
 没有 nodeid、关键字筛选或替代的局部子集。原通用完整检查、架构／Constraints、
 关键 smoke、文档／Python 索引及原三项 CI 保留，Windows 门交对应真机，Mac 不 dispatch。
-相邻未知 resident 与测试文件继续为 L4 fallback；未改 workflow、job、runner、安装、依赖、权限或超时。
+相邻未知 resident 与测试文件继续为 L4 fallback。完整检查另发现 Bootstrap 的精确测试路径
+及 verification-workflow 文档缺项；保留原失败结果后，在原 PR／push 清单各补该测试路径，
+同步比较文档与结构不变说明，不改断言、job、runner、安装、依赖、权限或超时。
 固定 Node24.19.0 的定点路由回归3项和完整 `verification_policy` 108项均通过，后者包含前者，
 不重复相加。原两项RED和通过输出保存在外置 `rwb-pr284-current-20261122/router-mapping/`。
 此处仅补政策、回归及文档，未执行整模块3975项、pytest、模型、服务或任何发布动作；
