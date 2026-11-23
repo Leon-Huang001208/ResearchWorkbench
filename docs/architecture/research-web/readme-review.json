@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "FinGPT入口不变，仅修复专有封存资源目录清理。",
-  "reason": "复用既有Store清理只读目录，保留实际文件引用和DataHub；无新入口、能力、依赖或部署节点。"
+  "summary": "仅修正既有网关启动配置接线，FinGPT入口范围不变。",
+  "reason": "原启动方法复用已有已审配置helper，使预期参数与实际发布一致；无新增入口、模型、依赖、服务或存储。"
 }
