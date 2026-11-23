@@ -8,3 +8,5 @@ Mac mini / macOS 功能修复，接续原替换任务和PR330。75f9正式删除
 Product-Progress: not-required — 原替换入口的配置接线更正，不新增用户能力。
 
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"网关前向配置沿既有原生登录参数，回滚原配置与账号保全不变；只修实际启动对既有配置函数的调用，没有新增认证或存储结构。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅让原FinGPT精确名单接受升级器与专属回归同变的已发生修复组合，保留名单外全路径、原三CI与Mac安装，没有新增作业或权限。","diagrams":[]} -->
