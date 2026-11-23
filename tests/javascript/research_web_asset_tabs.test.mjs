@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { isNativeFinGPTEntry } from '../../app/research_web/ui/qa-navigation.mjs';
 import { readFile } from 'node:fs/promises';
 import * as workspace from '../../app/research_web/ui/asset-workspace.mjs';
 import * as navigation from '../../app/research_web/ui/asset-navigation.mjs';
@@ -213,7 +214,7 @@ test('same-asset route executes only topic loaders and preserves the main scroll
   const scroller = { scrollTop: 670, scrollTo() { throw new Error('tab navigation must not reset the main scroll'); } };
   const page = { dataset: { assetIdentity: 'stock:600519.SH' } };
   const calls = [];
-  const bindings = { nativeFinGPT: () => true, location: { hash: '#/assets?view=news&asset=600519.SH&asset_type=stock' }, history: {}, legacyRouteTarget: () => null, parseRoute: () => route('news'), root: { querySelector: () => page }, assetState: { observation: null, errors: {} }, isAssetPage: () => true, state, updateAssetTopic: () => calls.push('topic'), assetTopicProps: () => ({}), mountAssetTopicIndicators: () => calls.push('topic-chart'), assetWorkspace: { activateView: async () => calls.push('view-load') }, assetNews: { activate: async () => calls.push('news-load') }, safeLog: () => {}, paintAssetWorkspace: () => calls.push('summary'), document: { querySelector: () => scroller }, controller: { open() { throw new Error('full navigation must not execute'); } } };
+  const bindings = { isNativeFinGPTEntry, nativeFinGPT: () => true, location: { hash: '#/assets?view=news&asset=600519.SH&asset_type=stock' }, history: {}, legacyRouteTarget: () => null, parseRoute: () => route('news'), root: { querySelector: () => page }, assetState: { observation: null, errors: {} }, isAssetPage: () => true, state, updateAssetTopic: () => calls.push('topic'), assetTopicProps: () => ({}), mountAssetTopicIndicators: () => calls.push('topic-chart'), assetWorkspace: { activateView: async () => calls.push('view-load') }, assetNews: { activate: async () => calls.push('news-load') }, safeLog: () => {}, paintAssetWorkspace: () => calls.push('summary'), document: { querySelector: () => scroller }, controller: { open() { throw new Error('full navigation must not execute'); } } };
   const show = new Function(...Object.keys(bindings), `let pageGeneration=1; let assetTopicNavigation=0; let workbenchBusy=false; ${source}; return showRoute;`)(...Object.values(bindings));
   await show();
   assert.equal(scroller.scrollTop, 670);
