@@ -44,6 +44,8 @@ def retired(service, row):
     return (
         enabled(service)
         and row["mode"] == "fingpt"
+        and not row.get("data_only")
+        and not row.get("mcp_data_grant_id")
         and row.get("research_mode") != "specialist"
         and not owns(row)
     )

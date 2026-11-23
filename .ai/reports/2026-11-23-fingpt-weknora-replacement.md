@@ -18,3 +18,7 @@
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"沿既有三项CI选取本组件与共享账号/MCP的相关闭包，未知路径走完整范围；没有新增工作流、runner、平台声明或执行通道。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"登录桥和精确删除均在既有网关及账号Store内，仍使用原SQLite、既有维护围栏与原WeKnora账号；新增HTTP合同已登记，不增加数据库服务或新的身份系统。","diagrams":[]} -->
 <!-- architecture-review {"group":"knowledge-backend","structure":"unchanged","reason":"原生auth/me核验后在原账号绑定补存SSO映射邮箱，知识库、向量化、同步与current-hit权限链保持，未新增数据来源或知识存储节点。","diagrams":[]} -->
+
+独评实际发现并修复：普通报告的 session_id 不再导致整条聊天附件集合保留，仅保留真实文件引用；同会话专有附件删除回归4项通过。保留的data-only及原MCP数据上下文不再被旧AlphaDesk退役判据拒绝，仍不显示为聊天。21模块直接单根运行因临时目录超512MiB已取消，不记为通过，已清理本任务可重建夹具，后续使用已有分批回收入口；不重复业务模型。
+
+<!-- architecture-review {"group":"alphadesk-qa","structure":"unchanged","reason":"仅修正旧聊天退役判据，原DataHub数据上下文继续可读但不进入聊天列表；不改变AlphaDesk执行器、模型路由、原生工具或报告链，FinGPT新界面仍由既有WeKnora承担。","diagrams":[]} -->
