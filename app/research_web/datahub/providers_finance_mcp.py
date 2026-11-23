@@ -127,6 +127,8 @@ async def fetch(query, *, transport=None, connections=None):
         result.rows = rows[:limit]
         result.provider_total = len(rows)
         result.status = "snapshot"
+        if rows and "provider_payload" in rows[0] and tool != "finance_list_tools":
+            result.status = "partial"
         result.limitations = [
             "provider_native_fields",
             "units_not_verified",
@@ -135,6 +137,8 @@ async def fetch(query, *, transport=None, connections=None):
         ]
         if len(rows) > limit:
             result.limitations.append("row_limit")
+        if result.status == "partial":
+            result.limitations.append("vendor_business_semantics_unverified")
         result.metadata = {
             "schema_version": "finance-mcp-envelope-v1",
             "upstream_tool": tool,
