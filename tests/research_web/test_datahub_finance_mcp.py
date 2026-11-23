@@ -71,7 +71,14 @@ def test_finance_catalog_requires_existing_account_credential():
 
 
 @pytest.mark.asyncio
-async def test_real_mcp_protocol_records_snapshot_without_claiming_units():
+@pytest.mark.parametrize(
+    "tool,payload,status",
+    [
+        ("finance_sources", {"ifind": {"status": "windows_worker"}}, "snapshot"),
+        ("finance_call", {"ok": True, "data": {"business_status": "unknown"}}, "partial"),
+    ],
+)
+async def test_real_mcp_protocol_records_snapshot_without_claiming_units(tool, payload, status):
     calls = []
 
     def respond(request):
@@ -90,16 +97,14 @@ async def test_real_mcp_protocol_records_snapshot_without_claiming_units():
         }
         if data["method"] == "tools/list":
             result = {
-                "tools": [
-                    {"name": "finance_sources", "inputSchema": {"type": "object", "properties": {}}}
-                ]
+                "tools": [{"name": tool, "inputSchema": {"type": "object", "properties": {}}}]
             }
         if data["method"] == "tools/call":
-            assert data["params"]["name"] == "finance_sources"
+            assert data["params"]["name"] == tool
             assert data["params"]["arguments"] == {}
             result = {
                 "content": [],
-                "structuredContent": {"ifind": {"status": "windows_worker"}},
+                "structuredContent": payload,
                 "isError": False,
             }
         return httpx.Response(200, json={"jsonrpc": "2.0", "id": data["id"], "result": result})
@@ -107,18 +112,20 @@ async def test_real_mcp_protocol_records_snapshot_without_claiming_units():
     query = BusinessQuery(
         capability="external_data",
         source=SOURCE,
-        parameters={"dataset": "finance_sources", "arguments_json": "{}", "limit": 10},
+        parameters={"dataset": tool, "arguments_json": "{}", "limit": 10},
     )
     connections = SimpleNamespace(
         read_source_secret=lambda source: "test-finance-token" if source == SOURCE else None
     )
     result = await fetch(query, transport=httpx.MockTransport(respond), connections=connections)
-    assert result.status == "snapshot", result.limitations
-    assert result.rows == [{"provider": "ifind", "status": "windows_worker"}]
-    assert (
-        result.raw
-        and json.loads(result.raw[0])["structuredContent"]["ifind"]["status"] == "windows_worker"
-    )
+    assert result.status == status, result.limitations
+    if tool == "finance_sources":
+        assert result.rows == [{"provider": "ifind", "status": "windows_worker"}]
+    else:
+        assert result.rows == [{"provider_payload": payload}]
+        assert result.metadata["quality_accepted"] is False
+        assert "vendor_business_semantics_unverified" in result.limitations
+    assert result.raw and json.loads(result.raw[0])["structuredContent"] == payload
     assert "units_not_verified" in result.limitations
     assert result.metadata["historical_point_in_time"] is False
     assert calls.count("tools/call") == 1
