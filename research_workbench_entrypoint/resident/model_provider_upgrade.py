@@ -3096,7 +3096,11 @@ class Operations:
             else:
                 self.manager._stop_locked()
         elif name in ("activate_sources_and_wheel", "restore_sources_and_wheel"):
-            if state.get("discard_fingpt_history") and not state.get("fingpt_history_retired"):
+            if (
+                name == "activate_sources_and_wheel"
+                and state.get("discard_fingpt_history")
+                and not state.get("fingpt_history_retired")
+            ):
                 # Both entrypoints have stopped at this point. Delete chats
                 # before installing or creating a rollback baseline; no chat
                 # archive is made and code rollback preserves the deletion.
