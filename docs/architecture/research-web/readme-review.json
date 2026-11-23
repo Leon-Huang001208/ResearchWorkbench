@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 Fed RSS、FinGPT 双入口恢复与主线研究包及显式 DataHub 查询 scope，保留当前公开入口。",
-  "reason": "Fed RSS 复用 DataHub、Discovery、Automation 和 Host 质量链。README 已随主线登记九个确定性研究包、三个原件方法、G2B、可信主账号数据源及通用已审升级；WeKnora 公开查询仍需明确同意，rwb.read 不扩权，连接与发现不取数。本批保留该内容，FinGPT 来源报告与受管升级由模块文档说明，无新增安装入口、依赖或数据迁移；源码、CI、真实业务及部署分别留证。"
+  "summary": "复核模型配置保存的退役会话与历史完成状态修复，保留当前公开入口。",
+  "reason": "本次复用既有Host历史投影与FinGPT退役边界，并修正模型表单协议身份提交；没有新增运行节点、安装入口、依赖或数据迁移。README现有模型配置与本地服务说明仍适用；具体准入和FormData行为由运行时及UI模块文档说明，源码、CI、服务更新与MiniMax实际生成分别验证。"
 }
