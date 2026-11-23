@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "README 对齐 FinGPT 原生 WeKnora 完整工作台与统一登录入口。",
-  "reason": "FinGPT 沿原网关和已有 WeKnora 应用替换旧问答界面，README 改指向原生工作台合同；Claw、DataHub、知识库及正式报告仍保留。源码、浏览器免二次登录、CI、精确聊天删除和实际部署分别报告，不以本次来源或页面验证冒称全部功能和金融质量通过。"
+  "disposition": "unchanged",
+  "summary": "复核 DataHub 金融 MCP 和 WeKnora 已配置来源查询扩展。",
+  "reason": "本次复用 README 已说明的账号 Host、DataHub 和 WeKnora 工具边界，公开安装入口、部署节点和用户主入口不变；新增的来源能力、明确 OAuth 范围、原生字段及未验证事项已在金融 MCP 与 DataHub 合同中说明，不需要修改 README 的高层入口介绍。"
 }

@@ -1,5 +1,9 @@
 # Research Web 前端
 
+研发进展新增“WeKnora 复用 DataHub 已配置来源”待验证条目，只描述候选能力和未完成的
+CI／部署状态。现有数据源设置、权限确认和页面交互继续复用，见
+[金融 MCP](research-web-finance-mcp.md)。
+
 问答中打开长网页或档案时，执行器可用工具返回的位置继续读取，同一来源在引用列表中保留原身份。
 
 受管 Docker 发布维护期间，新写操作返回 `503 release_maintenance`；已接纳的研究继续完成，队列等待而不重复提交。没有新增发布按钮，普通 Native 界面不因未启用的 Docker release 合同改变。

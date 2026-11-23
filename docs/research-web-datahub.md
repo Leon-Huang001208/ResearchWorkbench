@@ -1,5 +1,9 @@
 # Research Web DataHub
 
+金融数据 MCP 作为 `ext_finance_mcp` 接入原 `external_data` 能力，使用当前账号的一份
+客户端令牌，复用原查询、原件和快照。WeKnora 经新确认的 configured scope 查询当前
+callable／allowed 来源，旧 FRED/BLS 授权不自动扩权。见[金融 MCP 合同](research-web-finance-mcp.md)。
+
 知识工具的正式单轮分支仍只提交会话 query／hit_id，由 Host grant 派生资料范围并校验原生首轮，不允许模型把知识库、scope 或文档白名单写入工具参数。会话回执绑定资料原件与当前请求；这条资料链不绕过 DataHub 来源准入、供应商授权、金融快照或 PIT 门。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
 
 `research_search_knowledge`／`research_read_knowledge` 在既有可信Host回调提供独立的知识命中投影；`knowledge:`引用由会话回执和原件／分块指纹核对，不把模型文本登记为来源。金融取数、DataHub快照和供应商权限继续沿原链，未知资料时点不获得PIT资格。见[资料合同](research-web-weknora.md)。

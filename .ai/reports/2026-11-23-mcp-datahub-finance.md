@@ -1,5 +1,10 @@
 # WeKnora 正式 RWB MCP 与金融数据网关
 
+<!-- architecture-review {"group":"inbound-mcp-readonly","structure":"unchanged","reason":"在原OAuth、账号Host和DataHub链扩展scope与业务工具，部署节点、凭据归属、冻结存储和研究执行器保持原拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"金融网关是现有外部Provider类目中的固定上游，复用查询、凭据和快照，不新增存储、调度器或第二套数据平台。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"界面改动仅为进度目录中的待验证能力条目，不修改导航、页面布局、交互、外观或报告生产流程。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅将新增金融Provider回归纳入原Checks命令，job、runner、依赖、权限、预算和平台验收拓扑不变。","diagrams":[]} -->
+
 平台：macOS arm64 Mac mini；功能开发及现有服务配置。任务基线
 `3c3f84ddd2a03b837474e56d606b3453e9ab2129`，独立受管工作树。
 
@@ -27,6 +32,8 @@ Provider 7 项定点检查通过（SDK fixture 缺 tools/list 的失败已修正
 7 项检查通过，非 FRED 来源的查询读回断言修正为原合同 items 后单项通过。
 静态 Ruff／Black 通过，测试成功临时根已由原工具退休。
 
-新增 iFinD 嵌套业务错误检查、最终完整 changed-set 验证、必要 CI、独立审查、生产部署以及
+最终源码候选 d8b67e70 的 MCP/OAuth 与金融适配 178 项回归通过；架构／文档／预算合同 208 项通过。
+新增 iFinD 嵌套错误检查已纳入该批。完整 changed-set 项目约束、Ruff、Black、isort 和文档治理通过。
+必要 CI、独立审查、生产部署以及
 正式账号的完整快照读回尚待最终候选验证；不得把本记录当作发布或全部数据源验收。
 OpenBB 未变更；其他厂商本轮未逐家取数，不沿用旧文档的额度状态。
