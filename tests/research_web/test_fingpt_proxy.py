@@ -61,3 +61,11 @@ def test_workspace_ci_rejects_unrelated_changes():
     assert selected(files)
     assert not selected(files + ["app/research_web/datahub/providers.py"])
     assert not selected(["docs/research-web-fingpt-workspace.md"])
+
+    gateway_fix = [
+        "research_workbench_entrypoint/resident/model_provider_upgrade.py",
+        "tests/research_web/test_fingpt_retirement.py",
+    ]
+    assert selected(gateway_fix)
+    assert not selected(gateway_fix[:1])
+    assert not selected(gateway_fix + ["app/research_web/datahub/providers.py"])

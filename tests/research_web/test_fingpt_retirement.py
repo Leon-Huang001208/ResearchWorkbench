@@ -175,3 +175,51 @@ def test_remove_sealed_resources_but_keep_referenced_file(tmp_path):
     assert not exclusive.exists()
     assert formal.read_bytes() == b"formal"
     assert store.data["sessions"][sid]["files"] == {ids["report.pdf"]: "outputs/report.pdf"}
+
+
+def test_actual_gateway_start_publishes_forward_oauth_config_and_restores_old(
+    monkeypatch, tmp_path
+):
+    from types import SimpleNamespace
+
+    from app.research_web.multiuser.resident_binding import LegacyBinding
+    from research_workbench_entrypoint.resident import model_provider_upgrade as upgrade
+
+    old = {
+        "revision": "a" * 40,
+        "binding": {"revision": "a" * 40, "primary_user_id": "user"},
+        "mcp_readonly_enabled": True,
+        "alphadesk_qa": True,
+    }
+    state = {
+        "mode": upgrade.REVIEWED_MODE,
+        "gateway_config": old,
+        "target": "b" * 40,
+        "discard_fingpt_history": True,
+        "fingpt_workspace_origin": "https://rwb.tail123.ts.net:9443",
+        "gateway_plist": str(tmp_path / "gateway.plist"),
+        "transaction": "test",
+    }
+    binding = SimpleNamespace(
+        verify=lambda: {"revision": state["target"]},
+        public_config=lambda: {**old["binding"], "revision": state["target"]},
+    )
+    monkeypatch.setattr(LegacyBinding, "discover", lambda *args: binding)
+    published = []
+    monkeypatch.setattr(upgrade.c, "atomic", lambda path, config: published.append(config))
+    monkeypatch.setattr(upgrade.BirthFence, "recover", lambda *args, **kwargs: None)
+    monkeypatch.setattr(upgrade.g, "bootstrap", lambda path: None)
+    monkeypatch.setattr(upgrade.g, "wait_health", lambda config, **kwargs: None)
+    ops = SimpleNamespace(
+        state=state,
+        home=tmp_path,
+        server=tmp_path / "server",
+        fence=SimpleNamespace(release_database=lambda: None),
+        begin_successor_spawn=lambda *args, **kwargs: None,
+    )
+    upgrade.Operations.start_gateway(ops, False)
+    assert published[-1] == upgrade.gateway_configuration(state)
+    assert published[-1]["weknora_oauth_origin"] == state["fingpt_workspace_origin"]
+    upgrade.Operations.start_gateway(ops, True)
+    assert published[-1] == old
+    assert "weknora_oauth_origin" not in old
