@@ -15,3 +15,5 @@ CI补正：第一候选文档校验缺复核标记，已按原架构不变规则
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只在原Checks作业增加模型配置精确范围和原分片runner调用，三项CI与节点、依赖及45分钟上限保持原设计。","diagrams":[]} -->
 CI范围相关本地检查：governance37项通过，helper bash语法通过，相关Python209项完整收集成功；独立审查指出的helper触发路径已补入原PR/push paths。
+
+第三候选45100922433相关Python执行出现9个setup错误、没有断言失败，全部属于test_model_connections旧api fixture未隔离系统凭据后端。在显式Fail keyring后端单用例复现后，复用test_api.isolated_keyring（仓库现有模式）补齐。相同Fail后端下完整209项：206 passed、3原平台skip（173.62秒）；governance37通过，独立Python审查通过。测试断言与模型服务代码未削弱。
