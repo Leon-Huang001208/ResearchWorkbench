@@ -3088,6 +3088,39 @@ class Operations:
             else:
                 self.manager._stop_locked()
         elif name in ("activate_sources_and_wheel", "restore_sources_and_wheel"):
+            if state.get("discard_fingpt_history") and not state.get("fingpt_history_retired"):
+                # Both entrypoints have stopped at this point. Delete chats
+                # before installing or creating a rollback baseline; no chat
+                # archive is made and code rollback preserves the deletion.
+                from app.research_web.fingpt_retirement import retire_fingpt_history
+                from app.research_web.store import Store
+
+                roots = [self.home / "research-web"] + [
+                    p / "research-web"
+                    for p in (self.server / "users").iterdir()
+                    if (p / "research-web/index.json").is_file()
+                ]
+                protected = asset_index_snapshot(self.home)
+                retired = [retire_fingpt_history(Store(root)) for root in roots]
+                after = asset_index_snapshot(self.home)
+                mutable = {"sessions", "receipts", "operation_audit"}
+                strip = lambda values: {
+                    scope: (
+                        {k: v for k, v in record.items() if k not in mutable}
+                        if scope == "primary"
+                        else {
+                            uid: {k: v for k, v in row.items() if k not in mutable}
+                            for uid, row in record.items()
+                        }
+                    )
+                    for scope, record in values.items()
+                }
+                if strip(protected) != strip(after):
+                    raise UpdateBlocked("fingpt_retirement_business_data_changed")
+                state["fingpt_history_retired"] = retired
+                state["before"] = g.preservation(self.home)
+                state["asset_index_before"] = after
+                self.checkpoint(state, name)
             if state.get("mode") in TRIAL_MODES:
                 from . import trial_retirement as trial
 
@@ -4198,7 +4231,10 @@ def operate(
     rollback_target=None,
     expected_previous=None,
     expected_target=None,
+    discard_fingpt_history=False,
 ):
+    if discard_fingpt_history and (mode != REVIEWED_MODE or recovering):
+        raise UpdateBlocked("fingpt_discard_requires_reviewed_upgrade")
     dynamic = mode == REVIEWED_MODE or (
         mode == FINGPT_MODE and (expected_previous is not None or expected_target is not None)
     )
@@ -4434,6 +4470,7 @@ def operate(
                 "model_before": model_metadata(config),
                 "accepted": read_json(root / "accepted.json"),
                 "candidate_before": read_json(root / "candidate.json"),
+                **({"discard_fingpt_history": True} if discard_fingpt_history else {}),
                 "new_wheel": new_wheel,
                 "old_wheel": old_wheel,
                 "controller_sha256": c.digest(root / "controller.pyz"),
@@ -4773,6 +4810,7 @@ def main(argv=None):
     parser.add_argument("--source", type=Path)
     parser.add_argument("--expected-previous")
     parser.add_argument("--expected-target")
+    parser.add_argument("--discard-fingpt-history", action="store_true")
     parser.add_argument("--rollback-target")
     parser.add_argument("--end-weekly-waiting", action="store_true")
     parser.add_argument("--weekly-monitoring-action", type=Path)
@@ -4856,6 +4894,7 @@ def main(argv=None):
                 else {}
             ),
             **({"rollback_target": args.rollback_target} if args.rollback_target else {}),
+            **({"discard_fingpt_history": True} if args.discard_fingpt_history else {}),
             mode={
                 "apply-reviewed": REVIEWED_MODE,
                 "apply-assets": ASSET_MODE,

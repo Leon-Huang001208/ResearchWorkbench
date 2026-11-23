@@ -1907,7 +1907,7 @@ class ResearchService(ModelProfilesMixin):
         ]
         if self.service_only:
             return [self._external_history_summary(row) for row in rows]
-        rows = [row for row in rows if not qa_execution.retired(self, row)]
+        rows = [row for row in rows if not row.get("data_only") and not qa_execution.retired(self, row)]
         active_rows = [
             row for row in rows if row.get("deleted_at") is None and not qa_execution.owns(row)
         ]

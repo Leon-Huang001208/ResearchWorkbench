@@ -369,6 +369,7 @@ test('reviewed upgrades run both complete maintenance modules and the bounded ac
       .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}', 'false')
+      .replaceAll('${{ steps.contract-scope.outputs.fingpt_workspace_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}', 'true');
     const result = spawnSync('/bin/bash', ['-e', '-c', command], {cwd: root,
@@ -862,7 +863,8 @@ test('knowledge authority regressions execute once in each applicable CI branch'
   fs.writeFileSync(path.join(root,'bin/git'),'#!/bin/sh\nexit 0\n',{mode:0o700});
   for(const [retention,packs,fingpt] of [[false,false,false],[false,true,false],[true,false,false],[false,false,true]]) {
     const record=path.join(root,`${retention}-${packs}-${fingpt}.jsonl`);
-    const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt));
+    const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_workspace_only }}', 'false')
+      .replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt));
     const result=spawnSync('/bin/bash',['-e','-c',command],{cwd:root,env:{...process.env,PATH:path.join(root,'bin')+path.delimiter+process.env.PATH,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
     assert.equal(result.status,0,result.stderr);
     const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));

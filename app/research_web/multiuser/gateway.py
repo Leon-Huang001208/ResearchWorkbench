@@ -30,6 +30,8 @@ from ..mcp_facade.config import MACHINE_PATHS
 from ..mcp_facade.config import enabled as mcp_feature_enabled
 from ..plugins import PluginError
 from .accounts import SESSION_TTL_SECONDS, AccountError, AccountStore
+from .fingpt import MACHINE as FINGPT_MACHINE
+from .fingpt import FinGPTConfig, FinGPTIdentity
 from .origin import validate_origin
 from .plugin_routes import configure as configure_plugins
 from .plugin_routes import router as plugin_router
@@ -150,18 +152,38 @@ def create_gateway(
     ai_news_factory=None,
     mcp_enabled: bool | None = None,
     weknora_oauth_origin: str | None = None,
+    fingpt_config: FinGPTConfig | None = None,
 ) -> FastAPI:
     """Build one gateway without starting tenant processes or reading model secrets."""
     origin = validate_origin(origin)
     authority = urlsplit(origin).netloc
     secure = origin.startswith("https:")
+    fingpt_config = fingpt_config or FinGPTConfig.configured(accounts.root)
+    if fingpt_config and (
+        fingpt_config.origin == origin
+        or (
+            urlsplit(fingpt_config.origin).hostname == urlsplit(origin).hostname
+            and not fingpt_config.cookie_isolated
+        )
+    ):
+        raise ValueError("fingpt_cookie_origin_conflict")
+    fingpt = FinGPTIdentity(accounts, pool, fingpt_config, origin) if fingpt_config else None
     facade = None
     if mcp_feature_enabled(mcp_enabled):
         from ..mcp_facade.config import validate_weknora_gateway
         from ..mcp_facade.server import Facade
 
         if weknora_oauth_origin is not None:
-            validate_weknora_gateway(origin, weknora_oauth_origin, urlsplit(origin).port or 443)
+            validate_weknora_gateway(
+                origin,
+                weknora_oauth_origin,
+                urlsplit(origin).port or 443,
+                cookie_isolated=bool(
+                    fingpt_config
+                    and fingpt_config.cookie_isolated
+                    and fingpt_config.origin == weknora_oauth_origin
+                ),
+            )
         facade = Facade(accounts, pool, origin, weknora_oauth_origin=weknora_oauth_origin)
     elif weknora_oauth_origin is not None:
         raise ValueError("weknora_oauth_requires_mcp")
@@ -198,6 +220,28 @@ def create_gateway(
     app = FastAPI(title="Research Workbench Private Server", lifespan=lifespan)
     app.state.accounts = accounts
     app.state.pool = pool
+    if fingpt is not None:
+
+        @app.get("/.well-known/openid-configuration")
+        async def fingpt_discovery():
+            return await fingpt.discovery()
+
+        @app.get("/api/server/fingpt/workspace")
+        async def fingpt_workspace(request: Request):
+            return await fingpt.workspace(request)
+
+        @app.get("/api/server/fingpt/authorize")
+        async def fingpt_authorize(request: Request):
+            return await fingpt.authorize(request)
+
+        @app.post("/api/server/fingpt/token")
+        async def fingpt_token(request: Request):
+            return await fingpt.token(request)
+
+        @app.get("/api/server/fingpt/userinfo")
+        async def fingpt_userinfo(request: Request):
+            return await fingpt.userinfo(request)
+
     if facade is not None:
         app.state.mcp_facade = facade
         app.router.routes.extend(facade.routes)
@@ -259,12 +303,15 @@ def create_gateway(
         if request.headers.get("host", "").lower() != authority:
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
-        machine = facade is not None and request.url.path in MACHINE_PATHS
+        machine = (facade is not None and request.url.path in MACHINE_PATHS) or (
+            fingpt is not None and request.url.path in FINGPT_MACHINE
+        )
         cross_site = request.headers.get("sec-fetch-site") == "cross-site"
         oauth_navigation = cross_site and _weknora_oauth_navigation(request, facade)
+        fingpt_navigation = fingpt is not None and fingpt.navigation(request)
         if (
             (supplied_origin is not None and supplied_origin != origin)
-            or (cross_site and not oauth_navigation)
+            or (cross_site and not oauth_navigation and not fingpt_navigation)
             or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
             return error("server_origin_denied", 403)
@@ -395,7 +442,9 @@ def create_gateway(
         )
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; frame-ancestors 'none'",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"
+            + (" " + fingpt_config.origin if fingpt_config else "")
+            + "; object-src 'none'; frame-ancestors 'none'",
         )
         return response
 
@@ -438,6 +487,7 @@ def create_gateway(
     @app.get("/api/server/me")
     async def me(request: Request):
         return {
+            "fingpt_workspace": fingpt is not None,
             "user": {
                 **request.state.user.public(),
                 **({"mcp_readonly_enabled": True} if facade is not None else {}),

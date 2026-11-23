@@ -3,6 +3,25 @@
   "asOf": "2026-11-23",
   "features": [
     {
+      "id": "fingpt-native-weknora-workspace",
+      "module": "研究与报告",
+      "title": "FinGPT 完整工作台替换",
+      "summary": "FinGPT 接入 WeKnora 原生工作台，沿 RWB 登录进入已绑定身份。",
+      "scope": "完整知识库、对话、智能体与工具界面；保留 Claw、DataHub 和正式报告。",
+      "next": "完成同候选 CI、精确旧聊天删除及生产切换。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-weknora.md",
+      "updated": "2026-11-23",
+      "status": "validating",
+      "platforms": [
+        "macos"
+      ],
+      "included": false,
+      "activation": "disabled",
+      "limitations": "本机真实原生登录和身份核对通过；生产切换尚未执行，不以界面可用代替全部金融质量验收。",
+      "evidence": []
+    },
+    {
       "id": "fed-rss-fingpt-tracking",
       "module": "研究与报告",
       "title": "美联储官方公告跟踪",
@@ -13,7 +32,9 @@
       "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-discovery.md",
       "updated": "2026-11-23",
       "status": "validating",
-      "platforms": ["macos"],
+      "platforms": [
+        "macos"
+      ],
       "included": false,
       "activation": "disabled",
       "limitations": "真实官方资料、模型报告和定时去重已验收；尚待必要 CI 与常驻部署，相同内容不重复调用模型。",
@@ -49,7 +70,9 @@
       "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/285",
       "updated": "2026-11-22",
       "status": "validating",
-      "platforms": ["macos"],
+      "platforms": [
+        "macos"
+      ],
       "included": true,
       "activation": "disabled",
       "limitations": "离线合同与架构图已核对；真实资料、研究模型及常驻启用仍待验收，不自动获得正式报告资格。",
@@ -104,7 +127,9 @@
       "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-market-dashboard.md",
       "updated": "2026-11-06",
       "status": "validating",
-      "platforms": ["macos"],
+      "platforms": [
+        "macos"
+      ],
       "included": true,
       "activation": "unknown",
       "limitations": "正式评分需独立准入；采集日程与入站 MCP 保持关闭，实际部署和页面验收另证。",
