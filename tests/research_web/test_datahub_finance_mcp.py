@@ -76,6 +76,12 @@ def test_finance_catalog_requires_existing_account_credential():
     [
         ("finance_sources", {"ifind": {"status": "windows_worker"}}, "snapshot"),
         ("finance_call", {"ok": True, "data": {"business_status": "unknown"}}, "partial"),
+        ("gangtise_query", {"ok": True, "data": None}, "partial"),
+        (
+            "gangtise_query",
+            {"ok": True, "data": {"code": "000000", "status": True, "data": None}},
+            "partial",
+        ),
     ],
 )
 async def test_real_mcp_protocol_records_snapshot_without_claiming_units(tool, payload, status):

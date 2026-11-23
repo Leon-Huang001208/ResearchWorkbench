@@ -794,6 +794,7 @@ jobs:
             tests/research_web/test_mcp_facade_config.py \
             tests/research_web/test_mcp_facade_datahub.py \
             tests/research_web/test_datahub_finance_mcp.py \
+            tests/research_web/test_external_sources.py \
             tests/research_web/test_mcp_facade_oauth.py \
             tests/research_web/test_mcp_facade_http.py \
             tests/research_web/test_mcp_facade_read_policy.py \

@@ -64,9 +64,13 @@ def projection(tool, value):
         ]
     if tool == "gangtise_query":
         business = value.get("data", {})
+        if not isinstance(business, dict):
+            return [{"provider_payload": value}]
         if business.get("code") != "000000" or business.get("status") is not True:
             raise ProviderError("finance_mcp_vendor_failed")
         data = business.get("data", {})
+        if not isinstance(data, dict):
+            return [{"provider_payload": value}]
         fields, values = data.get("fieldList"), data.get("list")
         if isinstance(fields, list) and isinstance(values, list):
             if len(fields) != len(set(fields)) or any(not isinstance(key, str) for key in fields):
