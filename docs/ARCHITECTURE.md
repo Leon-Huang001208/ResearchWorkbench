@@ -1,5 +1,10 @@
 # Research Workbench 架构总览
 
+已配置来源的入站 MCP 在原账号 OAuth／Host／DataHub 链新增显式 scope，按当前账号目录的
+callable、allowed 和已实现绑定执行原 BusinessQuery。金融 MCP 为 DataHub 的固定上游
+Provider，复用 OS 凭据库、原查询记录及冻结快照；不将厂商密钥交给 WeKnora，不创建第二
+研究引擎或数据存储。来源与金融语义见[金融 MCP](research-web-finance-mcp.md)。
+
 Fed RSS 跟踪复用 DataHub 的 `ext_fed/news`、Discovery 冻结和原 Automation 调度，来源摘要经绑定附件进入 Host 已选的 FinGPT 执行链。RSS、原始发布时间和公告全文分别标识，未变化不调用模型；没有新增采集服务、调度器或数据库。
 
 附接 MCP 保全的 forward 切换与限定 preparing 恢复在原 BirthFence SQLite EX／安装作用域内，
