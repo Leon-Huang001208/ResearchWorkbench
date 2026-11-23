@@ -82,7 +82,7 @@ def retire_fingpt_history(store):
                         if not any(project.iterdir()):
                             project.rmdir()
         for folder in ("calls", "snapshots", "source-captures"):
-            if folder in {"snapshots", "source-captures"} and (has_data or referenced):
+            if has_data or referenced:
                 continue
             store._remove_owned_tree(store.root / ".control" / folder / sid)
         store.data["receipts"] = {
