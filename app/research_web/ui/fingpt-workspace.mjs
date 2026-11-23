@@ -46,6 +46,6 @@ export async function mountFinGPT(root, fetcher = fetch) {
   } catch (error) {
     safeLog('fingpt_workspace_open_failed');
     const current = root.querySelector('[data-fingpt-workspace]');
-    if (current) { current.textContent = error.message; const link = document.createElement('a'); link.href = '#/settings?section=knowledge'; link.textContent = ' 打开知识库设置'; current.append(link); }
+    if (current) { current.textContent = error.message; const link = document.createElement('a'); link.href = '#/settings/data'; link.textContent = ' 打开知识库设置'; current.append(link); }
   } finally { loading = false; }
 }
