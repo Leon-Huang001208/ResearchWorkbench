@@ -3,6 +3,8 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "tests/research_web/test_connection_center.py"
+      - "tests/research_web/test_datahub_catalog.py"
       - "scripts/run_mcp_datahub_ci.sh"
       - "tests/research_web/test_external_sources.py"
       - "app/research_web/datahub/connections.py"
@@ -126,6 +128,8 @@ on:
     branches:
       - master
     paths:
+      - "tests/research_web/test_connection_center.py"
+      - "tests/research_web/test_datahub_catalog.py"
       - "scripts/run_mcp_datahub_ci.sh"
       - "tests/research_web/test_external_sources.py"
       - "app/research_web/datahub/connections.py"
