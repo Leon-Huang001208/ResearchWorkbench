@@ -11,6 +11,8 @@ def test_remove_chat_and_native_generation_without_backup(tmp_path):
     sid = old["id"]
     chat = store.directory(sid) / "outputs/chat.txt"
     chat.write_text("old chat")
+    store.files(sid)
+    assert all(isinstance(path, str) for path in old["files"].values())
     native = store.root / "runtime/home/sessions/project" / sid
     native.mkdir(parents=True)
     (native / "generation.jsonl").write_text("old native messages")
@@ -38,18 +40,19 @@ def test_keep_datahub_and_formal_report_references(tmp_path):
     chat.write_text('{"messages": ["old chat"]}')
     output = root / "outputs/report.pdf"
     output.write_bytes(b"formal report")
-    old["files"]["shared-file"] = {"path": "outputs/report.pdf"}
     exclusive = root / "outputs/chat-attachment.txt"
     exclusive.write_text("private chat output")
-    old["files"]["exclusive-chat-file"] = {"path": "outputs/chat-attachment.txt"}
-    store.data["report_runs"]["formal"] = {"session_id": sid, "artifacts": ["shared-file"]}
+    file_ids = {item["name"]: item["id"] for item in store.files(sid)}
+    formal_id = file_ids["report.pdf"]
+    assert all(isinstance(path, str) for path in old["files"].values())
+    store.data["report_runs"]["formal"] = {"session_id": sid, "artifacts": [formal_id]}
     report = dict(store.data["report_runs"])
     assert retire_fingpt_history(store)["retained_data_contexts"] == 1
     assert dataset.read_text() == '[{"value": 5.33}]'
     assert receipt.read_text() == '{"dataset_id":"d1","data_success":true}'
     assert output.read_bytes() == b"formal report"
     assert not exclusive.exists()
-    assert set(store.data["sessions"][sid]["files"]) == {"shared-file"}
+    assert store.data["sessions"][sid]["files"] == {formal_id: "outputs/report.pdf"}
     assert not chat.exists()
     assert store.data["report_runs"] == report
     assert store.data["sessions"][sid]["data_only"] is True
@@ -129,3 +132,20 @@ def test_cutover_registers_native_oauth_only_in_forward_gateway_config():
     assert forward["alphadesk_qa"] is True
     assert upgrade.gateway_configuration(state, previous=True) == old
     assert "weknora_oauth_origin" not in old
+
+
+def test_rollback_never_starts_an_unperformed_chat_deletion(tmp_path):
+    from types import SimpleNamespace
+    from research_workbench_entrypoint.resident import model_provider_upgrade as upgrade
+
+    store = Store(tmp_path / "data")
+    old = store.create("fingpt", "not deleted")
+    artifact = store.directory(old["id"]) / "outputs/chat.txt"
+    artifact.write_text("untouched")
+    state = {"mode": upgrade.REVIEWED_MODE, "discard_fingpt_history": True}
+    calls = []
+    ops = SimpleNamespace(install=lambda previous: calls.append(previous))
+    upgrade.Operations.action(ops, "restore_sources_and_wheel", state)
+    assert calls == [True]
+    assert artifact.read_text() == "untouched"
+    assert "fingpt_history_retired" not in state
