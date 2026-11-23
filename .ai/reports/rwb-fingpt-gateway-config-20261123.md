@@ -6,3 +6,5 @@ Mac mini / macOS 功能修复，接续原替换任务和PR330。75f9正式删除
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"只将原网关启动配置来源改为已存在且已审的同一配置函数，锁、检查点、身份、启动顺序和原回滚保持，没有新增运行节点或恢复机制。","diagrams":[]} -->
 Product-Progress: not-required — 原替换入口的配置接线更正，不新增用户能力。
+
+<!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"网关前向配置沿既有原生登录参数，回滚原配置与账号保全不变；只修实际启动对既有配置函数的调用，没有新增认证或存储结构。","diagrams":[]} -->
