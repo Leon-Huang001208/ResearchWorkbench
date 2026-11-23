@@ -367,6 +367,15 @@
           "generic"
         ],
         "value": "python -m pytest tests/research_web/test_mcp_facade_store.py tests/research_web/test_mcp_facade_oauth.py tests/research_web/test_mcp_facade_http.py tests/research_web/test_mcp_facade_read_policy.py tests/research_web/test_mcp_facade_tools.py tests/research_web/test_mcp_facade_lifecycle.py tests/research_web/test_multiuser_cli.py --confcutdir=tests/research_web"
+      },
+      "research-web-fingpt-workspace": {
+        "level": "L4",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_fingpt_identity.py tests/research_web/test_fingpt_proxy.py tests/research_web/test_fingpt_retirement.py --confcutdir=tests/research_web"
       }
     },
     "documentation": {
@@ -498,11 +507,65 @@
   },
   "rules": [
     {
+      "id": "research-web-fingpt-workspace",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "fingpt_native_identity_and_history_boundary",
+      "impact": [
+        "security-boundary",
+        "research-web-ui",
+        "runtime-preservation"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/multiuser/fingpt.py",
+          "app/research_web/fingpt_retirement.py",
+          "integrations/weknora/rwb-fingpt.html",
+          "integrations/weknora/rwb-fingpt.mjs",
+          "integrations/weknora/workspace_proxy.py",
+          "scripts/fingpt_workspace_ci.py",
+          "scripts/run_fingpt_workspace_ci.sh",
+          "tests/research_web/test_fingpt_identity.py",
+          "tests/research_web/test_fingpt_proxy.py",
+          "tests/research_web/test_fingpt_retirement.py",
+          "tests/javascript/research_web_fingpt_workspace.test.mjs",
+          "app/research_web/multiuser/fingpt_config.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "macos",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-fingpt-workspace",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-critical-smoke"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap"
+      ],
+      "realMachine": []
+    },
+    {
       "id": "research-web-native-upgrade",
       "risk": "full-delivery",
       "minimumLevel": "L4",
       "reason": "research_web_native_upgrade_boundary",
-      "impact": ["native-upgrade", "runtime-preservation"],
+      "impact": [
+        "native-upgrade",
+        "runtime-preservation"
+      ],
       "coupling": "high",
       "match": {
         "files": [
@@ -513,7 +576,11 @@
         "segments": [],
         "suffixes": []
       },
-      "platforms": ["macos", "windows", "cross-platform"],
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
       "tests": [
         "research-web-native-upgrade",
         "research-web-architecture",
@@ -521,8 +588,16 @@
         "research-web-critical-smoke",
         "research-web-verification-full"
       ],
-      "documentation": ["documentation-governance", "python-file-index"],
-      "ci": ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-windows-verify"],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
       "realMachine": []
     },
     {
@@ -530,18 +605,39 @@
       "risk": "full-delivery",
       "minimumLevel": "L4",
       "reason": "architecture_evidence_checker_contract_change",
-      "impact": ["research-web-architecture"],
+      "impact": [
+        "research-web-architecture"
+      ],
       "coupling": "high",
       "match": {
-        "files": ["scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs"],
+        "files": [
+          "scripts/check_research_architecture.mjs",
+          "tests/javascript/research_web_architecture.test.mjs"
+        ],
         "prefixes": [],
         "segments": [],
         "suffixes": []
       },
-      "platforms": ["macos", "windows", "cross-platform"],
-      "tests": ["research-web-architecture", "project-constraints-local", "research-web-verification-full"],
-      "documentation": ["documentation-governance", "python-file-index"],
-      "ci": ["project-constraints", "research-web-checks", "research-web-bootstrap", "research-web-windows-verify"],
+      "platforms": [
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-windows-verify"
+      ],
       "realMachine": []
     },
     {

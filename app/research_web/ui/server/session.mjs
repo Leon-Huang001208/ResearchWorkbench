@@ -8,6 +8,7 @@ if (!identity.ok) { location.replace('/auth'); throw Error('login_required'); }
 const identityData = await identity.json();
 const user = { ...identityData.user, primary: identityData.primary === true };
 globalThis.__RWB_USER_ID__ = user.id;
+globalThis.__RWB_FINGPT_WORKSPACE__ = identityData.fingpt_workspace === true;
 globalThis.__RWB_USER_ROLE__ = user.role;
 globalThis.__RWB_ACCOUNT__ = Object.freeze({ username: user.username, role: user.role, primary: user.primary === true, ...(user.mcp_readonly_enabled === true ? { mcp_readonly_enabled: true } : {}) });
 document.documentElement.dataset.rwbPrimary = String(user.primary);

@@ -7115,6 +7115,23 @@ Functions:
 - `fail`
 
 
+## `app/research_web/fingpt_retirement.py`
+
+Module docstring:
+> Delete old FinGPT chat data during the explicitly authorized stopped cutover.
+
+Imports:
+- `core.observability`
+- `dossiers.storage`
+- `json`
+- `pathlib`
+- `store`
+- `uuid`
+
+Functions:
+- `retire_fingpt_history`
+
+
 ## `app/research_web/frameworks/__init__.py`
 
 Module docstring:
@@ -10595,6 +10612,56 @@ Functions:
 - `_account`
 
 
+## `app/research_web/multiuser/fingpt.py`
+
+Module docstring:
+> Single-client identity handoff to WeKnora's native OIDC/userinfo client.
+
+Imports:
+- `__future__`
+- `accounts`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `fingpt_config`
+- `hashlib`
+- `hmac`
+- `json`
+- `knowledge_backend.storage`
+- `secrets`
+- `urllib.parse`
+
+Classes:
+- `FinGPTIdentity`
+  - methods: __init__, digest, issue, resolve, exchange, navigation, discovery, workspace, authorize, token, userinfo
+
+Functions:
+- `account_root`
+  - Same attached-primary and private-account directories as the Host pool.
+- `bound_identity`
+
+
+## `app/research_web/multiuser/fingpt_config.py`
+
+Module docstring:
+> Stdlib-only FinGPT configuration; help/Doctor never import model settings.
+
+Imports:
+- `dataclasses`
+- `json`
+- `origin`
+- `os`
+- `pathlib`
+- `stat`
+
+Classes:
+- `FinGPTConfig`
+  - methods: __post_init__, configured, callback
+
+Functions:
+- `diagnostic`
+
+
 ## `app/research_web/multiuser/gateway.py`
 
 Module docstring:
@@ -10613,6 +10680,7 @@ Imports:
 - `fastapi.exceptions`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `fingpt`
 - `httpx`
 - `mcp_facade.config`
 - `origin`
@@ -26319,6 +26387,15 @@ Functions:
   - 审计日志示例
 - `main`
   - 运行示例
+
+
+## `scripts/fingpt_workspace_ci.py`
+
+Module docstring:
+> Select only the FinGPT native-workspace change set; unknown files stay full.
+
+Functions:
+- `selected`
 
 
 ## `scripts/fix_event_dates.py`

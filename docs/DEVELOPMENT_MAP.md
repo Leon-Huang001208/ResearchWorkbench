@@ -891,3 +891,7 @@ Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity
 ## 研究包与原件方法接续
 
 `scenarios/packs/` 是九包纯计算内核；`scenario_pack_inputs.py`、`scenario_pack_execution.py`、`scenario_method_sources.py` 沿现有 Host／DataHub／唯一 DSH 完成冻结、执行、质量复核与存档。入口继续由 `service.py`／`main.py` 调用，不新增运行服务。相关合同为 `test_pack_source_inputs.py`、`test_pack_execution_host.py`、`test_owned_method_execution.py` 与确定性内核测试；前移候选只复核受影响接口，复用未变的有效结果。
+
+## FinGPT 完整工作台
+
+身份桥在 `multiuser/fingpt.py`，壳接线在 `ui/fingpt-workspace.mjs`；WeKnora 原生事件和页面直接使用，Claw 不切内核。代理配置适配沿既有 `integrations/weknora/`，历史精确删除沿 `fingpt_retirement.py` 和原 `apply-reviewed` 停止阶段。新增三个 focused Python 模块、原账号/知识库/MCP及相关升级入口回归，未知混入变更仍走完整 CI；同候选 Mac 安装检查两项新静态资源，真实部署另验。详见[登录、Cookie与清理](research-web-fingpt-workspace.md)。

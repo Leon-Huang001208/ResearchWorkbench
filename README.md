@@ -1,6 +1,6 @@
 # Research Workbench
 
-Research Web 的 AlphaDesk AI 问答候选及切换状态见[问答合同](docs/research-web-ai-qa.md)。
+FinGPT 的 WeKnora 完整工作台、统一 RWB 登录与旧聊天删除边界见[工作台合同](docs/research-web-fingpt-workspace.md)。Claw 和携带冻结金融资料的业务研究保留原受控执行链；既有问答适配见[问答合同](docs/research-web-ai-qa.md)。
 
 策略模拟中的[策略验证](docs/research-web-strategy-validation.md)可导入冻结日线、配置卖出规则并查看逐笔相似对照，结果用于历史研究。
 

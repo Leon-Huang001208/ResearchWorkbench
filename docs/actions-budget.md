@@ -670,3 +670,5 @@ PR245 repair3 仅将原同一步根包安装改为产品已有的普通 wheel --
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。未增加 runner、独立作业或产品 dispatch。
+
+FinGPT 原生工作台分支保留身份/租户网关、WeKnora绑定/正式资料范围、MCP配置/HTTP/DataHub、三个新增组件、同次升级入口及真实会话列表接口的相关回归；未修改的Store/OAuth内核和无关市场/报告API复用已有通过结果，不再整库重跑。新出现的静态脚本体积边界加入原Checks相关支路，完整Node、固定编辑引擎、Constraints及同候选Mac干净安装仍保留；未知变更仍走完整范围，不新增job、runner或付费模型请求。

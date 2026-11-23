@@ -21,3 +21,6 @@ export function fingptReplacement(session, sessionId = '') {
   }
   return '#/qa';
 }
+
+// Existing financial handoffs carry a session id and retain their frozen scope.
+export const isNativeFinGPTEntry = (route, enabled = globalThis.__RWB_FINGPT_WORKSPACE__ === true) => enabled && ['fingpt', 'qa'].includes(route.page) && !route.sessionId && (!route.projectId || route.projectId === 'default') && route.clawView !== 'projects';

@@ -360,6 +360,13 @@ class WeKnoraClient:
             "user_id": _identifier(user.get("id")),
             "workspace_id": self.workspace_id,
             "role": roles[0],
+            **(
+                {"sso_email": user["email"]}
+                if isinstance(user.get("email"), str)
+                and "@" in user["email"]
+                and len(user["email"]) <= 254
+                else {}
+            ),
         }
 
     @_operation

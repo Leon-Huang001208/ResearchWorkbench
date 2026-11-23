@@ -23,6 +23,9 @@ on:
       - "research_workbench_entrypoint/**"
       - "scripts/run_ci_pytest_partitions.py"
       - "scripts/run_fingpt_source_ci.sh"
+      - "scripts/run_fingpt_workspace_ci.sh"
+      - "scripts/fingpt_workspace_ci.py"
+      - "integrations/weknora/**"
       - "scripts/stage_ci_pytest_evidence.py"
       - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
@@ -60,6 +63,9 @@ on:
       - "research_workbench_entrypoint/**"
       - "scripts/run_ci_pytest_partitions.py"
       - "scripts/run_fingpt_source_ci.sh"
+      - "scripts/run_fingpt_workspace_ci.sh"
+      - "scripts/fingpt_workspace_ci.py"
+      - "integrations/weknora/**"
       - "scripts/stage_ci_pytest_evidence.py"
       - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
@@ -122,6 +128,8 @@ jobs:
                   diff = subprocess.run(["git", "diff", "--name-only", "-z", base, head], capture_output=True)
                   if diff.returncode == 0:
                       files = [name for name in diff.stdout.decode().split("\0") if name]
+          from scripts.fingpt_workspace_ci import selected
+          fingpt_workspace = selected(files)
           tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
           scope_files = tool | {".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs", "AGENTS.md"}
           limited = bool(tool.intersection(files)) and all(name in scope_files or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
@@ -317,6 +325,7 @@ jobs:
               output.write("architecture_only=" + str(architecture_only).lower() + "\n")
               output.write("g2b_release_only=" + str(release).lower() + "\n")
               output.write("reviewed_upgrade_only=" + str(reviewed_upgrade).lower() + "\n")
+              output.write("fingpt_workspace_only=" + str(fingpt_workspace).lower() + "\n")
               output.write("fingpt_source_only=" + str(fingpt_source).lower() + "\n")
           print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "FinGPT source reports and Fed tracking" if fingpt_source else "full Research Web"))
           PY
@@ -540,6 +549,10 @@ jobs:
                  tests/research_web/test_weknora_formal_scope.py \
                  tests/research_web/test_workbench_operations.py \
               --confcutdir=tests/research_web -q
+            exit 0
+          fi
+          if [ "${{ steps.contract-scope.outputs.fingpt_workspace_only }}" = "true" ]; then
+            bash scripts/run_fingpt_workspace_ci.sh
             exit 0
           fi
           if [ "${{ steps.contract-scope.outputs.fingpt_source_only }}" = "true" ]; then

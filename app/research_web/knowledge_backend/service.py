@@ -210,6 +210,7 @@ class KnowledgeService(CurrentResearch):
                 "workspace_id": workspace_id,
                 "credential_ref": reference,
                 "retained_credentials": retained,
+                **({"sso_email": identity["sso_email"]} if identity.get("sso_email") else {}),
             }
             self.store.check_binding_budget(new_binding)
             backend = self._credentials()
