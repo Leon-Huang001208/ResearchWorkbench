@@ -861,3 +861,5 @@ FinGPT 启用新执行器后使用 `#/qa`，保留 RWB 输入、资料和输出�
 
 FinGPT 的页面投影和研究发送检查由独立模块承接，保留 `app.mjs` 的 256 KiB 静态健康检查及预留空间。
 FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口。初始化其余目录时复用该结果，用户主动刷新仍读取当前状态。
+
+模型服务表单以 hidden input 提交固定协议身份，避免隐藏 select 的 option 被禁用导致 FormData 丢失 provider。API Key 仍由用户在设置页填写，提交后清空；未保存连接不会被标为可用，新增连接不自动切换当前 DeepSeek。

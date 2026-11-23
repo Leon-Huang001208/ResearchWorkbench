@@ -7,3 +7,6 @@ macOS Mac mini，Web 功能修复。线上无 Key POST model-profiles 实际返�
 RED: 两个针对退役与历史完成的回归失败；两个未确认历史反例通过。GREEN: model_profiles 原模块20测试通过，JS原5测试通过。最终13项新增及相关回归通过，含真实detail与native history完成/缺失完成事件、退役native/receipt/children反例和QA task。JS6项通过。候选gate读取现场DSH及原Host权威detail后通过，历史索引未改写。ruff/isort、文档治理、进展说明与diff检查通过。CI、上线及真实MiniMax生成分别验收；无Key不调用供应商。
 
 Product-Progress: not-required — 本次只修复模型配置保存既有故障，不新增公开产品能力说明。
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"复用既有退役判定与权威历史投影修复模型配置准入，不改变运行节点、接口或持久数据结构。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅将模型服务商协议身份改为隐藏input提交，页面布局、导航与接口结构保持既有设计。","diagrams":[]} -->
