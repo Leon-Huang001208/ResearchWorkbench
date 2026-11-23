@@ -4,6 +4,13 @@
 相关回归模块及路由合同加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS
 Bootstrap 保持，不新增 job、runner、依赖、权限或派发其他平台验证；CI 不调用真实厂商。
 
+`45125955365` 的全量 Web Python 合同超过原 45 分钟作业上限而取消，证据暂存还观察到
+仍在增长的 worker 日志，不能记为测试通过。本批明确 MCP／DataHub 源文件及对应测试、CI
+和说明文件的真实差异，才选择 `mcp_datahub_only`；混入其他产品、未来未知文件或无法取得
+diff 时仍走原完整路径。`run_mcp_datahub_ci.sh` 使用原 pytest 分片及证据入口，选择全部
+DataHub Provider、MCP/OAuth、账号网关、协议、原 grant／存储和知识权限合同，共 42 个模块
+（本候选收集 1524 个 case）。不延长时限，不新增 job、依赖或 runner，原三项必要 CI 保持。
+
 Checks 的测试工具文件合并既有 `pyproject.toml` 的 `dev` 与 `requirements/research-test.in`
 非空、非注释声明，沿原 spec 正则验证并对相同声明去重；声明缺失、空或非法时停止安装。
 本次实际只补入早已声明的 `sqlalchemy>=2,<3`，供原 FinGPT legacy 单元模块导入使用，
