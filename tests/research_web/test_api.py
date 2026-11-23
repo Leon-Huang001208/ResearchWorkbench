@@ -2929,8 +2929,10 @@ def test_bot_mutations_require_explicit_action_and_owned_runtime(api):
     client, _native, service = api
     path = "/api/research/research-bots"
     body = {
-        "name": "研究机器人", "objective": "核对证据",
-        "model_provider": "deepseek-official", "model_id": "deepseek-flash",
+        "name": "研究机器人",
+        "objective": "核对证据",
+        "model_provider": "deepseek-official",
+        "model_id": "deepseek-flash",
     }
     assert client.post(path, json=body).json()["error"]["code"] == "explicit_user_action_required"
     service.owned = False
