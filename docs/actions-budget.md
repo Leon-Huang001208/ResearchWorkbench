@@ -1,7 +1,7 @@
 # GitHub Actions 免费额度治理
 
 金融 MCP 与 configured DataHub scope 的改动在原入站 MCP 路由登记确切文件，并把两个
-相关回归模块加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS
+相关回归模块及路由合同加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS
 Bootstrap 保持，不新增 job、runner、依赖、权限或派发其他平台验证；CI 不调用真实厂商。
 
 Checks 的测试工具文件合并既有 `pyproject.toml` 的 `dev` 与 `requirements/research-test.in`
