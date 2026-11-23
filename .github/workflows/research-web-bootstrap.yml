@@ -3,6 +3,7 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "tests/research_web/test_external_sources.py"
       - "app/research_web/datahub/connections.py"
       - "app/research_web/datahub/external_sources.json"
       - "app/research_web/datahub/external_sources.py"
@@ -124,6 +125,7 @@ on:
     branches:
       - master
     paths:
+      - "tests/research_web/test_external_sources.py"
       - "app/research_web/datahub/connections.py"
       - "app/research_web/datahub/external_sources.json"
       - "app/research_web/datahub/external_sources.py"

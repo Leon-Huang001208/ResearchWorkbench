@@ -1610,6 +1610,7 @@ test("DataHub routes use inbound MCP policy and unregistered boundaries remain L
     "app/research_web/datahub/providers.py",
     "app/research_web/datahub/providers_finance_mcp.py",
     "tests/research_web/test_datahub_finance_mcp.py",
+    "tests/research_web/test_external_sources.py",
     "tests/research_web/test_mcp_facade_datahub.py",
   ]);
   const currentDataHubPythonFiles = fs.readdirSync(

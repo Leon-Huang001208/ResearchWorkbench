@@ -453,7 +453,7 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 ## 已整理外部数据源（2026-10-13）
 
 新能力 `external_data`（工具 `datahub_get_external_data`）把用户 2026-10-08 核对的外部来源清单固化为
-`app/research_web/datahub/external_sources.json`：41 个取数来源与 102 个 HTTP 入口，另列 10 个参考或未接通来源；
+`app/research_web/datahub/external_sources.json`：42 个取数来源，包括原 102 个 HTTP 入口及金融网关的 5 个 MCP 工具，另列 10 个参考或未接通来源；
 不复制业务项目代码，只保留来源、入口、方法与参数占位。调用先不传参数读取 `ext_registry` 总目录，再按返回的
 `source` 与 `dataset` 取数。`arguments_json` 只接受 `params`（填充目录占位符）、`query`（业务筛选）、`body`（POST 业务体）
 三个键；URL、凭据、路径、回调、SQL 等键在 Provider 边界直接拒绝。

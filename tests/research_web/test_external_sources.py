@@ -24,8 +24,8 @@ def query(source="ext_fred", dataset="series", **params):
 
 
 def test_inventory_preserves_all_sources_and_reference_boundary():
-    assert len(EXTERNAL_SOURCES) == 41
-    assert len(inventory_rows()) == 51
+    assert len(EXTERNAL_SOURCES) == 42
+    assert len(inventory_rows()) == 52
     assert len([row for row in inventory_rows() if row["status"] == "reference_only"]) == 10
     catalog = build_catalog(environ={}, connection_statuses={})
     by_id = {source["id"]: source for source in catalog["sources"]}
@@ -64,7 +64,7 @@ async def test_source_catalog_is_offline_and_does_not_fetch_credentials():
 
     result = await fetch(query("ext_registry", "catalog"), transport=httpx.MockTransport(reject))
     assert result.status == "snapshot"
-    assert len(result.rows) == 51
+    assert len(result.rows) == 52
 
 
 @pytest.mark.asyncio

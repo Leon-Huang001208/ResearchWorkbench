@@ -93,7 +93,7 @@ def catalog_entries(
     entries = {
         "ext_registry": {
             "name": "外部数据源总目录",
-            "purpose": "已整理的 41 个来源与 10 个参考来源；先查目录，再按来源和数据集取数。",
+            "purpose": "已整理的 42 个来源与 10 个参考来源；先查目录，再按来源和数据集取数。",
         },
         **EXTERNAL_SOURCES,
     }

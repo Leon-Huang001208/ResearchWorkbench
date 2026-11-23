@@ -854,7 +854,8 @@
           "app/research_web/datahub/providers_finance_mcp.py",
           "app/research_web/datahub/providers.py",
           "tests/research_web/test_datahub_finance_mcp.py",
-          "tests/research_web/test_mcp_facade_datahub.py"
+          "tests/research_web/test_mcp_facade_datahub.py",
+          "tests/research_web/test_external_sources.py"
         ],
         "prefixes": [
           "app/research_web/mcp_facade/"
