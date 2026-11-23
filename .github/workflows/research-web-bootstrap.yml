@@ -3,6 +3,13 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "app/research_web/datahub/connections.py"
+      - "app/research_web/datahub/external_sources.json"
+      - "app/research_web/datahub/external_sources.py"
+      - "app/research_web/datahub/providers.py"
+      - "app/research_web/datahub/providers_finance_mcp.py"
+      - "tests/research_web/test_datahub_finance_mcp.py"
+      - "tests/research_web/test_mcp_facade_datahub.py"
       - "app/research_web/multiuser/fingpt_config.py"
       - "app/research_web/multiuser/fingpt.py"
       - "app/research_web/fingpt_retirement.py"
@@ -117,6 +124,13 @@ on:
     branches:
       - master
     paths:
+      - "app/research_web/datahub/connections.py"
+      - "app/research_web/datahub/external_sources.json"
+      - "app/research_web/datahub/external_sources.py"
+      - "app/research_web/datahub/providers.py"
+      - "app/research_web/datahub/providers_finance_mcp.py"
+      - "tests/research_web/test_datahub_finance_mcp.py"
+      - "tests/research_web/test_mcp_facade_datahub.py"
       - "app/research_web/multiuser/fingpt_config.py"
       - "app/research_web/multiuser/fingpt.py"
       - "app/research_web/fingpt_retirement.py"
