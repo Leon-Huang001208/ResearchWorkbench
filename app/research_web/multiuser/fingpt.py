@@ -9,10 +9,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import os
 import secrets
-from dataclasses import dataclass
-from pathlib import Path
 from urllib.parse import urlencode
 
 from fastapi import Request
@@ -22,40 +19,13 @@ from core.observability import get_logger
 
 from ..knowledge_backend.storage import KnowledgeStore
 from .accounts import AccountError
-from .origin import validate_origin
-from .runtime import _read_private
+from .fingpt_config import FinGPTConfig as FinGPTConfig
 
 log = get_logger(__name__)
 PREFIX = "/api/server/fingpt"
 CLIENT = "rwb-fingpt"
 MACHINE = {PREFIX + "/token", PREFIX + "/userinfo", "/.well-known/openid-configuration"}
 HEADERS = {"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"}
-
-
-@dataclass(frozen=True)
-class FinGPTConfig:
-    origin: str
-    client_secret: str
-    cookie_isolated: bool = False
-
-    def __post_init__(self):
-        validate_origin(self.origin)
-        if len(self.client_secret) < 32:
-            raise ValueError("fingpt_client_secret_invalid")
-        if type(self.cookie_isolated) is not bool:
-            raise ValueError("fingpt_cookie_policy_invalid")
-
-    @classmethod
-    def configured(cls, root):
-        path = Path(os.environ.get("RESEARCH_FINGPT_CONFIG", str(root / "fingpt.json")))
-        if not path.exists():
-            return None
-        value = json.loads(_read_private(path))
-        return cls(value["origin"], value["client_secret"], value.get("cookie_isolated", False))
-
-    @property
-    def callback(self):
-        return self.origin + "/api/v1/auth/oidc/callback"
 
 
 def account_root(pool, user_id):
@@ -83,19 +53,6 @@ def bound_identity(pool, config, user_id):
         binding["workspace_id"],
         email,
     )
-
-
-def diagnostic(root):
-    try:
-        config = FinGPTConfig.configured(root)
-        return {
-            "enabled": config is not None,
-            "status": "configured" if config else "disabled",
-            "authentication": "native_oidc_userinfo",
-            "runtime_verification": "NOT_RUN",
-        }
-    except (OSError, ValueError, KeyError, TypeError, RuntimeError):
-        return {"enabled": None, "status": "invalid", "runtime_verification": "NOT_RUN"}
 
 
 class FinGPTIdentity:

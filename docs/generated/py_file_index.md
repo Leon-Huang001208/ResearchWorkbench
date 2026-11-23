@@ -10621,23 +10621,17 @@ Imports:
 - `__future__`
 - `accounts`
 - `core.observability`
-- `dataclasses`
 - `fastapi`
 - `fastapi.responses`
+- `fingpt_config`
 - `hashlib`
 - `hmac`
 - `json`
 - `knowledge_backend.storage`
-- `origin`
-- `os`
-- `pathlib`
-- `runtime`
 - `secrets`
 - `urllib.parse`
 
 Classes:
-- `FinGPTConfig`
-  - methods: __post_init__, configured, callback
 - `FinGPTIdentity`
   - methods: __init__, digest, issue, resolve, exchange, navigation, discovery, workspace, authorize, token, userinfo
 
@@ -10645,6 +10639,26 @@ Functions:
 - `account_root`
   - Same attached-primary and private-account directories as the Host pool.
 - `bound_identity`
+
+
+## `app/research_web/multiuser/fingpt_config.py`
+
+Module docstring:
+> Stdlib-only FinGPT configuration; help/Doctor never import model settings.
+
+Imports:
+- `dataclasses`
+- `json`
+- `origin`
+- `os`
+- `pathlib`
+- `stat`
+
+Classes:
+- `FinGPTConfig`
+  - methods: __post_init__, configured, callback
+
+Functions:
 - `diagnostic`
 
 

@@ -3,6 +3,7 @@ name: Research Web Bootstrap
 on:
   pull_request:
     paths:
+      - "app/research_web/multiuser/fingpt_config.py"
       - "app/research_web/multiuser/fingpt.py"
       - "app/research_web/fingpt_retirement.py"
       - "integrations/weknora/rwb-fingpt.html"
@@ -116,6 +117,7 @@ on:
     branches:
       - master
     paths:
+      - "app/research_web/multiuser/fingpt_config.py"
       - "app/research_web/multiuser/fingpt.py"
       - "app/research_web/fingpt_retirement.py"
       - "integrations/weknora/rwb-fingpt.html"
