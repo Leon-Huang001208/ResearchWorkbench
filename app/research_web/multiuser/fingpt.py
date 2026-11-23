@@ -19,7 +19,9 @@ from core.observability import get_logger
 
 from ..knowledge_backend.storage import KnowledgeStore
 from .accounts import AccountError
-from .fingpt_config import FinGPTConfig as FinGPTConfig
+from .fingpt_config import FinGPTConfig
+
+__all__ = ["FinGPTConfig", "FinGPTIdentity"]
 
 log = get_logger(__name__)
 PREFIX = "/api/server/fingpt"
