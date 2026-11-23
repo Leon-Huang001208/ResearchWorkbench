@@ -4806,9 +4806,8 @@ def test_web_readiness_enforces_product_static_asset_byte_boundary(
 ):
     asset = Path(service_manager_module.__file__).with_name("ui") / "app.mjs"
     product = asset.read_bytes()
-    limit = service_manager_module.WEB_STATIC_MAX_BYTES
-    assert limit == 512 * 1024
-    assert service_manager_module.WEB_TEXT_MAX_BYTES == 256 * 1024
+    limit = service_manager_module.WEB_TEXT_MAX_BYTES
+    assert limit == 256 * 1024
     assert len(product) <= limit, "product module exceeds the health response limit"
     body = product
     if asset_size != "product":

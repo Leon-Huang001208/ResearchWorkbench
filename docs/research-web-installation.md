@@ -1384,4 +1384,4 @@ Mac mini 本机可使用 RWB HTTPS `:9543` 与 WeKnora `http://127.0.0.1:18181` 
 
 已有 WeKnora 部署沿原 nginx 和原镜像安装两个入口资产；RWB 私有账号根配置 `fingpt.json`，原 WeKnora OIDC 配置指向网关固定登录桥，真实用户由原绑定核对。无新增 Python/Node 包，`web.in`、`web.lock`、公开 setup 入口无需改动；同候选 Mac 安装需导入新模块并逐字节核对 `fingpt-workspace.mjs/.css`。Doctor 区分未配置、配置无效和未进行真实登录，操作步骤与删除边界见[完整工作台](research-web-fingpt-workspace.md)。
 
-FinGPT 接入后主模块超过256 KiB，原安装健康读取上限会把已正确提供的脚本误判为失败。现仅静态 `/static/app.mjs` 响应读取上限为512 KiB，HTML仍256 KiB，控制JSON及整体HTTP上限不变；产品实际字节、恰达上限和超限拒绝沿原健康边界回归检查。
+主模块的原256 KiB健康读取上限保持。FinGPT路由去除重复规范化并共用入口判据，使产品脚本继续处于原限制内；产品实际字节、恰达上限及超限拒绝仍沿原健康边界回归检查。
