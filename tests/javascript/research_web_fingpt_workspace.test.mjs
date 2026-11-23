@@ -45,5 +45,7 @@ test('new conversations enter native workspace while scoped financial handoffs k
   assert.equal(isNativeFinGPTEntry({ page: 'qa', sessionId: 'frozen-financial-task' }, true), false);
   assert.equal(isNativeFinGPTEntry({ page: 'fingpt', sessionId: 'frozen-financial-task' }, true), false);
   assert.equal(isNativeFinGPTEntry({ page: 'claw' }, true), false);
+  assert.equal(isNativeFinGPTEntry({ page: 'fingpt', projectId: 'financial-project' }, true), false);
+  assert.equal(isNativeFinGPTEntry({ page: 'fingpt', clawView: 'projects' }, true), false);
   assert.equal(fingptReplacement({ mode: 'fingpt', execution_engine: 'alphadesk' }, 'frozen-financial-task'), '#/qa?session=frozen-financial-task');
 });
