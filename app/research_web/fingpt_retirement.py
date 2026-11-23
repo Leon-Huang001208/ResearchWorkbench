@@ -47,15 +47,14 @@ def retire_fingpt_history(store):
         dossier_retained = bool(DossierStore(store.root).retained_by(sid))
         referenced = sid in shared or dossier_retained
         keep = {}
-        for fid, item in row.get("files", {}).items():
-            path = item.get("path", "")
+        for fid, path in row.get("files", {}).items():
             if fid in shared or (path and f"sessions/{sid}/{path}" in shared):
-                keep[fid] = item
+                keep[fid] = path
         # Dossiers explicitly retain the session material set. A plain report
         # or data-query session_id retains only its context, not every chat file.
         if dossier_retained:
             keep = dict(row.get("files", {}))
-        retained = {Path(item["path"]) for item in keep.values()}
+        retained = {Path(path) for path in keep.values()}
         if has_data:
             retained.add(Path("inputs/datasets"))
         # Remove only exclusive chat files. Shared material remains in place.
