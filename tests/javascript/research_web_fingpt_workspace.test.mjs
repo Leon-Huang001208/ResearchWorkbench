@@ -37,3 +37,13 @@ test('unbound identity points to the actual knowledge settings route', async () 
     assert.equal(link.href, '#/settings/data');
   } finally { globalThis.document = previous; }
 });
+
+test('new conversations enter native workspace while scoped financial handoffs keep their session', async () => {
+  const { isNativeFinGPTEntry, fingptReplacement } = await import('../../app/research_web/ui/qa-navigation.mjs');
+  assert.equal(isNativeFinGPTEntry({ page: 'fingpt' }, true), true);
+  assert.equal(isNativeFinGPTEntry({ page: 'qa' }, true), true);
+  assert.equal(isNativeFinGPTEntry({ page: 'qa', sessionId: 'frozen-financial-task' }, true), false);
+  assert.equal(isNativeFinGPTEntry({ page: 'fingpt', sessionId: 'frozen-financial-task' }, true), false);
+  assert.equal(isNativeFinGPTEntry({ page: 'claw' }, true), false);
+  assert.equal(fingptReplacement({ mode: 'fingpt', execution_engine: 'alphadesk' }, 'frozen-financial-task'), '#/qa?session=frozen-financial-task');
+});
