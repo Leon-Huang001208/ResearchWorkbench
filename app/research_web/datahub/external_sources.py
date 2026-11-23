@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 INVENTORY = json.loads(Path(__file__).with_suffix(".json").read_text(encoding="utf-8"))
 EXTERNAL_SOURCES = {"ext_" + item["id"].replace("-", "_"): item for item in INVENTORY["sources"]}
-SECRET_SOURCES = {"ext_ths", "ext_daole", "ext_tikhub", "ext_cicc"}
+SECRET_SOURCES = {"ext_ths", "ext_daole", "ext_tikhub", "ext_cicc", "ext_finance_mcp"}
 CONFIGURATION_ENDPOINTS = {("ext_ths", "refresh"), ("ext_ths", "ths_login")}
 
 
