@@ -365,7 +365,7 @@ test('reviewed upgrades run both complete maintenance modules and the bounded ac
   for (const name of ['Run Research Web Python contracts', 'Run Research Web JavaScript contracts']) {
     const step = workflows.checks.split(`      - name: ${name}\n`)[1]?.split('\n      - name:')[0];
     const script = step.split('        run: |\n')[1].split('\n').map(line => line.slice(10)).join('\n');
-    const command = script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false')
+    const command = script.replaceAll('${{ steps.contract-scope.outputs.model_profiles_only }}', 'false').replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}', 'false')
@@ -862,7 +862,7 @@ test('knowledge authority regressions execute once in each applicable CI branch'
   fs.writeFileSync(path.join(root,'bin/git'),'#!/bin/sh\nexit 0\n',{mode:0o700});
   for(const [retention,packs,fingpt] of [[false,false,false],[false,true,false],[true,false,false],[false,false,true]]) {
     const record=path.join(root,`${retention}-${packs}-${fingpt}.jsonl`);
-    const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt));
+    const command=script.replaceAll('${{ steps.contract-scope.outputs.model_profiles_only }}', 'false').replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt));
     const result=spawnSync('/bin/bash',['-e','-c',command],{cwd:root,env:{...process.env,PATH:path.join(root,'bin')+path.delimiter+process.env.PATH,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
     assert.equal(result.status,0,result.stderr);
     const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));
@@ -923,6 +923,7 @@ test('architecture-only CI runs the owner JavaScript contracts without Python or
     const multiline = block.match(/        run: \|\n([^]*)/);
     const script = (multiline ? multiline[1].split('\n').map(line => line.slice(10)).join('\n')
       : block.match(/        run: ([^\n]+)/)?.[1])
+      .replaceAll('${{ steps.contract-scope.outputs.model_profiles_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'true')
       .replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false');
     const result = spawnSync('/bin/bash', ['-e', '-c', script], {
@@ -976,7 +977,7 @@ test('G2B CI executes its release and public Host contracts once without the unr
   fs.writeFileSync(path.join(root, '.venv/bin/python'), `#!${process.execPath}\nconst fs=require('node:fs');fs.appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2))+'\\n');\n`, {mode: 0o700});
   fs.writeFileSync(path.join(root, 'bin/git'), '#!/bin/sh\nexit 0\n', {mode: 0o700});
   const record = path.join(root, 'calls.jsonl');
-  const command = script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false')
+  const command = script.replaceAll('${{ steps.contract-scope.outputs.model_profiles_only }}', 'false').replaceAll('${{ steps.contract-scope.outputs.retention_only }}', 'false')
     .replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}', 'true')
     .replaceAll('${{ steps.contract-scope.outputs.architecture_only }}', 'false')
     .replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}', 'false');
@@ -1001,4 +1002,41 @@ test('G2B CI executes its release and public Host contracts once without the unr
   assert.match(js, /actions_quota_governance\.test\.mjs/);
   const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
   assert.match(editorial, /g2b_release_only != 'true'/);
+});
+
+test('model profile scope uses exact interfaces and rejects mixed or unknown changes', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-model-profile-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const code = step.match(/          python - <<'PY'\n([^]*?)\n          PY/)[1].split('\n').map(line => line.slice(10)).join('\n');
+  const owned = ['app/research_web/model_profiles.py', 'app/research_web/ui/model-settings.mjs',
+    'tests/research_web/test_model_profiles.py', 'tests/javascript/research_web_model_profiles.test.mjs',
+    'tests/javascript/actions_quota_governance.test.mjs', '.github/workflows/research-web-checks.yml',
+    'docs/architecture/research-web/readme-review.json', 'docs/research-web-ui.md', '.ai/reports/repair.md'];
+  for (const [files, base, expected] of [[owned,'a'.repeat(40),true],
+    [[...owned,'app/research_web/service.py'],'a'.repeat(40),false],
+    [[...owned,'tests/unit/test_unknown.py'],'a'.repeat(40),false],
+    [[], 'a'.repeat(40),false], [owned,'',false]]) {
+    const output = path.join(root, `out-${fs.readdirSync(root).length}`);
+    const harness = `import json,os,subprocess\nfrom types import SimpleNamespace\ndef fake_run(argv,**kwargs):\n if 'fetch' in argv:return SimpleNamespace(returncode=0)\n return SimpleNamespace(returncode=0,stdout=bytes([0]).join(n.encode() for n in json.loads(os.environ['SCOPE_FILES']))+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result=spawnSync(process.env.RWB_TEST_PYTHON || 'python3',['-B','-c',harness],{env:{...process.env,BASE_SHA:base,HEAD_SHA:'b'.repeat(40),GITHUB_OUTPUT:output,SCOPE_FILES:JSON.stringify(files)},encoding:'utf8',timeout:10000});
+    assert.equal(result.status,0,result.stderr);
+    assert.match(fs.readFileSync(output,'utf8'),new RegExp(`model_profiles_only=${expected}\\n`));
+  }
+});
+
+test('model profile CI executes credentials, QA and stale history contracts once', t => {
+  const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'rwb-model-profile-commands-')));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});
+  const record=path.join(root,'calls.jsonl');
+  fs.writeFileSync(path.join(root,'.venv/bin/python'),`#!${process.execPath}\nrequire('node:fs').appendFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2))+'\\n');\n`,{mode:0o700});
+  const helper=new URL('../../scripts/run_model_profile_ci.sh',import.meta.url);
+  const result=spawnSync('/bin/bash',[helper.pathname],{cwd:root,env:{...process.env,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
+  assert.equal(result.status,0,result.stderr);
+  const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+  assert.equal(calls.length,1);
+  for(const target of ['test_model_profiles.py','test_model_connections.py','test_model_credentials.py','test_encrypted_model_credentials.py','test_alphadesk_qa.py','test_protocol.py']) assert.equal(calls[0].filter(value=>value===`tests/research_web/${target}`).length,1);
+  assert.ok(calls[0].includes('tests/research_web/test_api.py::test_session_list_reconciles_only_created_idle_stale_running_rows'));
+  assert.ok(!calls[0].some(value=>/event_studies|test_model_provider_upgrade/.test(value)));
 });

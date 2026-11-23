@@ -10,3 +10,8 @@ Product-Progress: not-required — 本次只修复模型配置保存既有故障
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"复用既有退役判定与权威历史投影修复模型配置准入，不改变运行节点、接口或持久数据结构。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅将模型服务商协议身份改为隐藏input提交，页面布局、导航与接口结构保持既有设计。","diagrams":[]} -->
+
+CI补正：第一候选文档校验缺复核标记，已按原架构不变规则补齐，第二候选Constraints与Mac安装成功。第二候选45096068329完整Web矩阵达到45分钟上限取消，未取得通过或完整测试结论。将本次精确模型配置变更纳入原Checks范围分支，完整相关Python模块/Host反例、原Node全套及原Constraints/Mac门保持。混入未知路径仍全量，不修改超时或测试断言。
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只在原Checks作业增加模型配置精确范围和原分片runner调用，三项CI与节点、依赖及45分钟上限保持原设计。","diagrams":[]} -->
+CI范围相关本地检查：governance37项通过，helper bash语法通过，相关Python209项完整收集成功；独立审查指出的helper触发路径已补入原PR/push paths。

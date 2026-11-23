@@ -670,3 +670,5 @@ PR245 repair3 仅将原同一步根包安装改为产品已有的普通 wheel --
 具体维护合同见 `docs/research-web-source-migration.md`。诊断、资格、迁移及现场恢复分别记录，旧库及活跃工作树在恢复校验前保留。
 
 AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。未增加 runner、独立作业或产品 dispatch。
+
+2026-11-23 模型连接保存修复的 Checks 在完整 Web 矩阵45分钟上限被取消（45096068329），不能计为通过。原作业增加精确 model_profiles_only 范围：仅模型连接gate、服务商表单、对应测试、CI脚本及相关文档可命中；混入其他产品或差异未知仍全量。运行完整模型连接/凭据/加密凭据/AlphaDesk/协议模块和四项Host历史、未知受理及所有权反例，保留原Node全套并加范围治理回归；无关编辑引擎不运行。Project Constraints、同候选Mac安装及原job/runner/依赖/超时不变，不连接模型或业务数据。

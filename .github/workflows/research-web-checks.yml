@@ -23,6 +23,7 @@ on:
       - "research_workbench_entrypoint/**"
       - "scripts/run_ci_pytest_partitions.py"
       - "scripts/run_fingpt_source_ci.sh"
+      - "scripts/run_model_profile_ci.sh"
       - "scripts/stage_ci_pytest_evidence.py"
       - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
@@ -60,6 +61,7 @@ on:
       - "research_workbench_entrypoint/**"
       - "scripts/run_ci_pytest_partitions.py"
       - "scripts/run_fingpt_source_ci.sh"
+      - "scripts/run_model_profile_ci.sh"
       - "scripts/stage_ci_pytest_evidence.py"
       - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
@@ -311,6 +313,13 @@ jobs:
               "tests/unit/test_fingpt_legacy_cutover.py",
           }
           fingpt_source = bool(fingpt_core.intersection(files)) and all(name in fingpt_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          model_profile_core = {"app/research_web/model_profiles.py", "app/research_web/ui/model-settings.mjs"}
+          model_profile_paths = model_profile_core | {
+              "tests/research_web/test_model_profiles.py", "tests/javascript/research_web_model_profiles.test.mjs",
+              "tests/javascript/actions_quota_governance.test.mjs", ".github/workflows/research-web-checks.yml",
+              "scripts/run_model_profile_ci.sh", "docs/architecture/research-web/readme-review.json",
+          }
+          model_profiles = bool(model_profile_core.intersection(files)) and all(name in model_profile_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
               output.write("research_packs_only=" + str(packs).lower() + "\n")
@@ -318,7 +327,8 @@ jobs:
               output.write("g2b_release_only=" + str(release).lower() + "\n")
               output.write("reviewed_upgrade_only=" + str(reviewed_upgrade).lower() + "\n")
               output.write("fingpt_source_only=" + str(fingpt_source).lower() + "\n")
-          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "FinGPT source reports and Fed tracking" if fingpt_source else "full Research Web"))
+              output.write("model_profiles_only=" + str(model_profiles).lower() + "\n")
+          print("Contract scope: " + ("retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "FinGPT source reports and Fed tracking" if fingpt_source else "model profile configuration" if model_profiles else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -436,6 +446,10 @@ jobs:
 
       - name: Run Research Web Python contracts
         run: |
+          if [ "${{ steps.contract-scope.outputs.model_profiles_only }}" = "true" ]; then
+            bash scripts/run_model_profile_ci.sh
+            exit 0
+          fi
           if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
             echo "Architecture checker scope: no Python product changes"
             exit 0
@@ -808,6 +822,8 @@ jobs:
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_architecture.test.mjs
           elif [ "${{ steps.contract-scope.outputs.research_packs_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs tests/javascript/research_web_ci_admission.test.mjs tests/javascript/research_web_guard.test.mjs tests/javascript/research_web_method_tool.test.mjs tests/javascript/research_web_packs_ui.test.mjs tests/javascript/research_web_public_data.test.mjs tests/javascript/research_web_scenarios.test.mjs tests/javascript/research_web_source_picker.test.mjs
+          elif [ "${{ steps.contract-scope.outputs.model_profiles_only }}" = "true" ]; then
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs tests/javascript/actions_quota_governance.test.mjs
           elif [ "${{ steps.contract-scope.outputs.reviewed_upgrade_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test \
               tests/javascript/research_web_multiuser_session.test.mjs tests/javascript/research_web_mcp_login.test.mjs \
@@ -819,7 +835,7 @@ jobs:
           fi
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.research_packs_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.research_packs_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true' && steps.contract-scope.outputs.model_profiles_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs
