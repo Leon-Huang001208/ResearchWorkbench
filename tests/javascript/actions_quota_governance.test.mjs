@@ -1004,3 +1004,42 @@ test('G2B CI executes its release and public Host contracts once without the unr
   const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
   assert.match(editorial, /g2b_release_only != 'true'/);
 });
+
+test('MCP DataHub scope is exact and retains the original runner and permission contracts', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-mcp-datahub-scope-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const step=workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match=step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);assert.ok(match);
+  const code=match[1].split('\n').map(line=>line.slice(10)).join('\n');
+  const files=['app/research_web/mcp_facade/backend.py','app/research_web/datahub/providers_finance_mcp.py',
+    'app/research_web/datahub/connections.py','.agents/verification-policy.json',
+    '.github/workflows/research-web-checks.yml','scripts/run_mcp_datahub_ci.sh',
+    'docs/architecture/research-web/readme-review.json','docs/research-web-finance-mcp.md',
+    'tests/javascript/actions_quota_governance.test.mjs'];
+  for (const [paths,base,gitFailure,expected] of [[files,'a'.repeat(40),'',true],
+    [[...files,'app/research_web/main.py'],'a'.repeat(40),'',false],
+    [[...files,'app/research_web/datahub/future_provider.py'],'a'.repeat(40),'',false],
+    [['.github/workflows/research-web-checks.yml'],'a'.repeat(40),'',false],
+    [files,'','',false],[files,'a'.repeat(40),'1',false]]) {
+    const output=path.join(root,`scope-${fs.readdirSync(root).length}`);
+    const harness=`import json,os,subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv,**kwargs):\n    if os.environ.get('SCOPE_GIT_FAILURE'):return SimpleNamespace(returncode=1)\n    if 'fetch' in argv:return SimpleNamespace(returncode=0)\n    assert argv[:4]==['git','diff','--name-only','-z']\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(x.encode() for x in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result=spawnSync(process.env.RWB_TEST_PYTHON||'python3',['-B','-c',harness],{env:{...process.env,BASE_SHA:base,HEAD_SHA:'b'.repeat(40),SCOPE_FILES:JSON.stringify(paths),SCOPE_GIT_FAILURE:gitFailure,GITHUB_OUTPUT:output},encoding:'utf8'});
+    assert.equal(result.status,0,result.stderr);
+    assert.match(fs.readFileSync(output,'utf8'),new RegExp(`mcp_datahub_only=${expected}`));
+  }
+  const helper=fs.readFileSync(new URL('../../scripts/run_mcp_datahub_ci.sh',import.meta.url),'utf8');
+  const selected=[...helper.matchAll(/tests\/research_web\/[a-z0-9_]+\.py/g)].map(x=>x[0]);
+  assert.equal(selected.length,new Set(selected).size);
+  for (const file of ['test_mcp_facade_store.py','test_mcp_facade_datahub.py','test_mcp_facade_oauth.py','test_datahub_finance_mcp.py','test_external_sources.py','test_connection_center.py','test_datahub_broker.py','test_datahub_reliability.py','test_datahub_wind.py','test_datahub_cjpy.py','test_protocol.py','test_workbench_operations.py','test_store.py','test_capabilities_native.py','test_weknora_formal_scope.py'])assert.ok(selected.includes(`tests/research_web/${file}`),file);
+  assert.ok(!selected.includes('tests/research_web/test_ai_news.py'));
+  fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.mkdirSync(path.join(root,'scripts'));
+  fs.writeFileSync(path.join(root,'scripts/run_mcp_datahub_ci.sh'),helper);
+  fs.writeFileSync(path.join(root,'.venv/bin/python'),`#!${process.execPath}\nrequire('node:fs').writeFileSync(process.env.CI_SCOPE_RECORD,JSON.stringify(process.argv.slice(2)));\n`,{mode:0o700});
+  const block=workflows.checks.split('      - name: Run Research Web Python contracts\n')[1]?.split('\n      - name:')[0];
+  const script=block.split('        run: |\n')[1].split('\n').map(line=>line.slice(10)).join('\n');
+  const record=path.join(root,'runner.json');
+  const result=spawnSync('/bin/bash',['-e','-c',script],{cwd:root,env:{...process.env,RWB_MCP_DATAHUB_ONLY:'true',RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  const argv=JSON.parse(fs.readFileSync(record,'utf8'));assert.equal(argv[0],'scripts/run_ci_pytest_partitions.py');
+  assert.deepEqual(argv.slice(argv.indexOf('--')+1),[...selected,'--confcutdir=tests/research_web','-q']);
+});

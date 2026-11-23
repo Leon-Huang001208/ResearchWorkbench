@@ -23,8 +23,12 @@
   保留原字段及空值，未认证单位、复权、完整历史及 PIT。
 - 正式 WeKnora 到 RWB 的端到端 TLS 已通过固定目的地址的本机字节转发连通，保留原证书校验。
   OAuth 已由正式 admin 确认，工具目录 7 项同步成功，原生会话提交 FRED 查询成功。
-- 该会话读取快照返回 410：运行中的旧版将 MCP data-only 上下文误判为退役 FinGPT。
-  主线已有对应修复，其他部署任务正在切换；本任务不改其事务或宣称该读取已通过。
+- 旧版读取快照曾返回 410，部署期间曾返回 deployment_busy，均未记为通过。
+  b430 正式部署后，DeepSeek Flash 原生 WeKnora 会话通过原 OAuth grant 调用 status，
+  实际读回 7 行 DFF、data_success=true，返回 rows_sha256 与清单一致。
+  没有重发 Provider 查询；MiniMax 429 套餐限制单列，未升级订阅或修改全局默认模型。
+- 正式共享 rwb-weknora callback 由唯一生产维护者恢复为 HTTPS 9443，本任务不再覆盖；
+  原账号、secret 和 grant 保留。后续 configured 范围仍需明确新同意，不复用旧 token 增权。
 
 ## 验证与剩余
 
