@@ -5103,6 +5103,29 @@ Functions:
 - `fetch`
 
 
+## `app/research_web/datahub/providers_finance_mcp.py`
+
+Module docstring:
+> Fixed finance MCP upstream using the account's existing credential store.
+
+Imports:
+- `asyncio`
+- `connections`
+- `core.observability`
+- `external_sources`
+- `httpx`
+- `json`
+- `mcp`
+- `mcp.client.streamable_http`
+- `providers`
+
+Functions:
+- `tool_payload`
+  - Keep the original structured object or JSON text, including vendor status.
+- `projection`
+- `fetch`
+
+
 ## `app/research_web/datahub/providers_global_indices.py`
 
 Module docstring:
@@ -9322,6 +9345,7 @@ Imports:
 - `hashlib`
 - `httpx`
 - `json`
+- `models`
 - `multiuser.runtime`
 - `re`
 - `read_policy`
@@ -9335,7 +9359,7 @@ Classes:
   - methods: __init__, _get, read
 - `DataHubBackend`
   - Opt-in public queries on an already-running account Host/DataHub.
-  - methods: _backend, _request, _context, query, _owned_query, status, cancel
+  - methods: _backend, _request, _context, query, configured_catalog, configured_query, _owned_query, status, cancel
 
 Functions:
 - `public_data_query`

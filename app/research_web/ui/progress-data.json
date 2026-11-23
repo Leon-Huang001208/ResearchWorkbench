@@ -3,6 +3,25 @@
   "asOf": "2026-11-23",
   "features": [
     {
+      "id": "mcp-configured-datahub-finance",
+      "module": "数据与工具",
+      "title": "WeKnora 复用 DataHub 已配置来源",
+      "summary": "正式 MCP 使用当前账号可调用的数据源，并接入金融数据 MCP 网关。",
+      "scope": "来源发现、原业务查询、冻结结果读取；账号凭据由 DataHub 保管。",
+      "next": "完成必要 CI、生产切换及正式账号端到端验证。",
+      "owner": "RWB 项目维护者",
+      "source": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/master/docs/research-web-finance-mcp.md",
+      "updated": "2026-11-23",
+      "status": "validating",
+      "platforms": [
+        "macos"
+      ],
+      "included": false,
+      "activation": "disabled",
+      "limitations": "金融网关鉴权和岗底斯四行样例通过；其他厂商、完整金融语义与正式部署分别验收。",
+      "evidence": []
+    },
+    {
       "id": "fingpt-native-weknora-workspace",
       "module": "研究与报告",
       "title": "FinGPT 完整工作台替换",

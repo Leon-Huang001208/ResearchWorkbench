@@ -28,6 +28,11 @@ DATA_TOOL_ARGUMENTS = {
     "rwb_datahub_cancel": frozenset({"query_id"}),
 }
 TOOL_ARGUMENTS.update(DATA_TOOL_ARGUMENTS)
+CONFIGURED_TOOL_ARGUMENTS = {
+    "rwb_datahub_catalog": frozenset(),
+    "rwb_datahub_business_query": frozenset({"request_id", "query"}),
+}
+TOOL_ARGUMENTS.update(CONFIGURED_TOOL_ARGUMENTS)
 UUIDArg = Annotated[
     str, Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 ]
@@ -286,3 +291,16 @@ def register_tools(server, store, backend, datahub=None):
     async def rwb_datahub_cancel(query_id: UUIDArg) -> dict:
         """Cancel this grant's exact pending public-data query; completed data is retained and never refetched."""
         return await data_operation(datahub.cancel, query_id)
+
+    @server.tool(annotations=annotations)
+    async def rwb_datahub_catalog() -> dict:
+        """List this account's callable DataHub sources, implemented bindings and business parameters. Reuses existing configuration and permissions; does not call suppliers or return credentials."""
+        return await data_operation(datahub.configured_catalog)
+
+    @server.tool(annotations=execution)
+    async def rwb_datahub_business_query(
+        request_id: Annotated[str, Field(pattern=r"^[A-Za-z0-9_.:-]{1,64}$")],
+        query: dict,
+    ) -> dict:
+        """Submit a DataHub BusinessQuery for an explicit source/capability returned by rwb_datahub_catalog. query contains capability, source, parameters and optional purpose/quality/refresh; no credentials or arbitrary endpoints. Uses that account's configured provider without fallback. Read the returned id with rwb_datahub_status; check data_success, provenance, units, missing values and PIT separately."""
+        return await data_operation(datahub.configured_query, request_id, query)

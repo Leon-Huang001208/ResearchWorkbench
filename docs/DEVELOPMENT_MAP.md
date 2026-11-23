@@ -1,5 +1,18 @@
 # Research Workbench Development Map
 
+`mcp_facade/models.py`／`oauth_views.py` 管理新 `rwb.data.configured` 同意范围，
+`tools.py`／`backend.py` 将来源发现与业务查询接回原 DataHub。
+`datahub/providers_finance_mcp.py` 使用已锁定 MCP SDK 访问固定金融网关；连接字段由
+原 `connections.py`／外部来源目录登记。回归在 `test_mcp_facade_datahub.py` 和
+`test_datahub_finance_mcp.py`，合同见[金融 MCP](research-web-finance-mcp.md)。
+
+上述金融来源文件及两个回归模块沿原 `research-web-inbound-mcp` 精确匹配路由到
+L4/full-delivery；保留必要 CI，不把已知来源归入 unknown fallback，也不放宽其他来源匹配。
+
+CI 的精确 MCP／DataHub 差异选择仍在原 Checks 步骤；测试清单位于
+`scripts/run_mcp_datahub_ci.sh`，复用原分片和证据工具，不执行无关产品全矩阵。
+范围正反例及真正 shell 分支在 `actions_quota_governance.test.mjs`；未知混入仍走完整路径。
+
 Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快照，`discovery/service.py` 冻结来源，`discovery/tracking.py` 沿原 Automation 调度与历史处理变化、质量及通知；专用入口在 `discovery/routes.py`，没有新增调度服务。
 
 冻结 RSS 归档的来源元数据由 `research_quality_service.py` 在输入原件上下文中提取；报告 SDK 的 `research_report_plan.py` 经章节 `source_ids` 呈现绑定的元数据，`research_report.py::source_metadata_text` 与 Host 质量检查共用同一呈现规则，作者正文及财务观测继续沿原检查核对。

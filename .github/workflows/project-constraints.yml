@@ -26,7 +26,7 @@ jobs:
           node-version: "20"
 
       - name: Test portable Research Web architecture gate
-        run: node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/research_web_tabbit_workflow.test.mjs tests/javascript/actions_quota_governance.test.mjs
+        run: node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/research_web_tabbit_workflow.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/verification_policy.test.mjs
 
       - name: Test Git safety with temporary repositories
         run: |

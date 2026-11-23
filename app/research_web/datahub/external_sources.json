@@ -980,6 +980,64 @@
       "notes": [
         "仅确认安装的MCP代码配置；这些历史RSS未实测，不能保证仍可访问。"
       ]
+    },
+    {
+      "id": "finance-mcp",
+      "name": "金融数据 MCP（华安 IFD）",
+      "category": "金融数据",
+      "purpose": "复用一份客户端令牌访问 Alpha派、岗底斯、DM、iFinD、财汇、携宁知丘、进门财经和通联；先查来源和原生工具参数，再查询数据。",
+      "endpoints": [
+        {
+          "id": "finance_sources",
+          "url": "https://www.huaanifd.com/finance-data/mcp",
+          "method": "POST",
+          "auth": {
+            "header": "Authorization",
+            "env": "FINANCE_MCP_TOKEN"
+          }
+        },
+        {
+          "id": "finance_list_tools",
+          "url": "https://www.huaanifd.com/finance-data/mcp",
+          "method": "POST",
+          "auth": {
+            "header": "Authorization",
+            "env": "FINANCE_MCP_TOKEN"
+          }
+        },
+        {
+          "id": "finance_call",
+          "url": "https://www.huaanifd.com/finance-data/mcp",
+          "method": "POST",
+          "auth": {
+            "header": "Authorization",
+            "env": "FINANCE_MCP_TOKEN"
+          }
+        },
+        {
+          "id": "alpha_query",
+          "url": "https://www.huaanifd.com/finance-data/mcp",
+          "method": "POST",
+          "auth": {
+            "header": "Authorization",
+            "env": "FINANCE_MCP_TOKEN"
+          }
+        },
+        {
+          "id": "gangtise_query",
+          "url": "https://www.huaanifd.com/finance-data/mcp",
+          "method": "POST",
+          "auth": {
+            "header": "Authorization",
+            "env": "FINANCE_MCP_TOKEN"
+          }
+        }
+      ],
+      "notes": [
+        "专用 MCP 协议适配；厂商密钥由上游管理。",
+        "windows_worker只表示转发已登记，权限和额度以实际查询为准。",
+        "保留厂商原字段和MCP结果；单位、复权、完整历史及PIT未核验。"
+      ]
     }
   ],
   "referenceOnly": [

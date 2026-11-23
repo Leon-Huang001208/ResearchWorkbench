@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "仅修正既有网关启动配置接线，FinGPT入口范围不变。",
-  "reason": "原启动方法复用已有已审配置helper，使预期参数与实际发布一致；无新增入口、模型、依赖、服务或存储。"
+  "summary": "复核 DataHub 金融 MCP 扩展，并保留正式网关配置接线与数据上下文修复。",
+  "reason": "沿主线复用已审网关配置helper、真实Store文件索引和数据上下文保留合同；本任务继续使用 README 已说明的账号 Host、DataHub 和 WeKnora 工具边界，公开安装入口和部署节点不变。新增来源及明确 OAuth 范围在金融 MCP 合同中说明，无需改动 README 高层入口。"
 }
