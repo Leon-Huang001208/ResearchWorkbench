@@ -515,7 +515,7 @@ function mainPage() {
   }
   if (state.route.page === 'qa') return qaPage();
   if (state.route.page === 'specialist') return researchPage();
-  if (state.route.page === 'fingpt') return nativeFinGPT() ? renderFinGPT() : state.route.clawView === 'projects' ? renderClawProject(clawWorkspace, 'fingpt') : researchPage();
+  if (state.route.page === 'fingpt') return isNativeFinGPTEntry(state.route, nativeFinGPT()) ? renderFinGPT() : state.route.clawView === 'projects' ? renderClawProject(clawWorkspace, 'fingpt') : researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (isDataWorkspaceRoute(state.route)) return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
@@ -605,7 +605,7 @@ function capabilityPage() {
 }
 
 function sidebar() {
-  if (nativeFinGPT() && state.route.page === 'fingpt') return '';
+  if (isNativeFinGPTEntry(state.route, nativeFinGPT())) return '';
   if (['qa', 'specialist'].includes(state.route.page)) {
     const specialist = state.route.page === 'specialist';
     const title = specialist ? '专业协作' : 'FinGPT';
@@ -749,9 +749,9 @@ function render() {
   assetSearch?.dispose(); assetSearch = null;
   if (!persistentAssetTerminal) { assetMinuteK.dispose(); assetIntraday.dispose(); assetChart.dispose(); }
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
-  marketController.paint(state.route.page, () => { const markup = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: visibleSessions(), skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: nativeFinGPT() && state.route.page === 'fingpt' ? { ...state.route, page: 'qa' } : state.route, account: globalThis.__RWB_ACCOUNT__, runtime: catalog.runtime, qaEnabled: qaActive() })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${catalogLabel(name)}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; paintFinGPTShell(root, markup, nativeFinGPT() && state.route.page === 'fingpt'); });
+  marketController.paint(state.route.page, () => { const markup = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${!sidebarCollapsed ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ secondaryOpen: sidebarOpen, page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(catalog), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: visibleSessions(), skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${renderPrimaryRail({ route: nativeFinGPT() && state.route.page === 'fingpt' ? { ...state.route, page: 'qa' } : state.route, account: globalThis.__RWB_ACCOUNT__, runtime: catalog.runtime, qaEnabled: qaActive() })}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${catalogLabel(name)}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${renderScenarioPanel(scenarioController.state)}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`; paintFinGPTShell(root, markup, isNativeFinGPTEntry(state.route, nativeFinGPT())); });
   paintQA();
-  if (nativeFinGPT() && state.route.page === 'fingpt') void mountFinGPT(root);
+  if (isNativeFinGPTEntry(state.route, nativeFinGPT())) void mountFinGPT(root);
   if (active?.isConnected && active.closest('[data-qa-app]')) active.focus({ preventScroll: true });
   syncAssetResearch();
   eventResearch.restore(root);
@@ -1512,6 +1512,10 @@ async function showRoute() {
     requestedRoute = { page: 'fingpt' };
     if (location.hash !== '#/fingpt') history.replaceState(null, '', '#/fingpt');
   }
+  if (nativeFinGPT() && requestedRoute.page === 'fingpt' && requestedRoute.projectId && requestedRoute.clawView !== 'projects') {
+    history.replaceState(null, '', `#/qa?project=${encodeURIComponent(requestedRoute.projectId)}`);
+    requestedRoute = parseRoute(location.hash);
+  }
   if (requestedRoute.page === 'fingpt' && qaActive() && (!nativeFinGPT() || requestedRoute.sessionId)) {
     const originalHash = location.hash;
     const id = requestedRoute.sessionId;
@@ -1582,12 +1586,12 @@ async function showRoute() {
   composerMenu = closedComposerMenu();
   clearTimeout(reportRefreshTimer);
   const ticket = ++pageGeneration; workbenchBusy = false; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
-  sidebarCollapsed = nativeFinGPT() && requestedRoute.page === 'fingpt' ? true : ['claw','fingpt'].includes(requestedRoute.page) ? conversationNavigation.state(requestedRoute.page).view.collapsed : modulePreferences.get(moduleKey(requestedRoute));
+  sidebarCollapsed = isNativeFinGPTEntry(requestedRoute, nativeFinGPT()) ? true : ['claw','fingpt'].includes(requestedRoute.page) ? conversationNavigation.state(requestedRoute.page).view.collapsed : modulePreferences.get(moduleKey(requestedRoute));
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
   cancelProjectMenuTimers();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
-  if (nativeFinGPT() && state.route.page === 'fingpt') { render(); return; }
+  if (isNativeFinGPTEntry(state.route, nativeFinGPT())) { render(); return; }
   if (qaActive() && ['qa', 'specialist'].includes(state.route.page) && state.detail && researchSessionPage(state.detail) !== state.route.page) {
     history.replaceState(null, '', fingptReplacement(state.detail, state.detail.id));
     return showRoute();
