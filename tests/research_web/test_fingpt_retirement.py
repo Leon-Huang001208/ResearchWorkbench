@@ -136,6 +136,7 @@ def test_cutover_registers_native_oauth_only_in_forward_gateway_config():
 
 def test_rollback_never_starts_an_unperformed_chat_deletion(tmp_path):
     from types import SimpleNamespace
+
     from research_workbench_entrypoint.resident import model_provider_upgrade as upgrade
 
     store = Store(tmp_path / "data")
