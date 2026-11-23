@@ -44,15 +44,16 @@ def retire_fingpt_history(store):
         root = store.directory(sid)
         datasets = root / "inputs" / "datasets"
         has_data = datasets.is_dir() and any(datasets.iterdir())
-        referenced = sid in shared or bool(DossierStore(store.root).retained_by(sid))
+        dossier_retained = bool(DossierStore(store.root).retained_by(sid))
+        referenced = sid in shared or dossier_retained
         keep = {}
         for fid, item in row.get("files", {}).items():
             path = item.get("path", "")
             if fid in shared or (path and f"sessions/{sid}/{path}" in shared):
                 keep[fid] = item
-        # Session-level references can resolve a file through its original id.
-        # Preserve the referenced material set; remove its chat ledger regardless.
-        if referenced:
+        # Dossiers explicitly retain the session material set. A plain report
+        # or data-query session_id retains only its context, not every chat file.
+        if dossier_retained:
             keep = dict(row.get("files", {}))
         retained = {Path(item["path"]) for item in keep.values()}
         if has_data:

@@ -1,6 +1,7 @@
 """Select only the FinGPT native-workspace change set; unknown files stay full."""
 
 PATHS = {
+    "app/research_web/qa_execution.py",
     "docs/generated/py_file_index.md",
     "README.md",
     "docs/architecture/research-web/readme-review.json",
