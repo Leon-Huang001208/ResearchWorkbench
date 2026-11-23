@@ -51,6 +51,11 @@ def selected(files):
     return bool(
         set(files)
         & {"app/research_web/multiuser/fingpt.py", "app/research_web/fingpt_retirement.py"}
+        or {
+            "research_workbench_entrypoint/resident/model_provider_upgrade.py",
+            "tests/research_web/test_fingpt_retirement.py",
+        }
+        <= set(files)
     ) and all(
         name in PATHS or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
         for name in files

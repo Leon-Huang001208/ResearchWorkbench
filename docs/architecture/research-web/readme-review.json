@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 DataHub 金融 MCP 扩展及已合并的 FinGPT 文件索引修复。",
-  "reason": "沿主线保留 Store.files 字符串索引及 rollback 不首次删除的既有合同；本任务复用 README 已说明的账号 Host、DataHub 和 WeKnora 工具边界，公开安装入口、部署节点和用户主入口不变。新增来源、明确 OAuth 范围及未验证事项在金融 MCP 与 DataHub 合同中说明，无需修改 README 的高层入口。"
+  "summary": "复核 DataHub 金融 MCP 扩展，并保留正式网关配置接线与数据上下文修复。",
+  "reason": "沿主线复用已审网关配置helper、真实Store文件索引和数据上下文保留合同；本任务继续使用 README 已说明的账号 Host、DataHub 和 WeKnora 工具边界，公开安装入口和部署节点不变。新增来源及明确 OAuth 范围在金融 MCP 合同中说明，无需改动 README 高层入口。"
 }
