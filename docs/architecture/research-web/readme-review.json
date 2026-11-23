@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "原FinGPT工作台范围保持，本次只修正文件索引和未执行删除的回滚边界。",
-  "reason": "真实Store.files返回路径字符串，本次适配该既有合同并限制rollback不首次执行删除；没有新增用户入口、能力、依赖、数据迁移或部署节点，README所述Native工作台与原金融业务兼容范围不变。"
+  "summary": "FinGPT入口不变，仅修复专有封存资源目录清理。",
+  "reason": "复用既有Store清理只读目录，保留实际文件引用和DataHub；无新入口、能力、依赖或部署节点。"
 }

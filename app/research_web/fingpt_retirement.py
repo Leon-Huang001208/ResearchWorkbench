@@ -6,6 +6,7 @@ in their original directories; a data-only context keeps their handles valid.
 """
 
 import json
+import stat
 from pathlib import Path
 from uuid import UUID
 
@@ -15,6 +16,25 @@ from .dossiers.storage import DossierStore
 from .store import StoreError
 
 log = get_logger(__name__)
+
+
+def _remove_exclusive(store, root, retained, child):
+    relative = child.relative_to(root)
+    if any(relative == p or p in relative.parents for p in retained):
+        return
+    if child.is_dir() and not child.is_symlink():
+        if not any(relative in p.parents for p in retained):
+            store._remove_owned_tree(child)
+            return
+        # A mixed directory can itself be sealed; change only its
+        # directory permissions, keeping referenced files untouched.
+        child.chmod(child.stat().st_mode | stat.S_IWUSR | stat.S_IXUSR)
+        for nested in child.iterdir():
+            _remove_exclusive(store, root, retained, nested)
+        if not any(child.iterdir()):
+            child.rmdir()
+    else:
+        child.unlink()
 
 
 def retire_fingpt_history(store):
@@ -59,15 +79,8 @@ def retire_fingpt_history(store):
             retained.add(Path("inputs/datasets"))
         # Remove only exclusive chat files. Shared material remains in place.
         if root.exists():
-            for child in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-                relative = child.relative_to(root)
-                if any(relative == p or p in relative.parents for p in retained):
-                    continue
-                if child.is_dir() and not child.is_symlink():
-                    if not any(child.iterdir()):
-                        child.rmdir()
-                else:
-                    child.unlink()
+            for child in root.iterdir():
+                _remove_exclusive(store, root, retained, child)
             if not any(root.iterdir()):
                 root.rmdir()
         # Native DSH generations for this exact former chat workspace.
