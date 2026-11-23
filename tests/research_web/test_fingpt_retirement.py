@@ -101,3 +101,27 @@ def test_retained_data_contexts_are_not_retired_chat_executions(monkeypatch):
     assert qa_execution.retired(service, row) is True
     assert qa_execution.retired(service, {**row, "data_only": True}) is False
     assert qa_execution.retired(service, {**row, "mcp_data_grant_id": "grant"}) is False
+
+
+def test_cutover_registers_native_oauth_only_in_forward_gateway_config():
+    from research_workbench_entrypoint.resident import model_provider_upgrade as upgrade
+
+    old = {
+        "revision": "a" * 40,
+        "binding": {"revision": "a" * 40},
+        "mcp_readonly_enabled": True,
+        "alphadesk_qa": True,
+    }
+    state = {
+        "mode": upgrade.REVIEWED_MODE,
+        "gateway_config": old,
+        "target": "b" * 40,
+        "discard_fingpt_history": True,
+        "fingpt_workspace_origin": "https://rwb.tail123.ts.net:9443",
+    }
+    forward = upgrade.gateway_configuration(state)
+    assert forward["weknora_oauth_origin"] == state["fingpt_workspace_origin"]
+    assert forward["weknora_cookie_isolated"] is True
+    assert forward["alphadesk_qa"] is True
+    assert upgrade.gateway_configuration(state, previous=True) == old
+    assert "weknora_oauth_origin" not in old
