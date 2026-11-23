@@ -1006,6 +1006,9 @@ test('G2B CI executes its release and public Host contracts once without the unr
 });
 
 test('MCP DataHub scope is exact and retains the original runner and permission contracts', t => {
+  for (const event of ['pull_request', 'push']) {
+    assert.equal(triggersForPath(workflows.checks,event,'scripts/run_mcp_datahub_ci.sh'),true,event);
+  }
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'rwb-mcp-datahub-scope-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   const step=workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
@@ -1020,6 +1023,7 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
     [[...files,'app/research_web/main.py'],'a'.repeat(40),'',false],
     [[...files,'app/research_web/datahub/future_provider.py'],'a'.repeat(40),'',false],
     [['.github/workflows/research-web-checks.yml'],'a'.repeat(40),'',false],
+    [['scripts/run_mcp_datahub_ci.sh'],'a'.repeat(40),'',false],
     [files,'','',false],[files,'a'.repeat(40),'1',false]]) {
     const output=path.join(root,`scope-${fs.readdirSync(root).length}`);
     const harness=`import json,os,subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv,**kwargs):\n    if os.environ.get('SCOPE_GIT_FAILURE'):return SimpleNamespace(returncode=1)\n    if 'fetch' in argv:return SimpleNamespace(returncode=0)\n    assert argv[:4]==['git','diff','--name-only','-z']\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(x.encode() for x in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
