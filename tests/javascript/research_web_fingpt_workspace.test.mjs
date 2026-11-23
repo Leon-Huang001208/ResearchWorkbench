@@ -24,3 +24,16 @@ test('native entry clears only authentication state before using original OIDC',
   assert.match(source, /\/api\/v1\/auth\/oidc\/start/);
   assert.doesNotMatch(source, /localStorage\.clear\(|setItem\(|password|client_secret/);
 });
+
+test('unbound identity points to the actual knowledge settings route', async () => {
+  const { mountFinGPT } = await import('../../app/research_web/ui/fingpt-workspace.mjs');
+  const previous = globalThis.document;
+  let link;
+  globalThis.document = { createElement: () => ({}) };
+  const slot = { textContent: '', append: value => { link = value; } };
+  try {
+    await mountFinGPT({ querySelector: () => slot }, async () => ({ ok: false, status: 409 }));
+    assert.match(slot.textContent, /绑定/);
+    assert.equal(link.href, '#/settings/data');
+  } finally { globalThis.document = previous; }
+});
