@@ -2850,7 +2850,7 @@ class Operations:
     def start_gateway(self, previous):
         from app.research_web.multiuser.resident_binding import LegacyBinding
 
-        config = dict(self.state["gateway_config"])
+        config = dict(gateway_configuration(self.state, previous))
         if not previous:
             binding = LegacyBinding.discover(self.home, config["binding"]["primary_user_id"])
             if binding.verify().get("revision") != self.state["target"]:
