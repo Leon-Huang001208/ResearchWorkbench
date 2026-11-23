@@ -150,3 +150,28 @@ def test_rollback_never_starts_an_unperformed_chat_deletion(tmp_path):
     assert calls == [True]
     assert artifact.read_text() == "untouched"
     assert "fingpt_history_retired" not in state
+
+
+def test_remove_sealed_resources_but_keep_referenced_file(tmp_path):
+    store = Store(tmp_path / "data")
+    old = store.create("fingpt", "discard sealed chat")
+    sid = old["id"]
+    root = store.directory(sid)
+    sealed = root / "resources/capabilities/fund-evaluation/2/scripts"
+    sealed.mkdir(parents=True)
+    (sealed / "workflow.py").write_text("exclusive skill")
+    formal = root / "outputs/report.pdf"
+    formal.write_bytes(b"formal")
+    exclusive = root / "outputs/chat.txt"
+    exclusive.write_text("exclusive chat")
+    ids = {item["name"]: item["id"] for item in store.files(sid)}
+    store.data["report_runs"]["formal"] = {"session_id": sid, "artifacts": [ids["report.pdf"]]}
+    for path in sorted((root / "resources").rglob("*"), reverse=True):
+        path.chmod(0o500 if path.is_dir() else 0o400)
+    (root / "resources").chmod(0o500)
+    (root / "outputs").chmod(0o500)
+    assert retire_fingpt_history(store) == {"deleted_chats": 1, "retained_data_contexts": 1}
+    assert not (root / "resources").exists()
+    assert not exclusive.exists()
+    assert formal.read_bytes() == b"formal"
+    assert store.data["sessions"][sid]["files"] == {ids["report.pdf"]: "outputs/report.pdf"}
