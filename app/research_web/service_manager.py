@@ -68,6 +68,7 @@ CJPY_SHA256 = RUNTIME_CONTRACT.cjpy_sha256
 ENVIRONMENT_MARKER = ".rwb-web-environment.json"
 STATE_LIMIT_BYTES = CONTROL_JSON_MAX_BYTES
 WEB_TEXT_MAX_BYTES = min(MAX_HTTP_BODY_BYTES, 256 * 1024)
+WEB_STATIC_MAX_BYTES = min(MAX_HTTP_BODY_BYTES, 512 * 1024)
 WEB_ROOT_MARKER = "Research Workbench · Research"
 WEB_STATIC_MARKER = "const defaultCatalogNames ="
 MAX_STATE_STRING_LENGTH = 4096
@@ -1113,7 +1114,7 @@ class WebServiceManager:
             status, content_type, body = self._text_request(
                 self.web_port,
                 "/static/app.mjs",
-                max_bytes=WEB_TEXT_MAX_BYTES,
+                max_bytes=WEB_STATIC_MAX_BYTES,
             )
             if (
                 status != 200

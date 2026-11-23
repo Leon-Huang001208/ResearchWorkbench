@@ -2937,3 +2937,18 @@ def test_bot_mutations_require_explicit_action_and_owned_runtime(api):
     rejected = client.post(path, json=body, headers={"X-Research-User-Action": "?1"})
     assert rejected.json()["error"]["code"] == "read_only_runtime"
     assert service.automations.list(research_bot=True)["items"] == []
+
+
+def test_data_only_and_mcp_contexts_are_hidden_without_hiding_financial_tasks(api):
+    client, _, service = api
+    claw = service.store.create("claw", "Claw business task")
+    financial = service.store.create("fingpt", "Scoped financial research")
+    financial["execution_engine"] = "alphadesk"
+    retained = service.store.create("fingpt", "Retained data")
+    retained["data_only"] = True
+    mcp = service.store.create("fingpt", "MCP data context")
+    mcp["mcp_data_grant_id"] = "test-grant"
+    service.store.save()
+    response = client.get("/api/research/sessions")
+    assert response.status_code == 200
+    assert {row["id"] for row in response.json()["items"]} == {claw["id"], financial["id"]}
