@@ -1054,7 +1054,8 @@
         "app/research_web/multiuser/",
         "app/research_web/tenant_policy.py",
         "research_workbench_entrypoint/server.py",
-        "research_workbench_entrypoint/knowledge_configuration.py"
+        "research_workbench_entrypoint/knowledge_configuration.py",
+        "app/research_web/fingpt_retirement.py"
       ],
       "documents": [
         "docs/research-web-ai-news.md",
@@ -6700,6 +6701,41 @@
       "path": "/api/research/release",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/release",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/openid-configuration",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/.well-known/openid-configuration",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/fingpt/workspace",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/workspace",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/fingpt/authorize",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/authorize",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/fingpt/token",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/token",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/fingpt/userinfo",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/userinfo",
       "prefix": ""
     }
   ],

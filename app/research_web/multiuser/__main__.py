@@ -309,6 +309,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from ..mcp_facade.config import resident_execution
     from ..qa_assets import qa_assets_diagnostic
     from ..research_bot_diagnostics import configuration_status, diagnostic
+    from .fingpt import diagnostic as fingpt_diagnostic
 
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
@@ -376,6 +377,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         ),
         "model": "not_checked",
         "ai_qa": qa_assets_diagnostic(Path(__file__).resolve().parents[1]),
+        "fingpt_workspace": fingpt_diagnostic(root),
         "mcp_readonly": mcp,
         "knowledge_backend": knowledge,
         "weknora_oauth": {"status": oauth_status, "runtime_verification": "NOT_RUN"},
@@ -534,7 +536,17 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
         from ..mcp_facade.config import validate_weknora_gateway
 
         try:
-            validate_weknora_gateway(origin, oauth_origin, arguments.port)
+            from .fingpt import FinGPTConfig
+
+            fingpt = FinGPTConfig.configured(root)
+            validate_weknora_gateway(
+                origin,
+                oauth_origin,
+                arguments.port,
+                cookie_isolated=bool(
+                    fingpt and fingpt.cookie_isolated and fingpt.origin == oauth_origin
+                ),
+            )
         except ValueError as exc:
             raise ServerCommandError(str(exc)) from exc
     if not 1 <= arguments.port <= 65535:

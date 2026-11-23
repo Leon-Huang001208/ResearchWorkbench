@@ -776,7 +776,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 23);
+  assert.equal(catalogs.length, 24);
   assert.ok(catalogs.some(([id]) => id === "research-web-inbound-mcp"));
   assert.ok(catalogs.some(([id]) => id === "research-web-asset-history-python"));
   assert.ok(catalogs.some(([id]) => id === "research-web-native-upgrade"));

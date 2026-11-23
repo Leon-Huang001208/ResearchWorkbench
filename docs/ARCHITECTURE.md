@@ -470,3 +470,7 @@ macOS 私网网关可显式选择每账户 Web 单进程。WeKnora Runtime 是�
 ### 私网仅服务主账号
 
 常驻网关可以复用原主账号目录和 Web 端口，由旧生命周期锁保护唯一写入方。预登记 WeKnora HTTPS 回调使用独立主机。
+
+## FinGPT 原生工作台替换
+
+FinGPT 沿原多用户网关接入固定 WeKnora 完整前端，保留 RWB 导航和逐账号身份；固定单 client 的原生 OIDC/userinfo 桥不授予数据权限，DataHub 仍走原 MCP OAuth。既有 nginx 仅允许原生 nonce Cookie 并限制嵌入来源，不新增运行服务。旧聊天在原联合升级停止阶段按显式参数删除，数据和正式报告保留；见[工作台合同](research-web-fingpt-workspace.md)。

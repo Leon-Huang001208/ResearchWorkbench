@@ -153,3 +153,7 @@ python scripts/weknora_candidate.py benchmark /explicit/gold.json /explicit/actu
 只读候选工具不能证明本轮原实例恢复、新目录已完成同步、真实 Embedding、命中质量或原报告材料接受。恢复／备份、实际链路、双用户及撤权、原生宿主、完整报告、最终候选 CI、常驻服务与其他平台各自取证，缺项保持 `NOT_RUN`／`BLOCKED`。本轮原数据保留且不凭源码迁移；旧付费记录缺口继续单列，不能用新零生成观测覆盖历史未知。
 
 非秘密origin的stdlib校验由 `research_workbench_entrypoint/knowledge_configuration.py` 供公开dispatcher和冷Doctor共用，冷诊断不导入server启动模块或访问凭据。该修复与资料网络／存储admission仍使用原账号及维护边界，没有新增服务或执行角色。
+
+## FinGPT 完整应用接管
+
+首批通过原多用户网关的固定原生 OIDC/userinfo 登录桥，将 FinGPT 接到完整 WeKnora 工作台。用户只登录 RWB，继续使用原绑定的 WeKnora 身份；Claw 本批不替换。Cookie 代理边界、原 MCP 独立授权以及不备份的旧聊天删除顺序见[完整工作台合同](research-web-fingpt-workspace.md)。源码、隔离真实浏览器、必要 CI 和生产部署分别报告，不以配置启用声明所有模型和金融质量通过。

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 Fed RSS、FinGPT 双入口恢复与主线研究包及显式 DataHub 查询 scope，保留当前公开入口。",
-  "reason": "Fed RSS 复用 DataHub、Discovery、Automation 和 Host 质量链。README 已随主线登记九个确定性研究包、三个原件方法、G2B、可信主账号数据源及通用已审升级；WeKnora 公开查询仍需明确同意，rwb.read 不扩权，连接与发现不取数。本批保留该内容，FinGPT 来源报告与受管升级由模块文档说明，无新增安装入口、依赖或数据迁移；源码、CI、真实业务及部署分别留证。"
+  "disposition": "updated",
+  "summary": "README 对齐 FinGPT 原生 WeKnora 完整工作台与统一登录入口。",
+  "reason": "FinGPT 沿原网关和已有 WeKnora 应用替换旧问答界面，README 改指向原生工作台合同；Claw、DataHub、知识库及正式报告仍保留。源码、浏览器免二次登录、CI、精确聊天删除和实际部署分别报告，不以本次来源或页面验证冒称全部功能和金融质量通过。"
 }
