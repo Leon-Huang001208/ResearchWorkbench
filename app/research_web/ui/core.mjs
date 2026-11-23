@@ -68,6 +68,9 @@ export function parseRoute(hash = '') {
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
+  if (['qa', 'specialist'].includes(page) && params.has('project')) {
+    route.projectId = /^(default|project-[a-f0-9]{32})$/.test(params.get('project') || '') ? params.get('project') : 'default';
+  }
   if (['claw', 'fingpt'].includes(page) && (params.has('view') || params.has('project'))) {
     route.clawView = (page === 'claw' ? ['projects','plans','skills'] : ['projects']).includes(params.get('view')) ? params.get('view') : 'sessions';
     route.projectId = /^(default|project-[a-f0-9]{32})$/.test(params.get('project') || '') ? params.get('project') : 'default';
