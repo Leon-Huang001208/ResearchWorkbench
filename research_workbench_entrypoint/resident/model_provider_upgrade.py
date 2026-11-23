@@ -1941,6 +1941,14 @@ def gateway_configuration(state, previous=False):
         ),
         **({"alphadesk_qa": True} if state.get("mode") == FINGPT_MODE else {}),
         **(
+            {
+                "weknora_oauth_origin": state["fingpt_workspace_origin"],
+                "weknora_cookie_isolated": True,
+            }
+            if state.get("discard_fingpt_history") and state.get("fingpt_workspace_origin")
+            else {}
+        ),
+        **(
             {"weknora_origin": LOCAL_KNOWLEDGE_ORIGIN}
             if state.get("mode") == LOCAL_KNOWLEDGE_MODE
             else {}
@@ -4478,6 +4486,13 @@ def operate(
             }
             if source_repository is not None:
                 state["source_repository"] = source_repository
+            if discard_fingpt_history:
+                from app.research_web.multiuser.fingpt_config import FinGPTConfig
+
+                workspace = FinGPTConfig.configured(server)
+                if workspace is None or not workspace.cookie_isolated:
+                    raise UpdateBlocked("fingpt_workspace_configuration_required")
+                state["fingpt_workspace_origin"] = workspace.origin
             if mode in EVENT_PRESERVATION_MODES:
                 state["event_schedules_before"] = event_before
                 verify_event_schedules(home, state)
