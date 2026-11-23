@@ -131,6 +131,8 @@ jobs:
                   if diff.returncode == 0:
                       files = [name for name in diff.stdout.decode().split("\0") if name]
           mcp_paths = {
+              'tests/research_web/test_datahub_catalog.py',
+              'tests/research_web/test_connection_center.py',
               '.agents/verification-policy.json',
               '.github/workflows/project-constraints.yml',
               '.github/workflows/research-web-checks.yml',

@@ -80,9 +80,9 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 16,
-        "sources": 65,
+        "sources": 66,
         "callable_sources": 41,
-        "needs_configuration": 15,
+        "needs_configuration": 16,
         "unavailable": 0,
     }
     ids = {source["id"] for source in catalog["sources"]}
