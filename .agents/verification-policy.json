@@ -529,7 +529,8 @@
           "tests/research_web/test_fingpt_identity.py",
           "tests/research_web/test_fingpt_proxy.py",
           "tests/research_web/test_fingpt_retirement.py",
-          "tests/javascript/research_web_fingpt_workspace.test.mjs"
+          "tests/javascript/research_web_fingpt_workspace.test.mjs",
+          "app/research_web/multiuser/fingpt_config.py"
         ],
         "prefixes": [],
         "segments": [],

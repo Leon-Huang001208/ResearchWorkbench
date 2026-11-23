@@ -309,7 +309,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     from ..mcp_facade.config import resident_execution
     from ..qa_assets import qa_assets_diagnostic
     from ..research_bot_diagnostics import configuration_status, diagnostic
-    from .fingpt import diagnostic as fingpt_diagnostic
+    from .fingpt_config import diagnostic as fingpt_diagnostic
 
     accounts = _inspect_accounts(root)
     mcp = _inspect_mcp(root)
@@ -536,7 +536,7 @@ def _serve(arguments: argparse.Namespace, root: Path) -> int:
         from ..mcp_facade.config import validate_weknora_gateway
 
         try:
-            from .fingpt import FinGPTConfig
+            from .fingpt_config import FinGPTConfig
 
             fingpt = FinGPTConfig.configured(root)
             validate_weknora_gateway(
