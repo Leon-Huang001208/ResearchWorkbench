@@ -471,3 +471,110 @@ def test_current_compatible_route_key_change_invalidates_prepared_generation(pro
     assert response.status_code == 200, response.text
     assert service.compatible_connection()["revision"] != before
     assert service.store.data["model_test"]["status"] == "passed"
+
+
+def test_retired_fingpt_status_does_not_block_profile_save(profile_api, monkeypatch):
+    client, service, _, _ = profile_api
+    monkeypatch.setenv("RWB_ALPHADESK_QA", "1")
+    row = service.store.create("fingpt", "Retired history")
+    row.update(created=True, status="running")
+    result = client.post("/api/research/model-profiles", json=profile_body())
+    assert result.status_code == 200, result.text
+    assert row["status"] == "running"  # Preserve the original historical index.
+
+
+def test_stale_status_uses_authoritative_detail(profile_api, monkeypatch):
+    client, service, _, _ = profile_api
+    row = service.store.create("claw", "Completed history")
+    row.update(created=True, status="running")
+
+    async def detail(sid):
+        assert sid == row["id"]
+        return {"status": "completed"}
+
+    monkeypatch.setattr(service, "detail", detail)
+    result = client.post("/api/research/model-profiles", json=profile_body())
+    assert result.status_code == 200, result.text
+
+
+@pytest.mark.parametrize(
+    "detail",
+    [
+        {"status": "running"},
+        {"status": "interrupted"},
+        {"status": "completed", "execution_restricted": True},
+        {"status": "completed", "history_warning": "unverified"},
+    ],
+)
+def test_unconfirmed_history_still_blocks_profile_save(profile_api, monkeypatch, detail):
+    client, service, _, _ = profile_api
+    row = service.store.create("claw", "Unconfirmed history")
+    row.update(created=True, status="running")
+
+    async def read_detail(sid):
+        return detail
+
+    monkeypatch.setattr(service, "detail", read_detail)
+    result = client.post("/api/research/model-profiles", json=profile_body())
+    assert result.status_code == 503
+    assert result.json()["error"]["code"] == "model_activity_unknown"
+
+
+def test_active_qa_task_blocks_model_profile_save(profile_api):
+    client, service, _, _ = profile_api
+    service.qa.tasks["running-question"] = object()
+    try:
+        result = client.post("/api/research/model-profiles", json=profile_body())
+        assert result.status_code == 503
+        assert result.json()["error"]["code"] == "model_change_busy"
+    finally:
+        service.qa.tasks.clear()
+
+
+@pytest.mark.parametrize("completed", [True, False])
+def test_real_history_reconciles_stale_profile_activity(profile_api, monkeypatch, completed):
+    client, service, runtime, _ = profile_api
+    row = service.store.create("claw", "Native history")
+    row.update(created=True, status="running")
+
+    async def history(sid):
+        assert sid == row["id"]
+        events = [{"event": {"type": "turn/start", "seq": 0, "data": {"turn": 1}}}]
+        if completed:
+            events.append(
+                {"event": {"type": "turn/end", "seq": 1, "data": {"reason": {"kind": "completed"}}}}
+            )
+        return events
+
+    monkeypatch.setattr(runtime, "history", history)
+    result = client.post("/api/research/model-profiles", json=profile_body())
+    assert result.status_code == (200 if completed else 503), result.text
+
+
+@pytest.mark.parametrize("activity", ["native", "receipt", "child", "child_unknown"])
+def test_retired_history_preserves_real_activity_gates(profile_api, monkeypatch, activity):
+    client, service, runtime, _ = profile_api
+    monkeypatch.setenv("RWB_ALPHADESK_QA", "1")
+    row = service.store.create("fingpt", "Retired history")
+    row.update(created=True, status="running")
+    if activity == "native":
+        runtime.running.add(row["id"])
+    elif activity == "receipt":
+        service.store.data["receipts"]["unknown"] = {"status": "unknown"}
+    else:
+        original = runtime.rpc
+
+        async def rpc(method, payload):
+            if method == "subagent.list":
+                return {
+                    "entries": [
+                        {
+                            "kind": "child",
+                            "activity": "running" if activity == "child" else "unknown",
+                        }
+                    ]
+                }
+            return await original(method, payload)
+
+        monkeypatch.setattr(runtime, "rpc", rpc)
+    assert client.post("/api/research/model-profiles", json=profile_body()).status_code == 503
