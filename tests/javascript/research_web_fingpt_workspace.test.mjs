@@ -49,3 +49,17 @@ test('new conversations enter native workspace while scoped financial handoffs k
   assert.equal(isNativeFinGPTEntry({ page: 'fingpt', clawView: 'projects' }, true), false);
   assert.equal(fingptReplacement({ mode: 'fingpt', execution_engine: 'alphadesk' }, 'frozen-financial-task'), '#/qa?session=frozen-financial-task');
 });
+
+test('actual URL parsing keeps project-scoped research and defaults native', async () => {
+  const { parseRoute } = await import('../../app/research_web/ui/core.mjs');
+  const { isNativeFinGPTEntry } = await import('../../app/research_web/ui/qa-navigation.mjs');
+  const id = 'project-' + 'a'.repeat(32);
+  assert.equal(isNativeFinGPTEntry(parseRoute('#/fingpt'), true), true);
+  assert.equal(isNativeFinGPTEntry(parseRoute('#/qa'), true), true);
+  assert.equal(isNativeFinGPTEntry(parseRoute('#/fingpt?project=default'), true), true);
+  assert.equal(isNativeFinGPTEntry(parseRoute('#/fingpt?project=' + id), true), false);
+  const routed = parseRoute('#/qa?project=' + id);
+  assert.equal(routed.projectId, id);
+  assert.equal(isNativeFinGPTEntry(routed, true), false);
+  assert.equal(isNativeFinGPTEntry(parseRoute('#/fingpt?view=projects'), true), false);
+});
