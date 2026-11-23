@@ -1,6 +1,9 @@
 """Select only the FinGPT native-workspace change set; unknown files stay full."""
 
 PATHS = {
+    "tests/research_web/test_api.py",
+    "app/research_web/service_manager.py",
+    "tests/research_web/test_service_manager.py",
     "app/research_web/ui/core.mjs",
     "app/research_web/ui/qa-navigation.mjs",
     "tests/javascript/research_web_asset_tabs.test.mjs",
