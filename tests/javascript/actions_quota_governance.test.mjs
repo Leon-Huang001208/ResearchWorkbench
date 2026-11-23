@@ -1010,7 +1010,7 @@ test('model profile scope uses exact interfaces and rejects mixed or unknown cha
   const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
   const code = step.match(/          python - <<'PY'\n([^]*?)\n          PY/)[1].split('\n').map(line => line.slice(10)).join('\n');
   const owned = ['app/research_web/model_profiles.py', 'app/research_web/ui/model-settings.mjs',
-    'tests/research_web/test_model_profiles.py', 'tests/javascript/research_web_model_profiles.test.mjs',
+    'tests/research_web/test_model_profiles.py', 'tests/research_web/test_model_connections.py', 'tests/javascript/research_web_model_profiles.test.mjs',
     'tests/javascript/actions_quota_governance.test.mjs', '.github/workflows/research-web-checks.yml',
     'docs/architecture/research-web/readme-review.json', 'docs/research-web-ui.md', '.ai/reports/repair.md'];
   for (const [files, base, expected] of [[owned,'a'.repeat(40),true],
