@@ -30,6 +30,9 @@ def test_keep_datahub_and_formal_report_references(tmp_path):
     dataset = root / "inputs/datasets/d1/rows.json"
     dataset.parent.mkdir(parents=True)
     dataset.write_text('[{"value": 5.33}]')
+    receipt = store.root / ".control/calls" / sid / "provider-call.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text('{"dataset_id":"d1","data_success":true}')
     chat = root / ".control/qa.json"
     chat.parent.mkdir()
     chat.write_text('{"messages": ["old chat"]}')
@@ -43,6 +46,7 @@ def test_keep_datahub_and_formal_report_references(tmp_path):
     report = dict(store.data["report_runs"])
     assert retire_fingpt_history(store)["retained_data_contexts"] == 1
     assert dataset.read_text() == '[{"value": 5.33}]'
+    assert receipt.read_text() == '{"dataset_id":"d1","data_success":true}'
     assert output.read_bytes() == b"formal report"
     assert not exclusive.exists()
     assert set(store.data["sessions"][sid]["files"]) == {"shared-file"}
