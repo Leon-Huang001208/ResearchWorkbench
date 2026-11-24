@@ -10702,6 +10702,7 @@ Imports:
 - `asyncio`
 - `contextlib`
 - `core.observability`
+- `documentation`
 - `fastapi`
 - `fastapi.exceptions`
 - `fastapi.responses`
@@ -10730,6 +10731,10 @@ Functions:
 - `ai_path`
 - `page_matches`
   - Keep an old tab from submitting to a newly logged-in account.
+- `documentation_navigation`
+  - Top-level navigation into the fixed, isolated documentation allowlist.
+- `_session_token`
+  - The document cookie is only accepted for the fixed documentation allowlist.
 - `_weknora_oauth_navigation`
   - Allow the validated OAuth navigation and its login redirect only.
 - `create_gateway`
