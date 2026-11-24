@@ -325,3 +325,5 @@ AlphaDesk 迁移验收单独使用新 Host 回执。FinGPT 旧隔离比较记录
 2026-11-24 私网网关架构文档导航修复不属于模型或供应商比较：它只让 opaque sandbox 的文档间
 顶层导航可用，并给文档路径签发同令牌的限定 Cookie。CI 沿 `gateway_documentation_only`
 只运行账号网关与文档路由两个 Python 模块，不执行 FinGPT 比较、编辑引擎或真实模型调用。
+该范围的 Python 命令封装在 `scripts/run_gateway_documentation_ci.sh`，以保持 workflow 的
+`run: |` 解码在 GitHub 21000 字符上限内；它不新增 job、runner、依赖或模型调用。

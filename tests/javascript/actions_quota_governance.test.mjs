@@ -864,7 +864,8 @@ test('knowledge authority regressions execute once in each applicable CI branch'
   for(const [retention,packs,fingpt] of [[false,false,false],[false,true,false],[true,false,false],[false,false,true]]) {
     const record=path.join(root,`${retention}-${packs}-${fingpt}.jsonl`);
     const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_workspace_only }}', 'false')
-      .replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt));
+      .replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt))
+      .replaceAll('${{ steps.contract-scope.outputs.gateway_documentation_only }}','false');
     const result=spawnSync('/bin/bash',['-e','-c',command],{cwd:root,env:{...process.env,PATH:path.join(root,'bin')+path.delimiter+process.env.PATH,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
     assert.equal(result.status,0,result.stderr);
     const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));
@@ -882,6 +883,42 @@ test('knowledge authority regressions execute once in each applicable CI branch'
       }
     }
     if(retention) assert.equal(argumentsFound.filter(value=>value==='tests/research_web/test_test_artifact_retention.py').length,1);
+  }
+});
+
+test('gateway documentation scope stays exact and mixed changes retain the full contract set', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-gateway-doc-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const gateway = 'app/research_web/multiuser/gateway.py';
+  const head = 'b'.repeat(40);
+  const tool = [gateway, 'tests/research_web/test_multiuser_gateway.py',
+    'tests/research_web/test_documentation.py', 'docs/architecture/research-web/04-api.md',
+    'docs/architecture/research-web/05-security-validation.md',
+    'docs/architecture/research-web/readme-review.json', 'docs/generated/py_file_index.md',
+    '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs',
+    '.ai/reports/2026-11-24-rwb-documentation-navigation.md'];
+  for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],
+    [[gateway], 'a'.repeat(40), true],
+    [[...tool, 'app/research_web/main.py'], 'a'.repeat(40), false],
+    [[...tool, 'tests/research_web/test_api.py'], 'a'.repeat(40), false],
+    [[...tool, 'scripts/check_research_architecture.mjs'], 'a'.repeat(40), false],
+    [tool, '', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: head, GITHUB_OUTPUT: output,
+        SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const scope = Object.fromEntries(fs.readFileSync(output, 'utf8').trim().split('\n').map(line => line.split('=')));
+    assert.equal(scope.gateway_documentation_only, String(expected), JSON.stringify({files, base}));
+    for (const flag of ['retention_only', 'architecture_only', 'g2b_release_only', 'research_packs_only', 'reviewed_upgrade_only', 'fingpt_source_only', 'mcp_datahub_only']) {
+      assert.equal(scope[flag], 'false');
+    }
   }
 });
 

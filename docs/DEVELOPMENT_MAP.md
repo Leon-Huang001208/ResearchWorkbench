@@ -19,6 +19,8 @@ CI 的精确 MCP／DataHub 差异选择仍在原 Checks 步骤；测试清单位
 生成的 Python 文件索引、本 workflow 与范围测试。命中后 Python 只跑这两个模块，JS 只跑账号
 会话与额度治理，跳过不相关的编辑引擎安装；混入其他产品源码、测试或未知文件仍走完整路径。
 收窄原因是全量合同按既有记录超过 45 分钟作业上限被取消，不是用例失败。
+Python 命令放在 `scripts/run_gateway_documentation_ci.sh`；GitHub 的 `run: |` 解码上限是
+21000 字符，内联会越界，因此沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，分支只保留一行调用。
 
 Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快照，`discovery/service.py` 冻结来源，`discovery/tracking.py` 沿原 Automation 调度与历史处理变化、质量及通知；专用入口在 `discovery/routes.py`，没有新增调度服务。
 

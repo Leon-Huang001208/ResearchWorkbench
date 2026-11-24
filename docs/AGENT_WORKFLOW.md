@@ -129,6 +129,15 @@ spawn 紧前还须拒绝式复核，可能执行后的漂移保持 unknown 且�
 
 候选0e4ceeb2的Checks40262625759在40m上限取消：Python7109通过/72原skip/117subtests（2201.70s），另47通过（0.89s）；JS1199通过/3原skip（20.80s），但step因总时限取消，末尾固定编辑引擎检查NOT_RUN。完整日志18446774B保留原失败归属；只把原同一ubuntu-latest job有界延长40→45分钟（增加5分钟），不新增job/runner/依赖/跳过或删除用例，不改变permissions/concurrency。约132s依赖安装+约37m Python已耗尽旧预算；新增分钟合同本地亚秒，不把超时伪称功能通过。新候选重跑原三CI/Mac安装，不rerun旧run，CI不调用实际供应商或模型。
 
+私网网关架构文档导航修复复用同一 `Choose contract test scope` 步骤新增
+`gateway_documentation_only`：真实差异必须命中 `app/research_web/multiuser/gateway.py`，
+其余文件仅限两份相关 Python 合同、04／05 架构说明、README 复核回执、生成的 Python 文件索引、
+本 workflow 与范围测试。命中后 Python 只运行账号网关与文档路由两个模块，JS 只运行账号会话与
+额度治理；混入其他产品源码、其他测试或未知文件仍回退完整路径。Python 命令放在
+`scripts/run_gateway_documentation_ci.sh`，因为内联会使该步骤的 `run: |` 解码超过 GitHub
+21000 字符上限；沿既有 `run_fingpt_source_ci.sh` 的脚本化做法。该收窄起因是全量合同按既有
+记录超过 45 分钟作业上限被取消，不是用例失败；实际候选仍须取得自己的 CI 结果。
+
 分时正式接入沿原Checks步骤登记分钟合同回归，完整changed-set Router/独评/原三CI/同候选Mac安装不减。真实分时使用账号隔离DataHub快照，分钟K仅核验样本不冒充实现；受控部署仍等待实际空闲/保全/恢复门，旧Wind未知不能由本功能源码绿替代。
 
 全市场广度组合按用户批准纳入PR233/235/237，固定产品4c72ed43与实际前版b800e503；独立worktree实现封闭apply-market-breadth，完整Router/原三CI/同候选Mac安装及独评后才准入。旧active=null/Wind清理未确认继续阻断，不补假见证或清标记，不执行未实现恢复、周报重放、模型或日程；源码交付与现场上线分别留证。
