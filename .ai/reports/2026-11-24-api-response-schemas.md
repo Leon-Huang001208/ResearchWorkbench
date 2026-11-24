@@ -58,6 +58,11 @@ FastAPI 有两条看似等价的路：
 - 未给其余 453 条接口补 schema：多数处理器返回 `await service.x()`，真实结构在 service 层，
   需逐条读实现，不能批量推断。
 - 未补参数 `description`（457 个参数仍为空）。
+
+## 项目门禁
+
+`app/research_web/` 改动触发 README 复核回执门禁；本次结论为 `unchanged`：
+只补接口文档模型并写入 `04-api.md`，README 的入口、运行命令和部署边界未变。
 - 未部署；本任务只改变源码与生成物。
 
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"响应模型只登记 OpenAPI 结构，路由、服务与数据流未变，不新增节点或接口。","diagrams":[]} -->
