@@ -67,6 +67,13 @@ FastAPI 有两条看似等价的路：
 
 `app/research_web/` 改动触发 README 复核回执门禁；本次结论为 `unchanged`：
 只补接口文档模型并写入 `04-api.md`，README 的入口、运行命令和部署边界未变。
+
+全量 Web 合同在 45 分钟作业上限被取消（不是用例失败），因此沿已有窄范围模式新增
+`api_doc_only`：以 `schemas_responses.py` 为触发核心，只跑 workbench 操作、
+asset loading／directory 与文档路由，以及对应的 JS 合同；混合或未知文件仍回退全量。
+范围选择、真实分支和允许清单由 `tests/javascript/actions_quota_governance.test.mjs` 覆盖。
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"在既有 Checks scope selector 增加 api_doc_only 收窄，不新增 job、runner、依赖、权限、平台 dispatch 或时限；验证流程与平台职责不变。","diagrams":[]} -->
 - 未部署；本任务只改变源码与生成物。
 
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"响应模型只登记 OpenAPI 结构，路由、服务与数据流未变，不新增节点或接口。","diagrams":[]} -->
