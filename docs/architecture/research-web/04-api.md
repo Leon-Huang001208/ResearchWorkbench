@@ -1,5 +1,20 @@
 # Research Web 接口清单
 
+## 响应模型只用于文档（2026-11-24）
+
+`app/research_web/schemas_responses.py` 的模型通过
+`responses={200: {"model": ...}}`（或对应成功码）挂到路由，仅用于生成 OpenAPI；
+**不得**改用 `response_model`。原因：`response_model` 在运行时校验并丢弃未声明字段，
+会改变现有响应（部分处理函数保留旧客户端依赖的额外键）。文档模型一律
+`extra="allow"`，字段列表是已知子集，不宣称穷尽。
+
+当前已登记响应结构：`/data/queries`（POST/GET/详情/取消）与
+`/assets/observations`（POST/GET/详情）。其余 453 个操作仍未声明 2xx schema，
+在 OpenAPI 中保持 `未记载`，不用同类接口推断。
+
+回归：`tests/research_web/test_workbench_operations.py::test_desk_query_response_models_document_shape_without_filtering_runtime`
+同时断言 schema 已登记与响应仍为原始投影；`test_asset_loading.py` 覆盖资产侧运行时。
+
 Fed RSS 预览入口为 `POST /api/research/discovery/registered-feeds/fed`，接收本人 `session_id`、可选已冻结 `dataset_id` 和 `horizon`；来源固定为 DataHub `ext_fed/news`。保存沿原 `/discovery/tracks`，手动运行使用 `POST /discovery/tracks/{id}/run`（`expected_version`、UUID `request_id`），历史使用 `GET /discovery/tracks/{id}/runs`。沿既有本人归属、宿主跟踪开关和明确用户动作校验，不开放通用 Automation 或任意 URL。
 
 `GET /api/research/release` 读取受管镜像内的不可变发布身份；普通运行返回 `managed:false`。维护控制只使用原容器内私有 Unix socket，不暴露外部写 API；新的受管写请求在维护中返回 `503 release_maintenance`。

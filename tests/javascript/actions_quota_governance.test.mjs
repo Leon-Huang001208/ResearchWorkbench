@@ -865,7 +865,8 @@ test('knowledge authority regressions execute once in each applicable CI branch'
     const record=path.join(root,`${retention}-${packs}-${fingpt}.jsonl`);
     const command=script.replaceAll('${{ steps.contract-scope.outputs.retention_only }}',String(retention)).replaceAll('${{ steps.contract-scope.outputs.research_packs_only }}',String(packs)).replaceAll('${{ steps.contract-scope.outputs.architecture_only }}','false').replaceAll('${{ steps.contract-scope.outputs.g2b_release_only }}','false').replaceAll('${{ steps.contract-scope.outputs.reviewed_upgrade_only }}','false').replaceAll('${{ steps.contract-scope.outputs.fingpt_workspace_only }}', 'false')
       .replaceAll('${{ steps.contract-scope.outputs.fingpt_source_only }}',String(fingpt))
-      .replaceAll('${{ steps.contract-scope.outputs.gateway_documentation_only }}','false');
+      .replaceAll('${{ steps.contract-scope.outputs.gateway_documentation_only }}','false')
+      .replaceAll('${{ steps.contract-scope.outputs.api_doc_only }}','false');
     const result=spawnSync('/bin/bash',['-e','-c',command],{cwd:root,env:{...process.env,PATH:path.join(root,'bin')+path.delimiter+process.env.PATH,RUNNER_TEMP:root,GITHUB_RUN_ID:'1',GITHUB_RUN_ATTEMPT:'1',CI_SCOPE_RECORD:record},encoding:'utf8',timeout:10000});
     assert.equal(result.status,0,result.stderr);
     const calls=fs.readFileSync(record,'utf8').trim().split('\n').map(line=>JSON.parse(line));
@@ -920,6 +921,57 @@ test('gateway documentation scope stays exact and mixed changes retain the full 
     for (const flag of ['retention_only', 'architecture_only', 'g2b_release_only', 'research_packs_only', 'reviewed_upgrade_only', 'fingpt_source_only', 'mcp_datahub_only']) {
       assert.equal(scope[flag], 'false');
     }
+  }
+});
+
+test('API documentation scope stays exact and runs only its owner contracts', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rwb-api-doc-ci-scope-'));
+  t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const step = workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
+  const match = step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);
+  assert.ok(match);
+  const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
+  const core = 'app/research_web/schemas_responses.py';
+  const head = 'b'.repeat(40);
+  const tool = [core, 'app/research_web/workbench.py', 'app/research_web/asset_routes.py',
+    'tests/research_web/test_workbench_operations.py',
+    'tests/research_web/test_asset_loading.py', 'tests/research_web/test_asset_directory.py',
+    'docs/architecture/research-web/04-api.md',
+    'docs/architecture/research-web/architecture-map.json',
+    'docs/architecture/research-web/readme-review.json', 'docs/generated/py_file_index.md',
+    'outputs/research-web-architecture/index.html', 'scripts/run_api_documentation_ci.sh',
+    '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs',
+    '.ai/reports/2026-11-24-api-response-schemas.md'];
+  for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],
+    [[core], 'a'.repeat(40), true],
+    [[...tool, 'app/research_web/main.py'], 'a'.repeat(40), false],
+    [[...tool, 'tests/research_web/test_api.py'], 'a'.repeat(40), false],
+    [[...tool, 'scripts/check_research_architecture.mjs'], 'a'.repeat(40), false],
+    [tool, '', false]]) {
+    const output = path.join(root, `output-${fs.readdirSync(root).length}`);
+    const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
+    const result = spawnSync(process.env.RWB_TEST_PYTHON || 'python3', ['-B', '-c', harness], {
+      env: {...process.env, BASE_SHA: base, HEAD_SHA: head, GITHUB_OUTPUT: output,
+        SCOPE_FILES: JSON.stringify(files)}, encoding: 'utf8', timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const scope = Object.fromEntries(fs.readFileSync(output, 'utf8').trim().split('\n').map(line => line.split('=')));
+    assert.equal(scope.api_doc_only, String(expected), JSON.stringify({files, base}));
+    assert.equal(scope.gateway_documentation_only, 'false');
+    for (const flag of ['retention_only', 'architecture_only', 'g2b_release_only', 'research_packs_only', 'reviewed_upgrade_only', 'fingpt_source_only', 'mcp_datahub_only']) {
+      assert.equal(scope[flag], 'false');
+    }
+  }
+  assert.match(workflows.checks, /RWB_API_DOC_ONLY: \$\{\{ steps\.contract-scope\.outputs\.api_doc_only \}\}/);
+  assert.match(workflows.checks, /if \[ "\$\{RWB_API_DOC_ONLY\}" = "true" \]; then bash scripts\/run_api_documentation_ci\.sh; exit 0; fi/);
+  const js = workflows.checks.split('      - name: Run Research Web JavaScript contracts\n')[1]?.split('\n      - name:')[0];
+  assert.match(js, /research_web_workbench\.test\.mjs/);
+  assert.match(js, /research_web_asset_loading\.test\.mjs/);
+  const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
+  assert.match(editorial, /api_doc_only != 'true'/);
+  const script = fs.readFileSync(new URL('../../scripts/run_api_documentation_ci.sh', import.meta.url), 'utf8');
+  for (const file of ['test_workbench_operations.py', 'test_asset_loading.py', 'test_asset_directory.py', 'test_documentation.py']) {
+    assert.match(script, new RegExp(`tests/research_web/${file}`));
   }
 });
 

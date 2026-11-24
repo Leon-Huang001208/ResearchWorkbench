@@ -8,6 +8,8 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .schemas_responses import AssetObservation, AssetObservationList, ErrorEnvelope
+
 router = APIRouter(prefix="/api/research")
 
 AssetType = Literal["stock", "etf", "index", "fund", "theme"]
@@ -207,7 +209,18 @@ class AlertPatch(BaseModel):
     cooldown_minutes: int | None = Field(default=None, ge=5, le=10080, strict=True)
 
 
-@router.post("/assets/observations", status_code=202)
+@router.post(
+    "/assets/observations",
+    status_code=202,
+    responses={
+        202: {"model": AssetObservation, "description": "已受理；区块按需加载"},
+        400: {
+            "model": ErrorEnvelope,
+            "description": "Idempotency-Key 格式非法或受理保存失败，未启动取数",
+        },
+        422: {"model": ErrorEnvelope, "description": "请求体校验失败"},
+    },
+)
 async def create_observation(
     body: ObservationRequest,
     request: Request,
@@ -227,12 +240,18 @@ async def search_assets(
     return request.app.state.research.asset_workspace.directory.search(q, limit)
 
 
-@router.get("/assets/observations")
+@router.get("/assets/observations", responses={200: {"model": AssetObservationList}})
 async def list_observations(request: Request):
     return {"items": request.app.state.research.asset_workspace.list_observations()}
 
 
-@router.get("/assets/observations/{observation_id}")
+@router.get(
+    "/assets/observations/{observation_id}",
+    responses={
+        200: {"model": AssetObservation},
+        400: {"model": ErrorEnvelope, "description": "观察不存在、ID 非法或不属于当前账号"},
+    },
+)
 async def observation(observation_id: str, request: Request):
     return request.app.state.research.asset_workspace.observation(observation_id)
 
