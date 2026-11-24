@@ -962,7 +962,8 @@ test('API documentation scope stays exact and runs only its owner contracts', t 
       assert.equal(scope[flag], 'false');
     }
   }
-  assert.match(workflows.checks, /if \[ "\$\{\{ steps\.contract-scope\.outputs\.api_doc_only \}\}" = "true" \]; then bash scripts\/run_api_documentation_ci\.sh; exit 0; fi/);
+  assert.match(workflows.checks, /RWB_API_DOC_ONLY: \$\{\{ steps\.contract-scope\.outputs\.api_doc_only \}\}/);
+  assert.match(workflows.checks, /if \[ "\$\{RWB_API_DOC_ONLY\}" = "true" \]; then bash scripts\/run_api_documentation_ci\.sh; exit 0; fi/);
   const js = workflows.checks.split('      - name: Run Research Web JavaScript contracts\n')[1]?.split('\n      - name:')[0];
   assert.match(js, /research_web_workbench\.test\.mjs/);
   assert.match(js, /research_web_asset_loading\.test\.mjs/);
