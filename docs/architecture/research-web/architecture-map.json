@@ -656,6 +656,7 @@
       "id": "workbench",
       "sources": [
         "app/research_web/workbench.py",
+        "app/research_web/schemas_responses.py",
         "app/research_web/asset_routes.py",
         "app/research_web/asset_workspace.py",
         "app/research_web/ui/asset-workspace.mjs",

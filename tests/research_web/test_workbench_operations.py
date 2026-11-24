@@ -114,6 +114,34 @@ def test_research_desk_query_is_idempotent_and_exposes_safe_status(api):
     assert len(service.datahub.list(sid)) == 1
 
 
+def test_desk_query_response_models_document_shape_without_filtering_runtime(api):
+    """The documented schema must never become a runtime serializer.
+
+    Attaching these models through ``response_model`` would validate and *drop*
+    unknown keys, which would silently change live output. The contract is
+    documentation-only, so both the OpenAPI schema and the raw response shape
+    are asserted here.
+    """
+    client, _service = api
+    schema = client.get("/openapi.json").json()
+
+    created = schema["paths"]["/api/research/data/queries"]["post"]["responses"]["202"]
+    created_ref = created["content"]["application/json"]["schema"]["$ref"]
+    assert created_ref.endswith("/DeskQueryRecord")
+    listed = schema["paths"]["/api/research/data/queries"]["get"]["responses"]["200"]
+    assert listed["content"]["application/json"]["schema"]["$ref"].endswith("/DeskQueryList")
+    detail = schema["paths"]["/api/research/data/queries/{query_id}"]["get"]["responses"]["200"]
+    assert detail["content"]["application/json"]["schema"]["$ref"].endswith("/DeskQueryRecord")
+
+    # Runtime projection is owned by ``_public_query``; the model is wider
+    # (``extra="allow"``) and adds no validation to the response path.
+    from app.research_web.schemas_responses import DeskQueryRecord
+
+    assert DeskQueryRecord.model_config.get("extra") == "allow"
+    body = client.get("/api/research/data/queries").json()
+    assert set(body) == {"items"}
+
+
 def test_handoff_copies_only_selected_datasets_and_freezes_page_context(api):
     client, service = api
     source = client.post("/api/research/sessions", json={}).json()["id"]

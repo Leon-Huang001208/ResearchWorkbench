@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from core.observability import get_logger
 
 from .datahub.contracts import BusinessQuery
+from .schemas_responses import DeskQueryList, DeskQueryRecord, ErrorEnvelope
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -420,7 +421,15 @@ async def data_context(body: DataContext, request: Request):
         return JSONResponse({"session_id": row["id"], "grant_id": body.grant_id}, status_code=201)
 
 
-@router.post("/data/queries", status_code=202)
+@router.post(
+    "/data/queries",
+    status_code=202,
+    responses={
+        202: {"model": DeskQueryRecord, "description": "已受理；数据未就绪"},
+        409: {"model": ErrorEnvelope, "description": "幂等键与参数冲突"},
+        422: {"model": ErrorEnvelope, "description": "请求体校验失败"},
+    },
+)
 async def start_query(
     body: DeskQuery,
     request: Request,
@@ -475,7 +484,7 @@ async def start_query(
     return _public_query(record)
 
 
-@router.get("/data/queries")
+@router.get("/data/queries", responses={200: {"model": DeskQueryList}})
 async def list_queries(
     request: Request,
     section: Section | None = None,
@@ -493,7 +502,13 @@ async def list_queries(
     return {"items": rows}
 
 
-@router.get("/data/queries/{query_id}")
+@router.get(
+    "/data/queries/{query_id}",
+    responses={
+        200: {"model": DeskQueryRecord},
+        404: {"model": ErrorEnvelope, "description": "查询不存在或不属于当前账号"},
+    },
+)
 async def query_status(query_id: str, request: Request):
     try:
         record = request.app.state.research.store.data["data_queries"][query_id]
@@ -502,7 +517,13 @@ async def query_status(query_id: str, request: Request):
     return _public_query(record)
 
 
-@router.post("/data/queries/{query_id}/cancel")
+@router.post(
+    "/data/queries/{query_id}/cancel",
+    responses={
+        200: {"model": DeskQueryRecord},
+        404: {"model": ErrorEnvelope, "description": "查询不存在"},
+    },
+)
 async def cancel_query(query_id: str, request: Request):
     service = request.app.state.research
     try:
