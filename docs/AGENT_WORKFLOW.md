@@ -140,6 +140,14 @@ spawn 紧前还须拒绝式复核，可能执行后的漂移保持 unknown 且�
 脚本本身也在允许清单内；漏登记会让本任务 diff 回退全量，例如 `649cabf4` 候选即因漏登记而
 重跑完整矩阵（作业随后被取消），不能把该次取消当作测试通过。
 
+接口响应 schema 文档化沿同一选择步骤新增 `api_doc_only`：真实差异必须命中
+`app/research_web/schemas_responses.py`，其余文件仅限 workbench／asset 路由、对应 Python
+合同、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页、本
+workflow、范围测试和 `scripts/run_api_documentation_ci.sh`。命中后 Python 只跑 workbench
+操作、asset loading／directory 和文档路由，JS 只跑 workbench、asset loading 与额度治理，
+并跳过编辑引擎安装；混入其他产品源码、其他测试或未知文件仍回退完整路径。原因同样是全量
+合同超过 45 分钟作业上限被取消，不是用例失败。脚本与允许清单必须同步登记。
+
 分时正式接入沿原Checks步骤登记分钟合同回归，完整changed-set Router/独评/原三CI/同候选Mac安装不减。真实分时使用账号隔离DataHub快照，分钟K仅核验样本不冒充实现；受控部署仍等待实际空闲/保全/恢复门，旧Wind未知不能由本功能源码绿替代。
 
 全市场广度组合按用户批准纳入PR233/235/237，固定产品4c72ed43与实际前版b800e503；独立worktree实现封闭apply-market-breadth，完整Router/原三CI/同候选Mac安装及独评后才准入。旧active=null/Wind清理未确认继续阻断，不补假见证或清标记，不执行未实现恢复、周报重放、模型或日程；源码交付与现场上线分别留证。
