@@ -117,10 +117,10 @@ def test_research_desk_query_is_idempotent_and_exposes_safe_status(api):
 def test_desk_query_response_models_document_shape_without_filtering_runtime(api):
     """The documented schema must never become a runtime serializer.
 
-    Attaching these models through ``response_model`` would validate and *drop*
-    unknown keys, which would silently change live output. The contract is
-    documentation-only, so both the OpenAPI schema and the raw response shape
-    are asserted here.
+    Attaching these models through ``response_model`` would add validation and
+    coercion to live responses. The contract is documentation-only: assert the
+    OpenAPI schema is registered, no route uses ``response_model``, the models
+    tolerate unknown keys, and the raw envelope is unchanged.
     """
     client, _service = api
     schema = client.get("/openapi.json").json()
@@ -135,9 +135,26 @@ def test_desk_query_response_models_document_shape_without_filtering_runtime(api
 
     # Runtime projection is owned by ``_public_query``; the model is wider
     # (``extra="allow"``) and adds no validation to the response path.
+    from app.research_web.asset_routes import router as asset_router
     from app.research_web.schemas_responses import DeskQueryRecord
+    from app.research_web.workbench import router as workbench_router
 
     assert DeskQueryRecord.model_config.get("extra") == "allow"
+    documented = {
+        ("/api/research/data/queries", "POST"),
+        ("/api/research/data/queries", "GET"),
+        ("/api/research/data/queries/{query_id}", "GET"),
+        ("/api/research/data/queries/{query_id}/cancel", "POST"),
+        ("/api/research/assets/observations", "POST"),
+        ("/api/research/assets/observations", "GET"),
+        ("/api/research/assets/observations/{observation_id}", "GET"),
+    }
+    routes = {
+        (route.path, method): route
+        for route in (*workbench_router.routes, *asset_router.routes)
+        for method in route.methods
+    }
+    assert all(routes[key].response_model is None for key in documented)
     body = client.get("/api/research/data/queries").json()
     assert set(body) == {"items"}
 
