@@ -349,6 +349,21 @@ jobs:
               "tests/unit/test_fingpt_legacy_cutover.py",
           }
           fingpt_source = bool(fingpt_core.intersection(files)) and all(name in fingpt_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          gateway_doc_core = {"app/research_web/multiuser/gateway.py"}
+          gateway_doc_paths = gateway_doc_core | {
+              "tests/research_web/test_multiuser_gateway.py",
+              "tests/research_web/test_documentation.py",
+              "docs/architecture/research-web/04-api.md",
+              "docs/architecture/research-web/05-security-validation.md",
+              "docs/architecture/research-web/readme-review.json",
+              "docs/generated/py_file_index.md",
+              ".github/workflows/research-web-checks.yml",
+              "tests/javascript/actions_quota_governance.test.mjs",
+          }
+          gateway_documentation = bool(gateway_doc_core.intersection(files)) and all(
+              name in gateway_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
+              for name in files
+          )
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
               output.write("research_packs_only=" + str(packs).lower() + "\n")
@@ -358,7 +373,8 @@ jobs:
               output.write("fingpt_workspace_only=" + str(fingpt_workspace).lower() + "\n")
               output.write("fingpt_source_only=" + str(fingpt_source).lower() + "\n")
               output.write("mcp_datahub_only=" + str(mcp_datahub).lower() + "\n")
-          print("Contract scope: " + ("MCP and configured DataHub" if mcp_datahub else "retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "FinGPT source reports and Fed tracking" if fingpt_source else "full Research Web"))
+              output.write("gateway_documentation_only=" + str(gateway_documentation).lower() + "\n")
+          print("Contract scope: " + ("MCP and configured DataHub" if mcp_datahub else "retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "gateway documentation navigation" if gateway_documentation else "FinGPT source reports and Fed tracking" if fingpt_source else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -607,6 +623,14 @@ jobs:
               --allowed-parent "$RUNNER_TEMP" \
               --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
               -- tests/research_web/test_model_provider_upgrade.py tests/research_web/test_gateway_upgrade.py --confcutdir=tests/research_web -q
+            exit 0
+          fi
+          if [ "${{ steps.contract-scope.outputs.gateway_documentation_only }}" = "true" ]; then
+            PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
+              --task-root "$RUNNER_TEMP/rwb-ci-pytest-research-web" \
+              --allowed-parent "$RUNNER_TEMP" \
+              --task-id "github-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-research-web" \
+              -- tests/research_web/test_multiuser_gateway.py tests/research_web/test_documentation.py --confcutdir=tests/research_web -q
             exit 0
           fi
           # The exact-handoff fixture verifies these historical objects offline.
@@ -866,12 +890,16 @@ jobs:
               tests/javascript/research_web_account_menu.test.mjs tests/javascript/research_web_account_workspace.test.mjs \
               tests/javascript/research_web_module_navigation.test.mjs tests/javascript/research_web_progress.test.mjs \
               tests/javascript/actions_quota_governance.test.mjs
+          elif [ "${{ steps.contract-scope.outputs.gateway_documentation_only }}" = "true" ]; then
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test \
+              tests/javascript/research_web_multiuser_session.test.mjs \
+              tests/javascript/actions_quota_governance.test.mjs
           else
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs
           fi
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.research_packs_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.research_packs_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true' && steps.contract-scope.outputs.gateway_documentation_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs

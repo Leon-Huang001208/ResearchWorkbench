@@ -38,3 +38,4 @@ Cookie 后 Cookie 正常送达。
 - `ruff check` 与 `ruff format --check` 通过。
 
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"修复只在既有账号网关内增加文档路径限定的 Cookie 与固定白名单导航例外，不新增服务、进程或执行器。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只在原 Checks scope selector 增加一个精确文件范围的旁支，复用原作业、分片工具和三项 CI，不新增 job、runner 或依赖。","diagrams":[]} -->

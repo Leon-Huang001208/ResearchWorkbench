@@ -551,6 +551,36 @@ def test_sandbox_document_navigation_reaches_the_allowlisted_document(server):
     assert pool.users
 
 
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"Sec-Fetch-Mode": "cors"},
+        {"Sec-Fetch-Dest": "iframe"},
+        {"Sec-Fetch-User": "?0"},
+        {"Sec-Fetch-User": None},
+    ],
+)
+def test_document_cookie_never_admits_non_navigation_fetches(server, override):
+    browser, _, _, _, _ = server
+    assert login(browser).status_code == 200
+    token = browser.cookies.get("rwb_session")
+    browser.cookies.clear()
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Cookie": f"rwb_documentation={token}",
+    }
+    headers.update(override)
+    response = browser.get(
+        "/api/research/documentation/01-deployment.html",
+        headers={k: v for k, v in headers.items() if v is not None},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "server_origin_denied"
+
+
 def test_logout_revokes_the_document_cookie(server):
     browser, _, _, _, _ = server
     assert login(browser).status_code == 200

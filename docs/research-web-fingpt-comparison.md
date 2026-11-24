@@ -321,3 +321,7 @@ NYFed SOFRAI v3只在原Host/DataHub/可选研究仓校准复合均值和指数�
 退役及新实例验收继续分别执行，未知结果保留。见[合同与消费者边界](research-web-maintenance-job-identity-v3.md)。
 
 AlphaDesk 迁移验收单独使用新 Host 回执。FinGPT 旧隔离比较记录继续描述其对应的历史运行。
+
+2026-11-24 私网网关架构文档导航修复不属于模型或供应商比较：它只让 opaque sandbox 的文档间
+顶层导航可用，并给文档路径签发同令牌的限定 Cookie。CI 沿 `gateway_documentation_only`
+只运行账号网关与文档路由两个 Python 模块，不执行 FinGPT 比较、编辑引擎或真实模型调用。
