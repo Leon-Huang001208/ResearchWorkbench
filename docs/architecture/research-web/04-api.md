@@ -323,7 +323,7 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 ## 可选服务器账号 API
 
-以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。
+以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。固定架构文档另用同令牌的 `rwb_documentation` Cookie，HttpOnly、Secure、SameSite=Lax、path 限于 `/api/research/documentation/`，使 opaque sandbox 的文档间导航可用；该 Cookie 不被其他路由接受，退出登录时一并删除。
 
 | 方法与路径 | 输入与权限 | 结果 |
 | --- | --- | --- |
