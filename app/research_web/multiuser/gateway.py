@@ -26,6 +26,7 @@ from core.observability import get_logger
 from ..ai_news_routes import router as ai_news_router
 from ..ai_news_service import create_ai_news_service
 from ..aihot_routes import router as aihot_router
+from ..documentation import DOCUMENT_NAMES
 from ..mcp_facade.config import MACHINE_PATHS
 from ..mcp_facade.config import enabled as mcp_feature_enabled
 from ..plugins import PluginError
@@ -40,6 +41,9 @@ from .runtime import RuntimeErrorSafe
 log = get_logger(__name__)
 UI = Path(__file__).resolve().parents[1] / "ui"
 COOKIE = "rwb_session"
+DOCUMENT_COOKIE = "rwb_documentation"
+DOCUMENT_PREFIX = "/api/research/documentation/"
+DOCUMENT_PATHS = frozenset(f"{DOCUMENT_PREFIX}{name}" for name in DOCUMENT_NAMES)
 KEY_HEADER = "X-RWB-Tenant-Gateway-Key"
 MAX_REQUEST_BYTES = 32 * 1024 * 1024
 AI_PREFIXES = ("/api/research/ai-news", "/api/research/aihot")
@@ -83,6 +87,25 @@ def page_matches(request: Request, user) -> bool:
     return not any(value is not None and value != user.id for value in values) and (
         request.method in {"GET", "HEAD"} or user.id in values
     )
+
+
+def documentation_navigation(request: Request) -> bool:
+    """Top-level navigation into the fixed, isolated documentation allowlist."""
+    return (
+        request.url.path in DOCUMENT_PATHS
+        and request.method in {"GET", "HEAD"}
+        and request.headers.get("sec-fetch-mode") == "navigate"
+        and request.headers.get("sec-fetch-dest") == "document"
+        and request.headers.get("sec-fetch-user") == "?1"
+    )
+
+
+def _session_token(request: Request) -> str:
+    """The document cookie is only accepted for the fixed documentation allowlist."""
+    token = request.cookies.get(COOKIE, "")
+    if token or request.url.path not in DOCUMENT_PATHS:
+        return token
+    return request.cookies.get(DOCUMENT_COOKIE, "")
 
 
 class StrictBody(BaseModel):
@@ -309,9 +332,15 @@ def create_gateway(
         cross_site = request.headers.get("sec-fetch-site") == "cross-site"
         oauth_navigation = cross_site and _weknora_oauth_navigation(request, facade)
         fingpt_navigation = fingpt is not None and fingpt.navigation(request)
+        document_navigation = cross_site and documentation_navigation(request)
         if (
             (supplied_origin is not None and supplied_origin != origin)
-            or (cross_site and not oauth_navigation and not fingpt_navigation)
+            or (
+                cross_site
+                and not oauth_navigation
+                and not fingpt_navigation
+                and not document_navigation
+            )
             or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
             return error("server_origin_denied", 403)
@@ -341,7 +370,7 @@ def create_gateway(
             user = (
                 None
                 if oauth_navigation
-                else await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
+                else await asyncio.to_thread(accounts.authenticate, _session_token(request))
             )
             request.state.user = user
             if user is None and not public:
@@ -385,7 +414,9 @@ def create_gateway(
                 maximum = (
                     11 * 1024 * 1024
                     if request.url.path.startswith("/api/server/plugins/")
-                    else 65536 if news else 16384
+                    else 65536
+                    if news
+                    else 16384
                 )
                 if length > maximum:
                     return error("request_too_large", 413)
@@ -399,9 +430,7 @@ def create_gateway(
                 # Starlette's cached request replays this bounded body to the route.
                 request._body = b"".join(parts)
                 if user is not None:
-                    fresh = await asyncio.to_thread(
-                        accounts.authenticate, request.cookies.get(COOKIE, "")
-                    )
+                    fresh = await asyncio.to_thread(accounts.authenticate, _session_token(request))
                     if fresh is None or fresh.id != user.id:
                         return error("login_required", 401)
                     request.state.user = fresh
@@ -418,9 +447,7 @@ def create_gateway(
             )
             if news:
                 # AI responses are bounded complete JSON/XML/image reads, not tenant SSE.
-                fresh = await asyncio.to_thread(
-                    accounts.authenticate, request.cookies.get(COOKIE, "")
-                )
+                fresh = await asyncio.to_thread(accounts.authenticate, _session_token(request))
                 if fresh is None or user is None or fresh.id != user.id:
                     return error("login_required", 401)
                 if news_admin and fresh.role != "admin":
@@ -482,6 +509,9 @@ def create_gateway(
         await asyncio.to_thread(accounts.logout, request.cookies.get(COOKIE, ""))
         response = JSONResponse({"ok": True})
         response.delete_cookie(COOKIE, path="/", secure=secure, httponly=True, samesite="strict")
+        response.delete_cookie(
+            DOCUMENT_COOKIE, path=DOCUMENT_PREFIX, secure=secure, httponly=True, samesite="lax"
+        )
         return response
 
     @app.get("/api/server/me")
@@ -650,7 +680,7 @@ def create_gateway(
         ):
             log.warning("multiuser_report_owner_denied", user_id=user.id)
             return error("primary_administrator_required", 403)
-        token = request.cookies.get(COOKIE, "")
+        token = _session_token(request)
         if not page_matches(request, user):
             return error("account_changed", 401)
         try:
@@ -705,6 +735,44 @@ def create_gateway(
             if ticket is not None:
                 await pool.request_finished(user.id, ticket)
             return error("runtime_redirect_denied", 502)
+
+        if request.url.path in DOCUMENT_PATHS:
+            # Sandboxed documents need a path-scoped cookie: a Strict session is not
+            # sent when the opaque sandbox navigates to the next reviewed document.
+            # The same revocable token is reused, so logout and account disablement
+            # revoke both cookies; the document cookie never unlocks another route.
+            token = _session_token(request)
+            stream = response
+
+            async def document_content():
+                try:
+                    iterator = (
+                        stream.aiter_bytes() if stream.is_stream_consumed else stream.aiter_raw()
+                    )
+                    async for chunk in iterator:
+                        yield chunk
+                except httpx.HTTPError as exc:
+                    log.warning("multiuser_stream_failed", error_type=type(exc).__name__)
+                finally:
+                    await stream.aclose()
+
+            rendered = StreamingResponse(
+                document_content(),
+                status_code=response.status_code,
+                headers={
+                    k: v for k, v in response.headers.items() if k.lower() in RESPONSE_HEADERS
+                },
+            )
+            rendered.set_cookie(
+                DOCUMENT_COOKIE,
+                token,
+                max_age=SESSION_TTL_SECONDS,
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+                path=DOCUMENT_PREFIX,
+            )
+            return rendered
 
         async def content():
             pending = None

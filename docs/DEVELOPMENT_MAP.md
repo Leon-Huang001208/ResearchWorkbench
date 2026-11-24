@@ -13,6 +13,16 @@ CI 的精确 MCP／DataHub 差异选择仍在原 Checks 步骤；测试清单位
 `scripts/run_mcp_datahub_ci.sh`，复用原分片和证据工具，不执行无关产品全矩阵。
 范围正反例及真正 shell 分支在 `actions_quota_governance.test.mjs`；未知混入仍走完整路径。
 
+私网网关架构文档导航修复复用同一选择步骤新增 `gateway_documentation_only`：真实差异必须
+命中 `app/research_web/multiuser/gateway.py`，其余文件仅限
+`test_multiuser_gateway.py`、`test_documentation.py`、04／05 架构说明、README 复核回执、
+生成的 Python 文件索引、本 workflow 与范围测试。命中后 Python 只跑这两个模块，JS 只跑账号
+会话与额度治理，跳过不相关的编辑引擎安装；混入其他产品源码、测试或未知文件仍走完整路径。
+收窄原因是全量合同按既有记录超过 45 分钟作业上限被取消，不是用例失败。
+Python 命令放在 `scripts/run_gateway_documentation_ci.sh`；GitHub 的 `run: |` 解码上限是
+21000 字符，内联会越界，因此沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，分支只保留一行调用。
+该脚本本身也在允许清单里；新增或改名的配套脚本必须一并登记，否则选择器会回退全量。
+
 Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快照，`discovery/service.py` 冻结来源，`discovery/tracking.py` 沿原 Automation 调度与历史处理变化、质量及通知；专用入口在 `discovery/routes.py`，没有新增调度服务。
 
 冻结 RSS 归档的来源元数据由 `research_quality_service.py` 在输入原件上下文中提取；报告 SDK 的 `research_report_plan.py` 经章节 `source_ids` 呈现绑定的元数据，`research_report.py::source_metadata_text` 与 Host 质量检查共用同一呈现规则，作者正文及财务观测继续沿原检查核对。

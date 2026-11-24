@@ -1,5 +1,17 @@
 # GitHub Actions 免费额度治理
 
+私网网关架构文档导航修复沿原 Checks scope selector 新增 `gateway_documentation_only`：
+真实 base/head 差异命中 `app/research_web/multiuser/gateway.py`，且其余文件仅限对应两份
+Python 合同、04/05 架构说明、README 复核回执、生成的 Python 文件索引、本 workflow 和范围测试
+时，Python 只运行 `test_multiuser_gateway.py`／`test_documentation.py`，JS 只运行账号会话与
+额度治理两个模块，并跳过不相关的编辑引擎安装。混入其他产品源码、其他测试或未知文件仍走原
+完整路径；不新增 job、runner、依赖、权限、平台 dispatch 或时限。该范围的起因是全量 Web
+合同按既有记录超过 45 分钟上限被取消，不是用例失败；实际候选仍须取得自己的 CI 结果。
+Python 命令封装在 `scripts/run_gateway_documentation_ci.sh`：新增分支若内联会使
+`Run Research Web Python contracts` 的 `run: |` 解码超过 GitHub 21000 字符上限，
+故沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，workflow 内只保留一行调用。
+该脚本已列入允许清单；漏登记会让真实 diff 回退全量范围，前一次候选即因此重跑完整矩阵。
+
 金融 MCP 与 configured DataHub scope 的改动在原入站 MCP 路由登记确切文件，并把两个
 相关回归模块及路由合同加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS
 Bootstrap 保持，不新增 job、runner、依赖、权限或派发其他平台验证；CI 不调用真实厂商。
