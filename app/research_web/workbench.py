@@ -506,7 +506,7 @@ async def list_queries(
     "/data/queries/{query_id}",
     responses={
         200: {"model": DeskQueryRecord},
-        404: {"model": ErrorEnvelope, "description": "查询不存在或不属于当前账号"},
+        400: {"model": ErrorEnvelope, "description": "查询不存在或不属于当前账号"},
     },
 )
 async def query_status(query_id: str, request: Request):

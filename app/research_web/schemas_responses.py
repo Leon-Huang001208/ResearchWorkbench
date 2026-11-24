@@ -105,9 +105,11 @@ class AssetObservation(_Doc):
     """
 
     id: str
+    session_id: str
     asset: str
     asset_type: str
     source: str | None = None
+    status: str | None = None
     created_at: float | None = None
     updated_at: float | None = None
     request_parameters: RequestParameters
