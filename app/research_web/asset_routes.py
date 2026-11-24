@@ -214,8 +214,11 @@ class AlertPatch(BaseModel):
     status_code=202,
     responses={
         202: {"model": AssetObservation, "description": "已受理；区块按需加载"},
+        400: {
+            "model": ErrorEnvelope,
+            "description": "Idempotency-Key 格式非法或受理保存失败，未启动取数",
+        },
         422: {"model": ErrorEnvelope, "description": "请求体校验失败"},
-        503: {"model": ErrorEnvelope, "description": "受理保存失败，未启动取数"},
     },
 )
 async def create_observation(
@@ -246,7 +249,7 @@ async def list_observations(request: Request):
     "/assets/observations/{observation_id}",
     responses={
         200: {"model": AssetObservation},
-        404: {"model": ErrorEnvelope, "description": "观察不存在或不属于当前账号"},
+        400: {"model": ErrorEnvelope, "description": "观察不存在、ID 非法或不属于当前账号"},
     },
 )
 async def observation(observation_id: str, request: Request):

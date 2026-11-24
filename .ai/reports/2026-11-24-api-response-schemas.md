@@ -37,6 +37,10 @@ FastAPI 有两条看似等价的路：
 `asset_workspace.public_observation` 的投影（明确移除 `request`、`refresh_keys`、
 `history_generation`）。
 
+错误响应按真实处理器核对：查询详情与观察详情返回 `StoreError` /
+`AssetWorkspaceError` 的默认 **400**，取消查询显式 **404**，创建查询 **409/422**，
+创建观察 **400/422**；创建观察当前没有 503 分支，未写入 schema。
+
 ## 运行时不变证据
 
 - `pytest tests/research_web/test_workbench_operations.py`：9 passed（含新增回归）。
