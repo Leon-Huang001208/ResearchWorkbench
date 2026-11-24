@@ -3296,6 +3296,7 @@ Imports:
 - `datetime`
 - `fastapi`
 - `pydantic`
+- `schemas_responses`
 - `typing`
 
 Classes:
@@ -13813,6 +13814,38 @@ Module docstring:
 > Frozen v2 normalized record schemas (unknown source authorship); format is not Host authority.
 
 
+## `app/research_web/schemas_responses.py`
+
+Module docstring:
+> Response models that document shape only.
+
+Imports:
+- `__future__`
+- `pydantic`
+- `typing`
+
+Classes:
+- `_Doc`
+  - Base for documentation-only models.
+- `DatasetCard`
+  - Frozen dataset projection returned once a query completes.
+- `DeskQueryRecord`
+  - Public projection of one desk query (``_public_query`` allowlist).
+- `DeskQueryList`
+  - ``GET /data/queries`` envelope.
+- `ErrorBody`
+  - Stable error envelope raised by ``StoreError``.
+- `ErrorEnvelope`
+- `BlockCard`
+  - One asset block inside an observation (``public_observation``).
+- `RequestParameters`
+  - The subset of the original request that survives to the public view.
+- `AssetObservation`
+  - Public projection of one asset observation.
+- `AssetObservationList`
+  - ``GET /assets/observations`` envelope.
+
+
 ## `app/research_web/service.py`
 
 Module docstring:
@@ -15250,6 +15283,7 @@ Imports:
 - `pathlib`
 - `pydantic`
 - `re`
+- `schemas_responses`
 - `store`
 - `time`
 - `typing`

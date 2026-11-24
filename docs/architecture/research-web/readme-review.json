@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核私网账号网关的架构文档导航修复，README 高层入口和部署边界不变。",
-  "reason": "本次只在既有账号网关内为固定架构文档签发路径限定的 Lax Cookie，并放行这些文档名的顶层导航；文档仍是 README 已说明的只读隔离页面，账号、Host、DSH、DataHub 和公开安装入口均未改变，因此无需改动 README 本身。"
+  "summary": "复核 desk query 与 asset observation 的响应 schema 文档化，README 无需改动。",
+  "reason": "本次只给现有接口补充 OpenAPI 响应模型并写入 04-api.md，不新增模块入口、运行命令或安装步骤；README 已指向该接口合同。"
 }
