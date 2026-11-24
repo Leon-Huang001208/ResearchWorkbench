@@ -10,6 +10,7 @@ Python 合同、04/05 架构说明、README 复核回执、生成的 Python 文�
 Python 命令封装在 `scripts/run_gateway_documentation_ci.sh`：新增分支若内联会使
 `Run Research Web Python contracts` 的 `run: |` 解码超过 GitHub 21000 字符上限，
 故沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，workflow 内只保留一行调用。
+该脚本已列入允许清单；漏登记会让真实 diff 回退全量范围，前一次候选即因此重跑完整矩阵。
 
 金融 MCP 与 configured DataHub scope 的改动在原入站 MCP 路由登记确切文件，并把两个
 相关回归模块及路由合同加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS

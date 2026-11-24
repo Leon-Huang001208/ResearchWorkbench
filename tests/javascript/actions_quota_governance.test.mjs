@@ -899,6 +899,7 @@ test('gateway documentation scope stays exact and mixed changes retain the full 
     'tests/research_web/test_documentation.py', 'docs/architecture/research-web/04-api.md',
     'docs/architecture/research-web/05-security-validation.md',
     'docs/architecture/research-web/readme-review.json', 'docs/generated/py_file_index.md',
+    'scripts/run_gateway_documentation_ci.sh',
     '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs',
     '.ai/reports/2026-11-24-rwb-documentation-navigation.md'];
   for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],

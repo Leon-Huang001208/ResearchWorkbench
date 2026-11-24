@@ -357,6 +357,7 @@ jobs:
               "docs/architecture/research-web/05-security-validation.md",
               "docs/architecture/research-web/readme-review.json",
               "docs/generated/py_file_index.md",
+              "scripts/run_gateway_documentation_ci.sh",
               ".github/workflows/research-web-checks.yml",
               "tests/javascript/actions_quota_governance.test.mjs",
           }
