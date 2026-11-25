@@ -1,6 +1,6 @@
 {
   "version": "2026.11",
-  "source_revision": "5b33867f2f2a2a58eee4930a5660e13ccdbc68c3",
+  "source_revision": "495cb5ab676a8fb09ebdf7860e9066fbf0f843cf",
   "groups": ["快速开始", "使用指南", "参考手册", "架构与设计", "安装、运维与排错"],
   "pages": [
     {"slug":"getting-started","title":"第一次使用 RWB","group":"快速开始","summary":"访问、基本概念，以及完成第一个任务的路径。"},
