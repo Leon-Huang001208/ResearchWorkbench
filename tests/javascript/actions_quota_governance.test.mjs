@@ -932,19 +932,23 @@ test('API documentation scope stays exact and runs only its owner contracts', t 
   assert.ok(match);
   const code = match[1].split('\n').map(line => line.slice(10)).join('\n');
   const core = 'app/research_web/schemas_responses.py';
+  const parameterCore = 'app/research_web/api_parameter_docs.py';
   const head = 'b'.repeat(40);
-  const tool = [core, 'app/research_web/workbench.py', 'app/research_web/asset_routes.py',
+  const tool = [core, parameterCore, 'app/research_web/workbench.py', 'app/research_web/asset_routes.py',
+    'app/research_web/main.py', 'tests/research_web/test_api_parameter_docs.py',
     'tests/research_web/test_workbench_operations.py',
     'tests/research_web/test_asset_loading.py', 'tests/research_web/test_asset_directory.py',
     'docs/architecture/research-web/04-api.md',
     'docs/architecture/research-web/architecture-map.json',
     'docs/architecture/research-web/readme-review.json', 'docs/generated/py_file_index.md',
-    'outputs/research-web-architecture/index.html', 'scripts/run_api_documentation_ci.sh',
+    'outputs/research-web-architecture/index.html', 'outputs/research-web-architecture/api-atlas.html', 'scripts/run_api_documentation_ci.sh',
     '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs',
     '.ai/reports/2026-11-24-api-response-schemas.md'];
   for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],
     [[core], 'a'.repeat(40), true],
-    [[...tool, 'app/research_web/main.py'], 'a'.repeat(40), false],
+    [[parameterCore], 'a'.repeat(40), true],
+    [[...tool.filter(file => file !== parameterCore), 'app/research_web/main.py'], 'a'.repeat(40), false],
+    [[...tool, 'app/research_web/service.py'], 'a'.repeat(40), false],
     [[...tool, 'tests/research_web/test_api.py'], 'a'.repeat(40), false],
     [[...tool, 'scripts/check_research_architecture.mjs'], 'a'.repeat(40), false],
     [tool, '', false]]) {
@@ -970,6 +974,9 @@ test('API documentation scope stays exact and runs only its owner contracts', t 
   const editorial = workflows.checks.split('      - name: Verify pinned editorial engine without model or paid requests\n')[1]?.split('\n      - name:')[0];
   assert.match(editorial, /api_doc_only != 'true'/);
   const script = fs.readFileSync(new URL('../../scripts/run_api_documentation_ci.sh', import.meta.url), 'utf8');
+  assert.ok(script.includes('tests/research_web/test_api_parameter_docs.py'));
+  assert.ok(script.includes('tests/research_web/test_api.py::test_confirmation_union_schema_and_malformed_json_fail_closed'));
+  assert.ok(script.includes('tests/research_web/test_api.py::test_cross_origin_and_invalid_credentials_do_not_leak_input'));
   for (const file of ['test_workbench_operations.py', 'test_asset_loading.py', 'test_asset_directory.py', 'test_documentation.py']) {
     assert.match(script, new RegExp(`tests/research_web/${file}`));
   }
