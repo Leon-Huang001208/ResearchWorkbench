@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+文档中心改造仍复用 gateway_documentation_only：新静态生成脚本、两份 JSON 契约/导航清单、
+固定阅读页名及文档中心合同测试属于该闭包，Python 执行阅读器/网关/文档中心测试，
+JS 保留架构与范围治理；混入业务实现或未知文件继续完整路径。不新增依赖、作业或时限。
+
 API Manual 上线沿用 gateway_documentation_only：文档阅读器与固定 HTML、首页生成器及其架构
 检查器/测试纳入对应闭包，Python 保留网关与文档合同，JS 增加架构合同。其他产品改动仍走完整范围。
 

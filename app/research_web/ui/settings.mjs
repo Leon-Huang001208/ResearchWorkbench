@@ -76,7 +76,7 @@ function renderGeneralSettings() {
 }
 
 function renderDocumentationSettings() {
-  return '<section class="settings-card"><h2>架构与实现文档</h2><p class="muted">只读查看当前架构图；检查回执不替代实现与人工验收。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开架构文档 ↗</a></section>';
+  return '<section class="settings-card"><h2>文档中心</h2><p class="muted">快速开始、任务指南、接口参考和架构说明。</p><a class="button" href="/api/research/documentation/index.html" target="_blank" rel="noopener noreferrer">打开 RWB 文档 ↗</a></section>';
 }
 
 function renderTabbitSettings(tabbit, busy) {

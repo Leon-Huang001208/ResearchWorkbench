@@ -3,6 +3,7 @@ import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {CENTER_DOCUMENT_NAMES} from '../../scripts/build_documentation_center.mjs';
 import test from 'node:test';
 
 const readWorkflow = (name) => fs.readFileSync(
@@ -905,6 +906,12 @@ test('gateway documentation scope stays exact and mixed changes retain the full 
     '.ai/reports/2026-11-24-rwb-documentation-navigation.md'];
   for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],
     [[gateway], 'a'.repeat(40), true],
+    [[...tool, 'scripts/build_documentation_center.mjs', 'scripts/documentation_center.py',
+      'scripts/documentation_markdown.py', 'docs/manual/navigation.json', 'docs/manual/api-reference.json',
+      'docs/architecture/research-web/architecture-map.json', 'app/research_web/ui/settings.mjs',
+      ...CENTER_DOCUMENT_NAMES.map(name=>'outputs/research-web-architecture/'+name+'.html'),
+      'outputs/research-web-architecture/guide-data.html',
+      'tests/research_web/test_documentation_center.py'], 'a'.repeat(40), true],
     [['outputs/research-web-architecture/api-manual.html'], 'a'.repeat(40), true],
     [[...tool, 'app/research_web/main.py'], 'a'.repeat(40), false],
     [[...tool, 'tests/research_web/test_api.py'], 'a'.repeat(40), false],

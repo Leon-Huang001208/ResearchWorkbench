@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核隔离文档返回首页修复，README 无需改动。",
-  "reason": "仅修复现有返回首页导航；安装、运行入口及产品模块保持，首页重入与鉴权边界在安全合同说明。"
+  "summary": "复核文档中心的信息架构与阅读页改造，README 无需改动。",
+  "reason": "仍沿既有架构文档入口访问，安装、运行与业务执行保持；用户文档入口及工程材料分层在 docs/README.md 和文档合同更新。"
 }

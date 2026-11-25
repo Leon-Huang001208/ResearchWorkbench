@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import {CENTER_DOCUMENT_NAMES} from '../../scripts/build_documentation_center.mjs';
 
 const checkerURL = new URL('../../scripts/check_research_architecture.mjs', import.meta.url);
 const atlasURL = new URL('../../scripts/build_research_web_api_atlas.mjs', import.meta.url);
@@ -704,7 +705,7 @@ test('generator rejects dangling output and log symlinks without writing outside
 test('fixed documentation names reject missing, extra and duplicate registered-view routes', async () => {
   const {checkDocumentNames}=await import(checkerURL);
   const sourceFor=names=>`DOCUMENT_NAMES = frozenset(f"{name}.html" for name in (${names.map(name=>JSON.stringify(name)).join(',')},))`;
-  const valid=['index','api-atlas','api-manual','00-system-overview','01-deployment'];
+  const valid=['index','api-atlas','api-manual',...CENTER_DOCUMENT_NAMES,'00-system-overview','01-deployment'];
   assert.deepEqual(checkDocumentNames(sourceFor(valid),valid.slice(2)),[]);
   for(const names of [valid.slice(0,-1),[...valid,'private'],[...valid,'index']]) {
     assert.equal(checkDocumentNames(sourceFor(names),valid.slice(2))[0].code,'documentation_inventory');

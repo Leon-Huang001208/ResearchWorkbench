@@ -816,7 +816,10 @@
       "sources": [
         "app/research_web/documentation.py",
         "scripts/check_research_architecture.mjs",
-        "scripts/build_research_web_api_atlas.mjs"
+        "scripts/build_research_web_api_atlas.mjs",
+        "scripts/build_documentation_center.mjs",
+        "scripts/documentation_center.py",
+        "scripts/documentation_markdown.py"
       ],
       "documents": [
         "docs/README.md",
