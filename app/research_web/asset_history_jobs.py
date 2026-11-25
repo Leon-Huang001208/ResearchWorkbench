@@ -33,7 +33,7 @@ from .asset_history import (
     shift_years,
 )
 from .datahub.adjustment_contract import CONTRACT_VERSION, DEFINITION_SHA256
-from .datahub.contracts import RAW_STOCK_SEMANTICS, BusinessQuery
+from .datahub.contracts import RAW_STOCK_SEMANTICS, BusinessQuery, stock_kline_query
 from .datahub.providers import Result
 from .datahub.security import directory, json_bytes, read_file, write_new
 
@@ -376,13 +376,28 @@ class HistoryJobs:
         self._authorize(row)
         call_id = f"history:{row['id']}:{purpose}:{uuid4()}"
         row["child_call_id"] = call_id
-        query = BusinessQuery(
-            capability=capability,
-            source=row.get("source", "tinysoft"),
-            required_semantics=row.get("required_semantics"),
-            parameters=parameters,
-            refresh=True,
-        )
+        if (
+            capability == "market_bars"
+            and row.get("required_semantics") == RAW_STOCK_SEMANTICS
+            and parameters.get("end_date", "")
+            < datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+        ):
+            query = stock_kline_query(
+                parameters["asset"],
+                parameters["start_date"],
+                parameters["end_date"],
+                source=row.get("source", "tinysoft"),
+                refresh=True,
+            )
+            log.info("asset_history_job_business_contract_selected")
+        else:
+            query = BusinessQuery(
+                capability=capability,
+                source=row.get("source", "tinysoft"),
+                required_semantics=row.get("required_semantics"),
+                parameters=parameters,
+                refresh=True,
+            )
         child = asyncio.create_task(self.hub.query(row["session_id"], call_id, query))
         try:
             result = await asyncio.shield(child)

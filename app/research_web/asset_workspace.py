@@ -17,7 +17,8 @@ from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
-from .datahub.contracts import CAPABILITY_PARAMETERS, BusinessQuery
+from .datahub.contracts import CAPABILITY_PARAMETERS, BusinessQuery, stock_kline_query
+from .datahub.providers import cn_stock_identity
 from .store import StoreError
 
 if TYPE_CHECKING:
@@ -518,7 +519,22 @@ class AssetWorkspace:
         if body.source is not None:
             sources[block] = body.source
         elif missing and block not in sources:
-            sources[block] = "tinysoft" if block in {"overview", "history"} else "auto"
+            history_end = (
+                body.end_date
+                or request.get("section_ranges", {}).get(block, request).get("end_date")
+                or ""
+            )
+            if (
+                block == "history"
+                and row["asset_type"] == "stock"
+                and not re.fullmatch(r"(?:[0-9]{6}\.BJ|BJ[0-9]{6})", row["asset"])
+                and request.get("frequency", "daily") == "daily"
+                and request.get("adjustment", "qfq") == "none"
+                and history_end < datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+            ):
+                sources[block] = row["source"]
+            else:
+                sources[block] = "tinysoft" if block in {"overview", "history"} else "auto"
         if body.start_date is not None:
             request["section_ranges"] = ranges
             ranges[block] = {
@@ -651,15 +667,36 @@ class AssetWorkspace:
             state["requested_range"] = {
                 key: value for key, value in parameters.items() if key in {"start_date", "end_date"}
             }
-            result = await self.service.datahub.query(
-                row["session_id"],
-                refresh_call_id or f"asset:{row['id']}:{block}",
-                BusinessQuery(
+            if (
+                block == "history"
+                and parameters.get("asset_type") == "stock"
+                and not re.fullmatch(r"(?:[0-9]{6}\.BJ|BJ[0-9]{6})", parameters["asset"])
+                and parameters.get("frequency") == "daily"
+                and parameters.get("adjustment") == "none"
+                and parameters.get("end_date", "")
+                < datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+            ):
+                query = stock_kline_query(
+                    cn_stock_identity(
+                        re.sub(r"^(SH|SZ)([0-9]{6})$", r"\2.\1", parameters["asset"])
+                    ),
+                    parameters["start_date"],
+                    parameters["end_date"],
+                    source=self._source(row, block),
+                    refresh=refresh_call_id is not None,
+                )
+                log.info("asset_history_business_contract_selected")
+            else:
+                query = BusinessQuery(
                     capability=BLOCK_QUERIES[block],
                     source=self._source(row, block),
                     parameters=parameters,
                     refresh=refresh_call_id is not None,
-                ),
+                )
+            result = await self.service.datahub.query(
+                row["session_id"],
+                refresh_call_id or f"asset:{row['id']}:{block}",
+                query,
             )
             provider_status = result.get("status")
             status = {

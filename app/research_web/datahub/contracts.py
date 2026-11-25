@@ -8,7 +8,11 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from core.observability import get_logger
+
 from .adjustment_contract import validate_adjustment_parameters
+
+log = get_logger(__name__)
 
 SCHEMA_VERSION = "1.0.0"
 RAW_STOCK_SEMANTICS = "cn_stock_daily_cny_share_v1"
@@ -311,3 +315,51 @@ class InternalBusinessQuery(BaseModel):
     session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
     call_id: str = Field(min_length=1, max_length=256, pattern=r"^[a-zA-Z0-9_.:-]+$")
     query: BusinessQuery
+
+
+def stock_kline_query(
+    asset: str,
+    start_date: str,
+    end_date: str,
+    *,
+    source: str = "auto",
+    refresh: bool = False,
+) -> BusinessQuery:
+    """Shared completed raw daily-stock contract for asset pages and MCP tools."""
+    from .providers import ProviderError, cn_stock_identity
+
+    try:
+        if cn_stock_identity(asset) != asset:
+            raise ValueError("invalid_asset")
+        start, end = date.fromisoformat(start_date), date.fromisoformat(end_date)
+        if start.isoformat() != start_date or end.isoformat() != end_date or start > end:
+            raise ValueError("invalid_date_range")
+        today = datetime.now(ZoneInfo("Asia/Shanghai")).date()
+        if end > today:
+            raise ValueError("future_provider_date")
+        if end == today:
+            raise ValueError("daily_history_requires_prior_session")
+    except ProviderError:
+        log.warning("stock_kline_contract_rejected", code="invalid_asset")
+        raise ValueError("invalid_asset") from None
+    except (TypeError, ValueError) as exc:
+        log.warning("stock_kline_contract_rejected", error_type=type(exc).__name__)
+        raise ValueError(
+            str(exc) if isinstance(exc, ValueError) else "invalid_date_range"
+        ) from None
+    query = BusinessQuery(
+        capability="market_bars",
+        source=source,
+        refresh=refresh,
+        required_semantics=RAW_STOCK_SEMANTICS,
+        parameters={
+            "asset": asset,
+            "asset_type": "stock",
+            "start_date": start_date,
+            "end_date": end_date,
+            "frequency": "daily",
+            "adjustment": "none",
+        },
+    )
+    log.info("stock_kline_contract_validated")
+    return query
