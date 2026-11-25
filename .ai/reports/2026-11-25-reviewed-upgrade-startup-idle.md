@@ -2,6 +2,14 @@
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"原Native联合事务在启动后最终核验内等待实际活动暂态消退，仍复用原Operations.verify和finish、三锁、BirthFence、安装lease与保全，不新增服务或恢复模式。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"保留原账号出生围栏、真实健康、权限和保全校验，仅在原reviewed模式最终verify_target/verify_previous遇MaintenanceBusy时有界等待，不新增账号或权限入口。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"正式GitSafety CLI将显式备份根交给原恢复点执行器，跨盘仍沿原校验流和v2去重；原Constraints完整GitSafety模块与Checks原维护分支覆盖确切改动，不新增作业或运行服务。","diagrams":[]} -->
+
+用户随后明确授权优化备份并使用WorkDisk。正式GitSafety CLI新增`--backup-root`并向原执行
+接口传递，WorkDisk在写入前按既有UUID/APFS/挂载点核验。跨设备直接走原校验流复制，
+避免逐文件派生不可能成功的APFS克隆。保留原容量、源竞态、hash、独立恢复与v2去重。
+旧内盘恢复点另按真实用途和引用退休，不移动历史未知材料。没有改HOME、凭据或resident路径。
+CLI参数和跨设备复制的两个RED回归先失败、修复后通过。原Constraints完整GitSafety/容量
+模块覆盖此变更；Checks沿原reviewed_upgrade_only补确切文件，未知/业务混入仍全量，三CI不变。
 
 平台为macOS Mac mini；本次修复Native部署期间实际暴露的启动暂态。
 
