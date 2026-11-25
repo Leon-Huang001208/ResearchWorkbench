@@ -49,6 +49,7 @@ function fixture(t) {
     return {id,source:spec,artifact,receipt,visualReceipt,evidence:[{subjects:['node','edge'],source,contains:'async def runtime'}]};
   });
   write(`${artifactRoot}/index.html`, ids.map(id=>`<a href="${id}.html">${id}</a>`).join(''));
+  write(`${artifactRoot}/api-manual.html`, '<h1>RWB API Manual</h1>');
   const visualReview='docs/architecture/research-web/visual-review.json';
   write(visualReview,{schemaVersion:1,diagrams:human});
   write(mapPath,{schemaVersion:1,canonicalEntry:'docs/architecture/research-web/README.md',reviewRecord:review,visualReview,artifactRoot,groups:[{id:'runtime',sources:[source],documents:[document],diagrams:ids,tests:['tests/check.py']}],diagrams,apis:[{method:'GET',path:'/api/research/runtime',declaredPath:'/api/research/runtime',prefix:'',source}]});
@@ -703,7 +704,7 @@ test('generator rejects dangling output and log symlinks without writing outside
 test('fixed documentation names reject missing, extra and duplicate registered-view routes', async () => {
   const {checkDocumentNames}=await import(checkerURL);
   const sourceFor=names=>`DOCUMENT_NAMES = frozenset(f"{name}.html" for name in (${names.map(name=>JSON.stringify(name)).join(',')},))`;
-  const valid=['index','api-atlas','00-system-overview','01-deployment'];
+  const valid=['index','api-atlas','api-manual','00-system-overview','01-deployment'];
   assert.deepEqual(checkDocumentNames(sourceFor(valid),valid.slice(2)),[]);
   for(const names of [valid.slice(0,-1),[...valid,'private'],[...valid,'index']]) {
     assert.equal(checkDocumentNames(sourceFor(names),valid.slice(2))[0].code,'documentation_inventory');

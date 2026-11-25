@@ -30,7 +30,7 @@ const SOURCE_EXTENSIONS = /\.(?:py|[cm]?js|css|html|md|json|ya?ml|toml|sh|txt)$/
 export function checkDocumentNames(text, diagramIds) {
   const declaration=text?.match(/DOCUMENT_NAMES\s*=\s*frozenset\(\s*f"\{name\}\.html"\s*for name in \(\s*([^]*?)\s*\)\s*\)/);
   const names=declaration ? [...declaration[1].matchAll(/"([a-z0-9-]+)"/g)].map(match=>match[1]) : [];
-  const expected=new Set(['index','api-atlas',...diagramIds]);
+  const expected=new Set(['index','api-atlas','api-manual',...diagramIds]);
   const literalsOnly=declaration && !declaration[1].replace(/"[a-z0-9-]+"/g,'').replace(/[,\s]/g,'');
   return literalsOnly && names.length===expected.size && new Set(names).size===names.length && names.every(name=>expected.has(name)) ? [] : [{code:'documentation_inventory',path:'app/research_web/documentation.py',message:'Fixed HTML allowlist must equal index, API Atlas and all registered views'}];
 }

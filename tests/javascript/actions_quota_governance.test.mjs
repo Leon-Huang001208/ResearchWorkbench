@@ -907,7 +907,7 @@ test('gateway documentation scope stays exact and mixed changes retain the full 
     [[gateway], 'a'.repeat(40), true],
     [[...tool, 'app/research_web/main.py'], 'a'.repeat(40), false],
     [[...tool, 'tests/research_web/test_api.py'], 'a'.repeat(40), false],
-    [[...tool, 'scripts/check_research_architecture.mjs'], 'a'.repeat(40), false],
+    [[...tool, 'scripts/check_research_architecture.mjs'], 'a'.repeat(40), true],
     [tool, '', false]]) {
     const output = path.join(root, `output-${fs.readdirSync(root).length}`);
     const harness = `import json, os, subprocess\nfrom types import SimpleNamespace\nfixture_files=json.loads(os.environ['SCOPE_FILES'])\ndef fake_run(argv, **kwargs):\n    if 'fetch' in argv: return SimpleNamespace(returncode=0)\n    return SimpleNamespace(returncode=0,stdout=bytes([0]).join(name.encode() for name in fixture_files)+bytes([0]))\nsubprocess.run=fake_run\nexec(${JSON.stringify(code)})`;
