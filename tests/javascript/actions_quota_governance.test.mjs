@@ -905,6 +905,7 @@ test('gateway documentation scope stays exact and mixed changes retain the full 
     '.ai/reports/2026-11-24-rwb-documentation-navigation.md'];
   for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],
     [[gateway], 'a'.repeat(40), true],
+    [['outputs/research-web-architecture/api-manual.html'], 'a'.repeat(40), true],
     [[...tool, 'app/research_web/main.py'], 'a'.repeat(40), false],
     [[...tool, 'tests/research_web/test_api.py'], 'a'.repeat(40), false],
     [[...tool, 'scripts/check_research_architecture.mjs'], 'a'.repeat(40), true],

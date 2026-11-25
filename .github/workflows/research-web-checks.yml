@@ -17,6 +17,7 @@ on:
       - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
       - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
       - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/api-manual.html"
       - "outputs/research-web-architecture/index.html"
       - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
@@ -58,6 +59,7 @@ on:
       - "outputs/research-web-architecture/04-data-file-flow.visual-check.html"
       - "outputs/research-web-architecture/04-data-file-flow.visual-check.json"
       - "outputs/research-web-architecture/api-atlas.html"
+      - "outputs/research-web-architecture/api-manual.html"
       - "outputs/research-web-architecture/index.html"
       - "scripts/check_research_architecture.mjs"
       - "app/research_web/**"
@@ -349,7 +351,7 @@ jobs:
               "tests/unit/test_fingpt_legacy_cutover.py",
           }
           fingpt_source = bool(fingpt_core.intersection(files)) and all(name in fingpt_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
-          gateway_doc_core = {"app/research_web/multiuser/gateway.py", "app/research_web/documentation.py"}
+          gateway_doc_core = {"app/research_web/multiuser/gateway.py", "app/research_web/documentation.py", "outputs/research-web-architecture/api-manual.html"}
           gateway_doc_paths = gateway_doc_core | {
               "tests/research_web/test_multiuser_gateway.py",
               "tests/research_web/test_documentation.py",
