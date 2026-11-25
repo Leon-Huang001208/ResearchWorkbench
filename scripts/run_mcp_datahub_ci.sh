@@ -29,6 +29,9 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
   tests/research_web/test_datahub_spdr.py \
   tests/research_web/test_datahub_storage_activity.py \
   tests/research_web/test_datahub_warehouse.py \
+  tests/research_web/test_research_warehouse_management.py \
+  tests/research_web/test_market_store.py \
+  tests/research_web/test_warehouse_diagnostics.py \
   tests/research_web/test_datahub_wgc.py \
   tests/research_web/test_datahub_wind.py \
   tests/research_web/test_datahub_wind_api.py \

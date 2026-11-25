@@ -4,7 +4,7 @@ API Manual 上线沿用 gateway_documentation_only：文档阅读器与固定 HT
 检查器/测试纳入对应闭包，Python 保留网关与文档合同，JS 增加架构合同。其他产品改动仍走完整范围。
 
 2026-11-25 DataHub 业务工具在既有 MCP/DataHub 检查脚本追加 planning、任务契约与
-金融行情归一化三个离线模块；复用原 runner/job/依赖与超时，预算增量30秒。
+金融行情归一化三个离线模块；复用原 runner/job/依赖与超时，预算增量90秒；补齐新模块的 mcp_datahub_only 精确允许集，额外覆盖仓库管理、MarketStore 与诊断合同。
 macOS Bootstrap 沿既有源码触发与干净安装验证，不新增平台 dispatch。
 
 私网网关架构文档导航修复沿原 Checks scope selector 新增 `gateway_documentation_only`：

@@ -62,3 +62,12 @@ Product-Progress: not-required — 本批交付后端MCP技术接口与契约；
 - README入口及复核回执同步；无新依赖，requirements/web.in、web.lock、setup_web.py
   无需改动，干净安装兼容性仍须同候选macos-15 Bootstrap证明。
 - Windows/Linux 原生产品验收为 NOT_RUN；通用仓库门与macOS候选CI分别记录。
+
+## CI 范围修正
+
+PR #338 首候选已启动原三个 CI；审查实际范围选择器发现新增 planning、warehouse、任务模型、
+新 Provider 与固定文档阅读器不在原 mcp_paths 内，使新增测试脚本未被选中。
+本次只把这些精确路径加入既有 MCP/DataHub lane，仍要求实际 backend/finance 核心差异，
+混入 main.py 或未知 Provider 继续全量；源码范围用例覆盖完整文件集合。
+原 lane 额外包含仓库管理、MarketStore 和诊断，macOS Bootstrap 与通用仓库门不减，
+无新job/runner/依赖/timeout/平台dispatch。最终候选与 CI 重新绑定。
