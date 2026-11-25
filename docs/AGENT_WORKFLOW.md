@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+DataHub业务工具的CI沿既有mcp_datahub_only精确路径闭包：新增规划、来源适配、仓库桥和任务schema对应
+脚本纳入原lane，补充仓库管理/MarketStore/诊断合同；混入未知Provider或main.py仍走全量。
+Constraints与同候选macOS Bootstrap独立验收，源码通过不等于WeKnora部署完成。
+
 附接 MCP 保全复核的当前前移仅修改原 Native 联合操作员。沿同一任务和 PR #284，
 在既有测试模块验证五个保全模式的 forward apply 与非完成后回滚的 `preparing` 恢复：
 真实持有 BirthFence SQLite EX、安装作用域及原 Operations 后，配置校验和前版健康／保全复核

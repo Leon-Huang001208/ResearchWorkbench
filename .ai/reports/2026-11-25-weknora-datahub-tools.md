@@ -1,5 +1,7 @@
 # WeKnora DataHub 业务工具实现
 
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只扩展原MCP/DataHub lane的精确路径和测试模块，CI作业、runner、依赖、超时与实际查询执行拓扑不变。","diagrams":[]} -->
+
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"沿原 DataHub/Broker/Provider/MarketStore 增加固定岗底斯行情 binding 与规划纯函数，不增加服务、数据库、调度器或执行节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"inbound-mcp-readonly","structure":"unchanged","reason":"沿原 OAuth、账号 Host、查询提交/status/分页和快照链注册业务工具，原 scope 与物理拓扑不变；未部署。","diagrams":[]} -->
 
