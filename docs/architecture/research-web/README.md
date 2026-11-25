@@ -1,6 +1,6 @@
 # Research Workbench Research Web 当前架构
 
-2026-11-25 文档中心源码阅读检查点为 `495cb5ab676a8fb09ebdf7860e9066fbf0f843cf`：
+2026-11-25 文档中心源码阅读检查点为 `5faef0d924cf0b7f5d03cc0a0ceffeeefa9a6a2c`：
 用户入口已按教程/指南/参考/设计/运维组织，旧图册在 architecture.html 保留。
 本文件继续作为工程架构材料；使用者先进入文档中心。源码、部署和阅读验收分别记录。
 
