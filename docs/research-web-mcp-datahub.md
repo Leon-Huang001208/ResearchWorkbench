@@ -1,5 +1,9 @@
 # WeKnora 的 DataHub 入站工具
 
+get_stock_kline 的规范原始日线请求构造下沉至 DataHub contracts，供 MCP 与资产观察
+已覆盖的历史区块共用；MCP公共参数、原scope/grant、提交id和status读取保持不变。
+资产页面通过原资产API调用该内部合同，不借用外部应用令牌或跨账号MCP上下文。
+
 ## 当前账号已配置数据源
 
 新授权 `rwb.data.configured` 必须同时包含 `rwb.read rwb.data.query`，仅供原已登记

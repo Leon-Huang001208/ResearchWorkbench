@@ -29,6 +29,18 @@ Wind 七域用于分类。当前实现股票、基金、指数、宏观域的 7 
 
 ## K 线与仓库规划
 
+资产观察的普通 history 区块在明确 stock/daily/none 且截止日早于上海今日时，
+与 MCP get_stock_kline 共用 `datahub/contracts.py::stock_kline_query`。
+该函数固定规范证券身份、历史日期与 CNY/股原始日线语义，再交原 DataHub.query，
+Broker、仓库规划、Provider 和冻结结果保持同一执行路径；页面不调用 MCP HTTP。
+页面指定的 source 和 refresh 由原受信资产 API 传入；MCP 不开放这些参数。
+懒加载新增 raw 历史区块继承观察的来源，不把 auto 改成显式 tinysoft。
+
+本次只接首条已覆盖合同：截至昨日的日频不复权区块。
+复权、周/月线、非股票、含当日的原历史请求，以及 canonical 历史任务/分时仍用原路径。
+新合同不会让单位尚未满足规范 raw 的来源自动通过；显式来源不支持时按原质量门失败。
+本地测试使用合成数据、真实 DataHub/Broker/快照，未证明真实供应商或生产部署。
+
 ```json
 {"request_id":"kline-example-1","asset":"600519.SH","start_date":"2026-11-10","end_date":"2026-11-13"}
 ```

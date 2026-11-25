@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+资产观察普通不复权历史日 K 与入站 MCP 共用 DataHub 的 stock_kline_query 请求合同，
+仍沿资产 API/原账号 Host → DataHub → Broker/仓库/Provider → 冻结快照；不新增服务或 MCP 回环。
+适用范围、原复权/分时兼容和验收边界见[业务工具合同](research-web-business-tools.md#k-线与仓库规划)。
+
 DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
 仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
 源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。

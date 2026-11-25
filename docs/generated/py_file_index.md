@@ -3382,6 +3382,7 @@ Imports:
 - `copy`
 - `core.observability`
 - `datahub.contracts`
+- `datahub.providers`
 - `datetime`
 - `hashlib`
 - `json`
@@ -4574,6 +4575,7 @@ Module docstring:
 
 Imports:
 - `adjustment_contract`
+- `core.observability`
 - `datetime`
 - `hashlib`
 - `json`
@@ -4595,6 +4597,10 @@ Classes:
   - Stable DSH-facing request; provider selection stays inside DataHub.
   - methods: safe_parameters, fingerprint
 - `InternalBusinessQuery`
+
+Functions:
+- `stock_kline_query`
+  - Shared completed raw daily-stock contract for asset pages and MCP tools.
 
 
 ## `app/research_web/datahub/external_sources.py`
@@ -9674,7 +9680,6 @@ Imports:
 - `datetime`
 - `pydantic`
 - `typing`
-- `zoneinfo`
 
 Classes:
 - `TaskArguments`

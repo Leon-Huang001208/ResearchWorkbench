@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "保留主线文档返回导航，并增加DataHub业务工具README入口。",
-  "reason": "文档返回首页沿主线安全合同与原鉴权；本候选另增加9个业务工具与岗底斯原始日线的合同链接，明确源码/部署边界，安装命令不变。"
+  "disposition": "unchanged",
+  "summary": "资产观察历史日K与MCP共用内部合同，现有业务工具README入口仍准确。",
+  "reason": "只将已覆盖的stock/daily/none历史区块接入现有业务合同，README已有资产观察和业务工具链接；没有新增安装、工具参数、产品入口或部署承诺，无须修改总览。"
 }

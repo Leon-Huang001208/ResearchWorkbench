@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+`datahub/contracts.py::stock_kline_query` 为 assets 普通 history 和
+`mcp_facade/task_contracts.py` 共用的 completed raw daily 请求构造与校验。
+`asset_workspace.py::_run_block` 仅在新合同覆盖的股票历史窗口接入，保留原来源与刷新；
+其他形态继续原路径。定点回归见 test_asset_loading、test_asset_workspace 与 test_mcp_task_contracts。
+
 DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
 仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
 源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。

@@ -1,5 +1,10 @@
 # Research Web DataHub
 
+资产观察的 stock/daily/none 历史区块（截至昨日）与 MCP get_stock_kline 共用
+`contracts.stock_kline_query`，携带同一规范原始日线语义进入原查询、Broker与冻结链。
+页面来源/refresh保留，不新增MCP回环；原复权、分时和canonical历史继续独立路径。
+详见[业务工具合同](research-web-business-tools.md#k-线与仓库规划)。
+
 DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
 仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
 源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
