@@ -148,6 +148,7 @@ jobs:
               'app/research_web/datahub/research_warehouse.py',
               'app/research_web/datahub/planning.py',
               'app/research_web/datahub/providers_finance_market.py',
+              'app/research_web/datahub/providers_wind.py',
               'app/research_web/mcp_facade/task_contracts.py',
               'tests/research_web/test_datahub_planning.py',
               'tests/research_web/test_finance_market_contract.py',

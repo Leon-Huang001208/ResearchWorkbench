@@ -126,7 +126,7 @@ ul,ol{padding-left:1.5em}
 <main>
 <h1 id="s-1">WeKnora 读取 DataHub：任务级技能层设计与实施计划</h1>
 <dl class="doc-meta"><div><dt>Status</dt><dd>implementation-candidate（2026-11-25；9 个工具源码已注册，未部署）</dd></div><div><dt>Host</dt><dd>macOS arm64 Mac mini</dd></div><div><dt>Task</dt><dd><code>weknora-datahub-skill-layer-20261124</code></dd></div><div><dt>Baseline</dt><dd><code>63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb</code></dd></div></dl>
-<p>本批源码实现状态见业务工具合同与 实现报告。下文保留12个候选的目标设计； 当前实现9个：K线仅daily/none、指数仅单个index、证券检索无limit、筹码尚未映射。 新闻/公告/MySQL按条件不注册；此前“任务工具尚未注册”等盘点属于实现前历史， 不得据此判断当前候选源码，更不能将候选源码当作常驻已部署。</p>
+<p>本批源码实现状态见业务工具合同与 实现报告。下文保留12个候选的目标设计； 当前实现9个：K线仅daily/none、指数仅最新单个index且无date、证券检索仅A股且无limit；宏观起止日期必填；筹码/大宗不开放。 新闻/公告/MySQL按条件不注册；此前“任务工具尚未注册”等盘点属于实现前历史， 不得据此判断当前候选源码，更不能将候选源码当作常驻已部署。</p>
 <p>本文是设计与决策记录，不是已交付合同。厂商目录、能力矩阵和技能层方案的 状态以带日期的历史记录与本版落实表为准；未执行项保持 NOT_RUN。</p>
 <p>本版采用三个代码模块：业务工具、DataHub 查询服务、供应商适配器； 语义是共享契约，规划与路由是查询服务内的职责，不新增五套执行框架。 设计阶段只更新文档；2026-11-25 实现阶段已在独立工作树修正 B1 并新增业务工具，常驻服务未改。</p>
 <h3 id="s-2">本版落实表</h3>
@@ -206,25 +206,25 @@ ul,ol{padding-left:1.5em}
 <tr><td><code>analytics_data</code></td><td>通用结构化取数</td><td>保留域，本版不开放自然语言通用取数兜底</td></tr></tbody></table></div>
 <p>本版仍为 12 个候选工具：金融业务域内 9 个、跨域公共工具 2 个、RWB 数据库扩展 1 个。 下表均是待实现的工具设计，不表示已出现在 WeKnora；不带 <code>rwb_</code> 前缀。 所有提交工具沿用 <code>request_id</code> 幂等合同。内部 capability 映射见 4.1.1，不作为业务域分类。</p>
 <h4 id="s-12">1. stock_data · 股票数据</h4>
-<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_stock_kline</code></td><td>单只沪深 A 股日 K：开高低收、真实成交量额；复权分源验收</td><td><code>asset</code>、<code>start_date</code>、<code>end_date</code>、<code>frequency?</code>、<code>adjustment?</code>、<code>adjustment_base_date?</code></td><td>优先实现</td></tr>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_stock_kline</code></td><td>单只沪深 A 股日 K：开高低收、真实成交量额；复权分源验收</td><td><code>asset</code>、<code>start_date</code>、<code>end_date</code>、<code>frequency=daily</code>、<code>adjustment=none</code></td><td>优先实现</td></tr>
 <tr><td><code>get_stock_quote</code></td><td>1–20 只 A 股最新行情快照：价格、涨跌幅、量额</td><td><code>assets</code>、<code>fields?</code></td><td>待实现</td></tr>
 <tr><td><code>get_stock_financials</code></td><td>单只 A 股财务摘要、利润表、盈利指标、现金流指标</td><td><code>asset</code>、<code>dataset</code>、<code>periods?</code></td><td>待实现</td></tr>
-<tr><td><code>get_stock_activity</code></td><td>个股资金流、融资融券、股东数据、大宗交易与筹码换手</td><td><code>asset</code>、<code>dataset</code>、<code>start_date?</code>、<code>end_date?</code></td><td>待实现</td></tr></tbody></table></div>
+<tr><td><code>get_stock_activity</code></td><td>个股资金流、融资融券、股东户数、前十名股东；大宗/筹码待后续</td><td><code>asset</code>、<code>dataset</code>、<code>start_date?</code>、<code>end_date?</code></td><td>待实现</td></tr></tbody></table></div>
 <h4 id="s-13">2. fund_data · 基金数据</h4>
 <div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_fund_detail</code></td><td>基金净值、基本档案、分红或已披露持仓</td><td><code>code</code>、<code>dataset</code>、<code>start_date?</code>、<code>end_date?</code>、<code>year?</code>、<code>limit?</code></td><td>待实现</td></tr></tbody></table></div>
 <h4 id="s-14">3. index_data · 指数与板块数据</h4>
-<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_index_quote</code></td><td>指数单时点行情；不代表已支持指数历史 K 线或板块排名</td><td><code>indexes</code>、<code>date?</code></td><td>待实现</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_index_quote</code></td><td>指数单时点行情；不代表已支持指数历史 K 线或板块排名</td><td><code>index</code>（最新快照）</td><td>待实现</td></tr></tbody></table></div>
 <h4 id="s-15">4. bond_data · 债券数据</h4>
 <p>当前无已定义并验收的债券业务工具，不注册占位工具。供应商债券目录存在不等于 RWB 已支持。</p>
 <h4 id="s-16">5. financial_docs · 公告、新闻与研究文档</h4>
 <div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>search_news</code></td><td>按关键词与日期检索财经新闻；最新 N 条过滤不满足本合同</td><td><code>query</code>、<code>limit?</code>、<code>start_date?</code>、<code>end_date?</code></td><td>条件启用</td></tr>
 <tr><td><code>search_announcements</code></td><td>按公司与日期查询公告，返回标题、披露时间与可核实链接</td><td><code>asset</code>、<code>query?</code>、<code>start_date?</code>、<code>end_date?</code></td><td>条件启用</td></tr></tbody></table></div>
 <h4 id="s-17">6. economic_data · 宏观与行业数据</h4>
-<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_economic_series</code></td><td>中国 CPI 当月同比、GDP 累计同比、制造业 PMI、M2 同比</td><td><code>series</code>、<code>start_date?</code>、<code>end_date?</code></td><td>待实现</td></tr></tbody></table></div>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_economic_series</code></td><td>中国 CPI 当月同比、GDP 累计同比、制造业 PMI、M2 同比</td><td><code>series</code>、<code>start_date</code>、<code>end_date</code></td><td>待实现</td></tr></tbody></table></div>
 <h4 id="s-18">7. analytics_data · 通用结构化取数</h4>
 <p>保留分类但不注册通用取数工具；复杂行情请求继续拆成专项工具，不通过自然语言兜底绕过契约。</p>
 <h4 id="s-19">跨域公共工具（RWB 扩展，不是第八个金融域）</h4>
-<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>search_assets</code></td><td>按名称或代码查股票、基金、指数的规范证券身份；不是条件选股</td><td><code>query</code>、<code>asset_type?</code>、<code>market?</code>、<code>limit?</code></td><td>待实现</td></tr>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>search_assets</code></td><td>按名称或代码查A股身份；当前基金/指数检索未开放</td><td><code>query</code>、<code>asset_type?</code>、<code>market?</code>、<code>limit?</code></td><td>待实现</td></tr>
 <tr><td><code>get_trading_calendar</code></td><td>查询市场开市与休市日期，为各金融域共用</td><td><code>market</code>、<code>start_date</code>、<code>end_date</code></td><td>待实现</td></tr></tbody></table></div>
 <h4 id="s-20">用户数据库工具（RWB 扩展）</h4>
 <div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>query_user_table</code></td><td>对已配置 MySQL 执行参数化只读单表查询</td><td><code>database</code>、<code>table</code>、<code>columns</code>、<code>filters?</code>、<code>order_by?</code>、<code>offset?</code>、<code>limit?</code></td><td>条件启用</td></tr></tbody></table></div>
@@ -335,7 +335,7 @@ get_stock_kline   →   capability = market_bars   →   Broker 按 binding 选�
 <tr><td><code>qfq</code></td><td>前复权</td><td>按明确的复权基准日缩放价格；基准变化可能改变历史价格水平</td></tr>
 <tr><td><code>hfq</code></td><td>后复权</td><td>按明确的起始基准缩放价格；因子修订仍可能改变历史值</td></tr></tbody></table></div>
 <p>RWB 统一契约：价格按所选口径输出，<code>volume</code> 和 <code>turnover</code> 保留真实成交量额。 这是 RWB 的产品约定，不是所有供应商的默认行为。RQData 明确存在调整成交量的 选项；供应商返回复权量时，需独立取原始量并验证，不能直接换字段名后声称等价。</p>
-<p>新增可选 <code>adjustment_base_date</code>：仅 <code>qfq</code> 可传，默认有效窗口末个已完成交易日。 <code>hfq</code> 使用该源经核验的起始/上市基准，manifest 写明；<code>none/hfq</code> 带该参数时拒绝， 不把自定义锚点静默称为标准后复权。显式基准日需为已完成交易日且不早于有效窗口结束日；不得晚于当前可获得因子的日期。 只表示复权锚点，不表示历史可知时点；<code>as_of</code> 仍专指 PIT。无能力支持该锚点的源 应退出候选，不能悄悄换成今天。manifest 记录基准日、因子来源与版本、公式版本。</p>
+<p>后续复权设计（当前业务工具不接受）：可选 <code>adjustment_base_date</code>：仅 <code>qfq</code> 可传，默认有效窗口末个已完成交易日。 <code>hfq</code> 使用该源经核验的起始/上市基准，manifest 写明；<code>none/hfq</code> 带该参数时拒绝， 不把自定义锚点静默称为标准后复权。显式基准日需为已完成交易日且不早于有效窗口结束日；不得晚于当前可获得因子的日期。 只表示复权锚点，不表示历史可知时点；<code>as_of</code> 仍专指 PIT。无能力支持该锚点的源 应退出候选，不能悄悄换成今天。manifest 记录基准日、因子来源与版本、公式版本。</p>
 <p>相同原始价、因子序列和模型下，前后复权仅相差常数，区间收益率相同；不能推广为 跨供应商、跨复权模型必然等价。固定快照及因子版本可复现 <code>qfq</code> 与 <code>hfq</code>， 不再声称“前复权不能冻结”或“后复权历史永不变化”。</p>
 <p>岗底斯 <code>adjustFactor</code> 的方向与模型仍待除权样本验证。普通历史查询没有 PIT 证明时， 不能作为历史时点已知数据；不因此禁止其用于当前历史走势展示。</p>
 <h3 id="s-27">4.3 可见性</h3>
@@ -419,8 +419,7 @@ get_stock_kline   →   capability = market_bars   →   Broker 按 binding 选�
 <tr><td><code>start_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code></td></tr>
 <tr><td><code>end_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code>，不晚于今天</td></tr>
 <tr><td><code>frequency</code></td><td>literal</td><td>否</td><td>默认 <code>daily</code>，v1 仅日频</td></tr>
-<tr><td><code>adjustment</code></td><td>literal</td><td>否</td><td>默认 <code>none</code>；<code>qfq</code> / <code>hfq</code> 需满足 4.2.1</td></tr>
-<tr><td><code>adjustment_base_date</code></td><td>string</td><td>否</td><td>仅 qfq 使用；规则见 4.2.1，不能代替 PIT</td></tr></tbody></table></div>
+<tr><td><code>adjustment</code></td><td>literal</td><td>否</td><td>当前仅 <code>none</code>，复权为后续设计</td></tr></tbody></table></div>
 <p>输出复用现有查询提交结构；以下仅为关键字段示意，不表示新增完整 DTO：</p>
 <pre><code>{
   &quot;id&quot;: &quot;00000000-0000-4000-8000-000000000001&quot;,
@@ -575,8 +574,7 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <tr><td><code>start_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code></td></tr>
 <tr><td><code>end_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code>，与 start 同日或之后</td></tr>
 <tr><td><code>frequency</code></td><td>literal</td><td>否</td><td>固定 <code>daily</code>；v1 不支持周/月/分钟</td></tr>
-<tr><td><code>adjustment</code></td><td>literal</td><td>否</td><td><code>none</code>（默认）/ <code>qfq</code> / <code>hfq</code></td></tr>
-<tr><td><code>adjustment_base_date</code></td><td>string</td><td>否</td><td>仅 qfq 可用，规则见 4.2.1</td></tr></tbody></table></div>
+<tr><td><code>adjustment</code></td><td>literal</td><td>否</td><td>当前仅 <code>none</code>（默认）</td></tr></tbody></table></div>
 <p>返回行字段：<code>asset</code>、<code>date</code>、<code>open</code>、<code>high</code>、<code>low</code>、<code>close</code>、<code>volume</code>、<code>turnover</code>、 <code>turnover_rate_pct</code>。</p>
 <p>约束：</p>
 <ul>
@@ -610,7 +608,7 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <tr><td><code>income_statement</code></td><td>AKShare</td><td>新浪披露利润表，不是利润率指标；最多 8 期</td></tr>
 <tr><td><code>profitability</code></td><td>BaoStock</td><td>仅一个明确季度末，2017 年起</td></tr>
 <tr><td><code>cash_flow</code></td><td>BaoStock</td><td>仅一个明确季度末的现金流比率，不能冒充完整现金流量表</td></tr></tbody></table></div>
-<p>返回行字段：<code>asset</code>、<code>report_period</code>、<code>field</code>、<code>value</code>、<code>unit</code>、<code>as_of</code>。</p>
+<p>返回实际来源的原生行和manifest.fields字典；利润表保留data[]，不声称已经统一成长表field/value。</p>
 <p>约束：单季与累计值必须分开返回，不得相加；<code>BaoStock</code> 的季度末快照不是 完整季度流量。<code>profitability/cash_flow</code> 必须显式传单个季度末列表； <code>income_statement</code> 只允许最多 8 期；不能把通用参数表中的 100 期上限当作所有 dataset 都支持。 summary 未传 periods 时按当前源最新可得报告期返回，并在元数据明确实际报告期。 岗底斯三大报表仍是待接契约，不改变此表现有路径。</p>
 <p>错误码：<code>data_not_equivalent</code>（dataset 与源不匹配）、<code>invalid_date_range</code>。</p>
 <pre><code>{&quot;request_id&quot;:&quot;fin-600519-2025&quot;,&quot;asset&quot;:&quot;600519.SH&quot;,
@@ -622,14 +620,13 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <tr><td><code>dataset</code></td><td>literal</td><td>是</td><td>见下表</td></tr>
 <tr><td><code>start_date</code></td><td>string</td><td>条件</td><td><code>margin_trading</code> 必填</td></tr>
 <tr><td><code>end_date</code></td><td>string</td><td>条件</td><td><code>margin_trading</code> 必填</td></tr></tbody></table></div>
-<p>数据集（对齐天软已实现的六类）：</p>
-<div class="table-wrap"><table><thead><tr><th>dataset</th><th>说明</th><th>时间参数</th><th>跨度</th></tr></thead><tbody><tr><td><code>fund_flow</code></td><td>资金流</td><td>可选</td><td>按源限制</td></tr>
+<p>当前业务工具数据集（不把不同股东语义合并）：</p>
+<div class="table-wrap"><table><thead><tr><th>dataset</th><th>说明</th><th>时间参数</th><th>跨度</th></tr></thead><tbody><tr><td><code>fund_flow</code></td><td>资金流</td><td>起止日期必填</td><td>起止相差&lt;60天</td></tr>
 <tr><td><code>margin_trading</code></td><td>融资融券</td><td>必填</td><td>&lt; 60 天</td></tr>
-<tr><td><code>holder_data</code></td><td>前十名股东合计</td><td>不需要</td><td>取最新报告期</td></tr>
-<tr><td><code>holder_details</code></td><td>前十名股东明细</td><td>不需要</td><td>取最新报告期</td></tr>
-<tr><td><code>block_trade</code></td><td>大宗交易</td><td>可选</td><td>按源限制</td></tr>
-<tr><td><code>chip_turnover</code></td><td>筹码换手</td><td>可选</td><td>按源限制</td></tr></tbody></table></div>
-<p>返回行字段：<code>asset</code>、<code>date</code>、<code>dataset</code>、<code>field</code>、<code>value</code>、<code>unit</code>。</p>
+<tr><td><code>holder_count</code></td><td>股东户数（Wind）</td><td>不允许日期</td><td>最新可得</td></tr>
+<tr><td><code>holder_data</code></td><td>前十名股东合计（天软）</td><td>不允许日期</td><td>最新报告期</td></tr>
+<tr><td><code>holder_details</code></td><td>前十名股东明细</td><td>不需要</td><td>取最新报告期</td></tr></tbody></table></div>
+<p>返回来源原生行与字段字典；holder_count是人数，holder_data是前十名合计，不是同一个指标。</p>
 <p>约束：</p>
 <ul>
 <li>天软只支持单标的；<code>holder_data</code> 要求前十名完整，否则 <code>top10_pct</code> 为 <code>null</code></li>
@@ -651,27 +648,22 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <tr><td><code>end_date</code></td><td>string</td><td>否</td><td>仅 <code>nav</code> 使用</td></tr>
 <tr><td><code>year</code></td><td>int</td><td>否</td><td>仅 <code>holdings</code> 使用，1990–当前年</td></tr>
 <tr><td><code>limit</code></td><td>int</td><td>否</td><td>1–100，默认 30</td></tr></tbody></table></div>
-<p>返回行字段：<code>code</code>、<code>date</code> 或 <code>report_period</code>、<code>field</code>、<code>value</code>、<code>unit</code>。</p>
+<p>返回来源各dataset的原生行与字段字典；净值、档案、分红、持仓不假设同一长表形状。</p>
 <p>约束：<code>holdings</code> 是「已披露持仓」，不是完整持仓；<code>nav</code> 的净值单位是元/份， 不得与累计净值相加。当前唯一源是东方财富。</p>
 <pre><code>{&quot;request_id&quot;:&quot;fund-000001-202611&quot;,&quot;code&quot;:&quot;000001&quot;,&quot;dataset&quot;:&quot;nav&quot;,
  &quot;start_date&quot;:&quot;2026-11-01&quot;,&quot;end_date&quot;:&quot;2026-11-20&quot;,&quot;limit&quot;:30}</code></pre>
 <h3 id="s-65">12.6 get_index_quote</h3>
 <p>所属域：<code>index_data</code>。</p>
-<p>指数单时点行情。注意：RWB 的 <code>index_data</code> 目前只有单日快照，<strong>没有指数区间 K 线</strong>。</p>
-<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>indexes</code></td><td>string[]</td><td>是</td><td>1–20 个指数代码，如 <code>000300.SH</code></td></tr>
-<tr><td><code>date</code></td><td>string</td><td>否</td><td><code>YYYY-MM-DD</code>；省略取最近可得交易日</td></tr></tbody></table></div>
+<p>指数最新快照。当前不接受历史日期或区间K线。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>index</code></td><td>string</td><td>是</td><td>000/93开头.SH或399开头.SZ，如000300.SH；当前单个指数</td></tr></tbody></table></div>
 <p>返回行字段：<code>asset</code>、<code>as_of</code>、<code>name</code>、<code>price</code>、<code>change_pct</code>。</p>
 <p>约束：</p>
 <ul>
 <li>当前已实现的对应来源为 Wind Excel，不代表此刻 callable；未就绪时按本地覆盖/来源规则判断。</li>
-<li><code>indexes</code> 是计划中的批量业务输入，底层 <code>BusinessQuery</code> 只有单个 <code>index</code>：</li>
-</ul>
-<p>  查询服务逐个构造 <code>index_data / dataset=quotes / index=代码 / date?</code> 并在原作业内组合结果， 全部标的使用同一来源，不新增子任务服务。任一失败需列出标的缺项，不伪报整批完整。 该批量映射尚未实现，注册前必须验收；源分页完成不代表整批标的齐全。</p>
-<ul>
 <li>需要指数历史走势时，本批不提供；不要用 <code>get_stock_kline</code> 冒充，</li>
 </ul>
 <p>  那会走股票端点并返回 <code>data_not_equivalent</code>。</p>
-<pre><code>{&quot;request_id&quot;:&quot;index-20261124&quot;,&quot;indexes&quot;:[&quot;000300.SH&quot;],&quot;date&quot;:&quot;2026-11-14&quot;}</code></pre>
+<pre><code>{&quot;request_id&quot;:&quot;index-20261124&quot;,&quot;index&quot;:&quot;000300.SH&quot;}</code></pre>
 <h3 id="s-66">12.7 search_news（条件启用）</h3>
 <p>所属域：<code>financial_docs</code>。</p>
 <p>财经新闻关键词与日期检索；必须先接通真正支持该语义的上游才注册。</p>
@@ -705,9 +697,9 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <p>所属域：<code>economic_data</code>。</p>
 <p>中国宏观时间序列。</p>
 <div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>series</code></td><td>literal</td><td>是</td><td><code>cn_cpi</code> / <code>cn_gdp</code> / <code>cn_pmi</code> / <code>cn_m2</code></td></tr>
-<tr><td><code>start_date</code></td><td>string</td><td>否</td><td>省略取源默认窗口</td></tr>
-<tr><td><code>end_date</code></td><td>string</td><td>否</td><td>不晚于今天</td></tr></tbody></table></div>
-<p>返回行字段：<code>date</code>、<code>series</code>、<code>value</code>、<code>unit</code>、<code>frequency</code>。</p>
+<tr><td><code>start_date</code></td><td>string</td><td>是</td><td>明确的参考期过滤起点，不猜源默认窗口</td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>是</td><td>不晚于今天</td></tr></tbody></table></div>
+<p>返回宏观原生列与manifest字段字典；四个主要列分别NATIONAL_SAME/SUM_SAME/MAKE_INDEX/BASIC_CURRENCY_SAME。</p>
 <p>约束：</p>
 <ul>
 <li>四个系列口径分别是：CPI 当月同比、GDP 累计同比、PMI 制造业、M2 同比。</li>
@@ -723,10 +715,9 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <p>所属域：<code>跨域公共</code>。</p>
 <p>按名称、简称或代码检索证券。</p>
 <div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>query</code></td><td>string</td><td>是</td><td>1–128 字符；代码或名称</td></tr>
-<tr><td><code>asset_type</code></td><td>literal</td><td>否</td><td><code>stock</code>（默认）/ <code>fund</code> / <code>index</code></td></tr>
-<tr><td><code>market</code></td><td>literal</td><td>否</td><td><code>CN</code>（默认）</td></tr>
-<tr><td><code>limit</code></td><td>int</td><td>否</td><td>1–50，默认 20</td></tr></tbody></table></div>
-<p>返回行字段：<code>asset_id</code>、<code>code</code>、<code>name</code>、<code>market</code>、<code>asset_type</code>。</p>
+<tr><td><code>asset_type</code></td><td>literal</td><td>否</td><td>当前固定stock，基金/指数检索未开放</td></tr>
+<tr><td><code>market</code></td><td>literal</td><td>否</td><td><code>CN</code>（默认）</td></tr></tbody></table></div>
+<p>返回来源提供的规范asset、名称及类型；以manifest.fields为准。</p>
 <p>约束：</p>
 <ul>
 <li>只做证券身份检索，不是条件选股。股票结果可调股票工具，基金/指数分别调对应域工具。</li>
@@ -739,7 +730,7 @@ hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
 <ul>
 <li>结果可能为空，<code>empty</code> 不等于「该证券不存在」。</li>
 </ul>
-<pre><code>{&quot;request_id&quot;:&quot;find-maotai&quot;,&quot;query&quot;:&quot;600519&quot;,&quot;limit&quot;:10}</code></pre>
+<pre><code>{&quot;request_id&quot;:&quot;find-maotai&quot;,&quot;query&quot;:&quot;600519&quot;}</code></pre>
 <h3 id="s-70">12.11 get_trading_calendar</h3>
 <p>所属域：<code>跨域公共</code>。</p>
 <p>交易日历。</p>

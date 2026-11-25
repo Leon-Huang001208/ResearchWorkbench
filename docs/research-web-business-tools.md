@@ -14,11 +14,11 @@ Wind 七域用于分类。当前实现股票、基金、指数、宏观域的 7 
 | stock_data | get_stock_kline | 单股、截至昨日的 daily/none；当日数据走快照，不开放未验证复权与基准日 |
 | stock_data | get_stock_quote | 1–20 股；默认 price，源不支持字段时沿原准入拒绝 |
 | stock_data | get_stock_financials | summary/income_statement/profitability/cash_flow |
-| stock_data | get_stock_activity | 资金流、两融、股东合计/明细、大宗交易；筹码日期合同另行接入 |
+| stock_data | get_stock_activity | 资金流、两融、股东户数与前十名股东；大宗/筹码本批不开放 |
 | fund_data | get_fund_detail | 净值、档案、分红、已披露持仓 |
-| index_data | get_index_quote | 单个 index 的单日报价，不实现设计稿的批量 indexes |
-| economic_data | get_economic_series | 固定四个中国宏观系列，不提供 PIT |
-| shared | search_assets | query/asset_type/market；不接受尚无底层映射的 limit |
+| index_data | get_index_quote | 单个 index 最新报价；000/93开头.SH或399开头.SZ，不接受date或批量indexes |
+| economic_data | get_economic_series | 固定四个中国宏观数据集，起止日期必填，不提供PIT |
+| shared | search_assets | query/market；asset_type仅stock，不接受尚无映射的limit |
 | shared | get_trading_calendar | 已发布的 CN 交易日历 |
 
 提交返回原 `id`；用 `rwb_datahub_status(query_id=id)` 读取。查询的 `source=auto` 是请求策略，
@@ -72,3 +72,14 @@ profitability/cash_flow 必须传一个明确季度末列表（2017 年起）；
 源证据继续使用 `providers_baostock_reference.py`、`providers_baostock_cashflow.py`、
 `providers_akshare.py:sina_income_metadata()` 的固定字典及证据身份；
 本批未制造新的 ratio 单位结论或将 source schema 声明冒充本轮厂商实测。
+
+## 跨层契约复核后的固定映射
+
+- 对外宏观 `cn_cpi/cn_gdp/cn_pmi/cn_m2` 分别转换为原provider的 `cpi/gdp/pmi/m2`，
+  start_date/end_date必填；原生主要列分别为NATIONAL_SAME/SUM_SAME/MAKE_INDEX/BASIC_CURRENCY_SAME，
+  字段说明传入实际MCP schema，不假设输出统一成单一value列。
+- 公共行情price在Wind请求中转换成close；公共turnover表示成交额，不能拿Wind原生turnover换手率替代。
+  请求Wind不提供的量额/涨跌字段时先跳过该候选；多股快照跳过只支持单股的天软。
+- holder_count固定Wind的股东户数；holder_data/holder_details固定天软的前十名股东合计/明细，
+  不跨语义替代。资金流/两融必须日期窗口且起止相差少于60天，股东仅最新报告期，不带日期。
+- 指数当前仅最新快照，日期字段不暴露；证券检索当前仅A股，不把股票结果当作基金或指数。

@@ -329,6 +329,10 @@ def register_tools(server, store, backend, datahub=None):
                 parameters = []
                 for key, field in argument_model.model_fields.items():
                     annotations_map[key] = field.rebuild_annotation()
+                    if field.description:
+                        annotations_map[key] = Annotated[
+                            annotations_map[key], Field(description=field.description)
+                        ]
                     default = inspect.Parameter.empty
                     if not field.is_required():
                         default = field.get_default(call_default_factory=True)

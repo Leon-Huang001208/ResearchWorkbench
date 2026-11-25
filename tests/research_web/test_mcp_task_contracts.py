@@ -3,6 +3,7 @@
 import unittest
 from datetime import datetime
 from types import SimpleNamespace
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from mcp.server import MCPServer
@@ -85,12 +86,8 @@ class BusinessContractTests(unittest.TestCase):
             )
 
     def test_index_maps_to_native_single_index(self):
-        _, q = business_query(
-            "get_index_quote", {"request_id": "i", "index": "000300.SH", "date": "2026-01-05"}
-        )
-        self.assertEqual(
-            q.parameters, {"index": "000300.SH", "date": "2026-01-05", "dataset": "quotes"}
-        )
+        _, q = business_query("get_index_quote", {"request_id": "i", "index": "000300.SH"})
+        self.assertEqual(q.parameters, {"index": "000300.SH", "dataset": "quotes"})
 
     def test_default_quote_only_requests_price(self):
         _, q = business_query("get_stock_quote", {"request_id": "q", "assets": ["600519.SH"]})
@@ -127,3 +124,116 @@ class BusinessContractTests(unittest.TestCase):
             {v[0] for v in TASKS.values()},
             {"stock_data", "fund_data", "index_data", "economic_data", "shared"},
         )
+
+
+class ProviderContractTests(unittest.TestCase):
+    def test_each_macro_alias_passes_the_existing_provider_contract(self):
+        from app.research_web.datahub.providers_akshare import validate_supported_query
+
+        for public in ["cn_cpi", "cn_gdp", "cn_pmi", "cn_m2"]:
+            with self.subTest(series=public):
+                _, q = business_query(
+                    "get_economic_series",
+                    {
+                        "request_id": "macro",
+                        "series": public,
+                        "start_date": "2025-01-01",
+                        "end_date": "2025-12-31",
+                    },
+                )
+                validate_supported_query(q)
+                self.assertEqual(q.parameters["series"], public[3:])
+        with self.assertRaises(ValueError):
+            business_query("get_economic_series", {"request_id": "macro", "series": "cn_cpi"})
+
+    def test_financial_quarters_match_the_existing_baostock_contract(self):
+        from app.research_web.datahub.providers_baostock import validate_supported_query
+
+        for dataset in ["profitability", "cash_flow"]:
+            _, q = business_query(
+                "get_stock_financials",
+                {
+                    "request_id": "financial",
+                    "asset": "600519.SH",
+                    "dataset": dataset,
+                    "periods": ["2025-12-31"],
+                },
+            )
+            validate_supported_query(q)
+
+    def test_activity_rejects_missing_window_and_unimplemented_dataset(self):
+        base = {"request_id": "activity", "asset": "600519.SH"}
+        for dataset in ["fund_flow", "margin_trading", "block_trade"]:
+            with self.subTest(dataset=dataset), self.assertRaises(ValueError):
+                business_query("get_stock_activity", {**base, "dataset": dataset})
+
+    def test_shareholder_count_cannot_be_replaced_by_top_ten_holdings(self):
+        base = {"request_id": "holders", "asset": "600519.SH"}
+        _, count = business_query("get_stock_activity", {**base, "dataset": "holder_count"})
+        _, top10 = business_query("get_stock_activity", {**base, "dataset": "holder_data"})
+        self.assertEqual((count.source, count.parameters["dataset"]), ("wind", "holder_data"))
+        self.assertEqual((top10.source, top10.parameters["dataset"]), ("tinysoft", "holder_data"))
+
+    def test_index_does_not_advertise_unsupported_historical_dates_or_stocks(self):
+        for args in [{"index": "000300.SH", "date": "2025-12-31"}, {"index": "600519.SH"}]:
+            with self.assertRaises(ValueError):
+                business_query("get_index_quote", {"request_id": "index", **args})
+
+    def test_search_does_not_return_stocks_for_a_fund_request(self):
+        with self.assertRaises(ValueError):
+            business_query(
+                "search_assets", {"request_id": "search", "query": "000001", "asset_type": "fund"}
+            )
+
+    def resolve_quote(self, fields, assets=None, tinysoft=False):
+        from app.research_web.datahub.broker import resolve
+
+        _, q = business_query(
+            "get_stock_quote",
+            {"request_id": "quote", "assets": assets or ["600519.SH"], "fields": fields},
+        )
+        with patch(
+            "app.research_web.datahub.catalog._dependency_status", return_value=(True, None)
+        ):
+            return resolve(
+                q,
+                environ={},
+                connection_statuses={
+                    "wind": {"configured": True, "preferred_adapter": "excel"},
+                    "tinysoft": {"configured": tinysoft, "secret_configured": tinysoft},
+                },
+            )
+
+    def test_wind_quote_translates_public_price_to_native_close(self):
+        r = self.resolve_quote(["price"])
+        self.assertEqual(r.provider_id, "wind")
+        self.assertEqual(r.query.parameters["fields"], ["close"])
+        from app.research_web.datahub.providers_wind import _requested_output_fields
+
+        self.assertIn("price", _requested_output_fields(r.query))
+
+    def test_amount_does_not_use_wind_turnover_rate(self):
+        r = self.resolve_quote(["turnover"])
+        self.assertEqual(r.provider_id, "akshare")
+
+    def test_batch_quotes_skip_the_single_asset_tinysoft_binding(self):
+        r = self.resolve_quote(["price"], ["600519.SH", "000001.SZ"], tinysoft=True)
+        self.assertEqual(r.provider_id, "wind")
+
+    def test_calendar_parameters_match_the_existing_provider(self):
+        from app.research_web.datahub.providers_akshare import validate_supported_query
+
+        _, q = business_query(
+            "get_trading_calendar",
+            {"request_id": "calendar", "start_date": "2025-01-01", "end_date": "2025-12-31"},
+        )
+        validate_supported_query(q)
+
+    def test_fund_dataset_translates_through_the_existing_broker(self):
+        from app.research_web.datahub.broker import resolve
+
+        _, q = business_query(
+            "get_fund_detail", {"request_id": "fund", "code": "000001", "dataset": "nav"}
+        )
+        r = resolve(q, environ={})
+        self.assertEqual(r.query.source, "fund_nav")

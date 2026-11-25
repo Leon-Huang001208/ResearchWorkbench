@@ -50,7 +50,11 @@ class StockFinancials(TaskArguments):
 
 class StockActivity(TaskArguments):
     asset: str
-    dataset: Literal["fund_flow", "margin_trading", "holder_data", "holder_details", "block_trade"]
+    dataset: Literal[
+        "fund_flow", "margin_trading", "holder_count", "holder_data", "holder_details"
+    ] = Field(
+        description="holder_count=股东户数；holder_data=前十名股东合计；holder_details=前十名股东明细，不可互相替代。"
+    )
     start_date: str | None = None
     end_date: str | None = None
 
@@ -65,19 +69,23 @@ class FundDetail(TaskArguments):
 
 
 class IndexQuote(TaskArguments):
-    index: str = Field(pattern=r"^[A-Za-z0-9]{1,12}\.[A-Z]{2,4}$")
-    date: str | None = None
+    index: str = Field(
+        pattern=r"^(?:000[0-9]{3}\.SH|93[0-9]{4}\.SH|399[0-9]{3}\.SZ)$",
+        description="当前沪深指数范围：000/93开头的.SH、399开头的.SZ；只取最新快照，不接受历史日期。",
+    )
 
 
 class EconomicSeries(TaskArguments):
-    series: Literal["cn_cpi", "cn_gdp", "cn_pmi", "cn_m2"]
-    start_date: str | None = None
-    end_date: str | None = None
+    series: Literal["cn_cpi", "cn_gdp", "cn_pmi", "cn_m2"] = Field(
+        description="CPI当月同比NATIONAL_SAME/GDP累计同比SUM_SAME/制造业PMI MAKE_INDEX/M2同比BASIC_CURRENCY_SAME；返回原生列及字段字典。"
+    )
+    start_date: str
+    end_date: str
 
 
 class SearchAssets(TaskArguments):
     query: str = Field(min_length=1, max_length=128)
-    asset_type: Literal["stock", "fund", "index"] = "stock"
+    asset_type: Literal["stock"] = "stock"
     market: Literal["CN"] = "CN"
 
 
@@ -110,7 +118,7 @@ TASKS = {
         "stock_data",
         "market_activity",
         StockActivity,
-        "获取个股资金流、两融、股东或大宗交易，按 dataset 区分口径。",
+        "获取个股资金流、两融或股东数据。资金流/两融须起止日期且相差少于60天；holder_count是户数，holder_data/details是前十名股东，仅最新报告期。",
     ),
     "get_fund_detail": (
         "fund_data",
@@ -122,19 +130,19 @@ TASKS = {
         "index_data",
         "index_data",
         IndexQuote,
-        "获取单个指数单日快照；不提供指数区间 K 线。",
+        "获取单个沪深指数最新可得快照；不接受历史日期或区间 K 线。",
     ),
     "get_economic_series": (
         "economic_data",
         "factor_macro",
         EconomicSeries,
-        "获取 CPI同比、GDP累计同比、制造业PMI或M2同比。",
+        "获取中国CPI全国当月同比、GDP累计同比、制造业PMI或M2同比；必填起止日期，返回原生列及字段字典。",
     ),
     "search_assets": (
         "shared",
         "search_assets",
         SearchAssets,
-        "按名称或代码查证券身份；不是条件选股。",
+        "按名称或代码查A股身份；当前不支持基金或指数身份检索，不是条件选股。",
     ),
     "get_trading_calendar": (
         "shared",
@@ -183,6 +191,26 @@ def business_query(name: str, arguments: dict) -> tuple[str, BusinessQuery]:
             raise ValueError("financial_period_limit")
     if capability == "index_data":
         values["dataset"] = "quotes"
+    if capability == "factor_macro":
+        values["series"] = {
+            "cn_cpi": "cpi",
+            "cn_gdp": "gdp",
+            "cn_pmi": "pmi",
+            "cn_m2": "m2",
+        }[values["series"]]
+    source = "auto"
+    if capability == "market_activity":
+        if values["dataset"] in {"fund_flow", "margin_trading"}:
+            if not start or not end:
+                raise ValueError("activity_window_required")
+            if (date.fromisoformat(end) - date.fromisoformat(start)).days >= 60:
+                raise ValueError("workload_too_large")
+        elif start or end:
+            raise ValueError("holder_history_not_supported")
+        if values["dataset"] == "holder_count":
+            values["dataset"], source = "holder_data", "wind"
+        elif values["dataset"] in {"holder_data", "holder_details"}:
+            source = "tinysoft"
     if (
         capability == "market_bars"
         and end
@@ -197,6 +225,7 @@ def business_query(name: str, arguments: dict) -> tuple[str, BusinessQuery]:
     log.info("mcp_business_query_validated", tool=name, capability=capability)
     return request_id, BusinessQuery(
         capability=capability,
+        source=source,
         parameters=values,
         required_semantics=("cn_stock_daily_cny_share_v1" if capability == "market_bars" else None),
     )
