@@ -381,6 +381,14 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 
 ### 中断备份锁与历史工作树身份
 
+Mac mini 新建Git安全恢复点使用正式CLI的`--backup-root /Volumes/WorkDisk/Data/RWB/git-safety`，
+放在`delivery`、`backup`或备份维护命令之后；同一任务后续操作沿用同一根，历史内盘恢复点
+继续按原路径读取。CLI在写入WorkDisk前核对APFS、挂载点及UUID
+`2BC466D2-FD62-4395-86AC-45CFF653BC51`；缺盘/身份不符即拒绝，不回落内盘。
+其他平台省略参数时沿用旧目录。源码、resident、凭据和账本仍保留原位置。
+跨文件系统不尝试APFS克隆，直接走原容量准入、完整hash与独立恢复校验；最终仍由原v2
+内容寻址存储去重。不得用改HOME或绕过CLI的包装器选择备份位置。
+
 真实进程仍在、退出证据不明或锁已被替换时保留锁。历史无 PID 的空备份锁仅接受任务原
 Git common directory 下记录中断的私有证据。由创建该锁的仓库操作，绑定当时的退出进程组、
 不完整备份、时间及锁身份。年龄和空目录不是释放凭据。以下命令先预览并返回摘要：

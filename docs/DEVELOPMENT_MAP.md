@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+`git_safety.mjs`正式CLI通过`--backup-root`把外盘恢复点目录传给原执行器，
+写WorkDisk前核对UUID/APFS/挂载点；跨设备跳过APFS克隆，仍由原容量准入和hash复制。
+原Constraints执行完整GitSafety/快照容量测试，Checks维护分支接受这些确切配套文件，
+未知或其他业务变动仍使用全量路径。安装及业务服务链不变。
+
 `datahub/contracts.py::stock_kline_query` 为 assets 普通 history 和
 `mcp_facade/task_contracts.py` 共用的 completed raw daily 请求构造与校验。
 `asset_workspace.py::_run_block` 仅在新合同覆盖的股票历史窗口接入，保留原来源与刷新；
