@@ -816,7 +816,10 @@
       "sources": [
         "app/research_web/documentation.py",
         "scripts/check_research_architecture.mjs",
-        "scripts/build_research_web_api_atlas.mjs"
+        "scripts/build_research_web_api_atlas.mjs",
+        "scripts/build_documentation_center.mjs",
+        "scripts/documentation_center.py",
+        "scripts/documentation_markdown.py"
       ],
       "documents": [
         "docs/README.md",
@@ -888,6 +891,7 @@
     {
       "id": "verification-workflow",
       "sources": [
+        "scripts/documentation_ci_scope.py",
         "scripts/plan_verification.mjs",
         "scripts/validate_verification_receipt.mjs",
         "scripts/summarize_verification_delivery.mjs",
@@ -6746,7 +6750,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "75131f724fc4f767ce76c408ba1ef8af59683b6d"
+      "revision": "5faef0d924cf0b7f5d03cc0a0ceffeeefa9a6a2c"
     },
     "levels": [
       {

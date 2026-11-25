@@ -23,7 +23,7 @@ def test_api_atlas_is_a_fixed_read_only_document(docs):
 
 def test_api_manual_is_a_fixed_isolated_document(docs):
     client, root = docs
-    (root / "api-manual.html").write_text("<body><h1>RWB API Manual</h1></body>")
+    (root / "api-manual.html").write_text('<body><a href="index.html">文档首页</a><h1>RWB API Manual</h1></body>')
     response = client.get("/api/research/documentation/api-manual.html")
     assert response.status_code == 200
     assert "RWB API Manual" in response.text
@@ -53,7 +53,7 @@ def test_registered_product_overview_has_safe_return_navigation(docs):
     response = client.get("/api/research/documentation/00-system-overview.html")
     assert response.status_code == 200
     assert 'href="index.html"' in response.text
-    assert 'href="index.html#modules"' in response.text
+    assert 'href="architecture.html#modules"' in response.text
     assert "allow-same-origin" not in response.headers["content-security-policy"]
     assert "access-control-allow-origin" not in response.headers
 

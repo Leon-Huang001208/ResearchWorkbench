@@ -383,6 +383,8 @@ jobs:
               ".github/workflows/research-web-checks.yml",
               "tests/javascript/actions_quota_governance.test.mjs",
           }
+          from scripts.documentation_ci_scope import documentation_paths
+          gateway_doc_paths |= documentation_paths()
           gateway_documentation = bool(gateway_doc_core.intersection(files)) and all(
               name in gateway_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
               for name in files
@@ -918,6 +920,7 @@ jobs:
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test \
               tests/javascript/research_web_multiuser_session.test.mjs \
               tests/javascript/research_web_architecture.test.mjs \
+              tests/javascript/research_web_settings_ui.test.mjs \
               tests/javascript/actions_quota_governance.test.mjs
           elif [ "${{ steps.contract-scope.outputs.api_doc_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test \
