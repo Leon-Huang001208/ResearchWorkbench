@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 OpenAPI 参数说明词汇表接入，README 无需改动。",
-  "reason": "本次只在 create_app 上补充仅写 OpenAPI 的参数说明，不改变请求解析、响应、路由入口、运行命令或安装步骤；README 已指向接口合同。"
+  "summary": "复核 API Manual 在线文档入口，README 无需改动。",
+  "reason": "手册挂在 README 已有的架构文档入口内，运行和安装命令保持；固定白名单与在线手册说明在文档合同维护。"
 }

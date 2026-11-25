@@ -1,5 +1,8 @@
 # GitHub Actions 免费额度治理
 
+API Manual 上线沿用 gateway_documentation_only：文档阅读器与固定 HTML、首页生成器及其架构
+检查器/测试纳入对应闭包，Python 保留网关与文档合同，JS 增加架构合同。其他产品改动仍走完整范围。
+
 私网网关架构文档导航修复沿原 Checks scope selector 新增 `gateway_documentation_only`：
 真实 base/head 差异命中 `app/research_web/multiuser/gateway.py`，且其余文件仅限对应两份
 Python 合同、04/05 架构说明、README 复核回执、生成的 Python 文件索引、本 workflow 和范围测试
