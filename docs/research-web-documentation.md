@@ -1,5 +1,9 @@
 # Research Web 文档门禁与安全入口
 
+API Manual 通过固定白名单 `api-manual.html` 发布，架构首页和文档底部导航均提供入口。
+该静态手册包含 460 个操作、457 个业务参数说明与 7 个响应结构，来源绑定上一轮已审源码。
+沿用登录鉴权、文档导航 Cookie 与隔离 CSP；搜索在本页运行，不读取业务数据。
+
 API Atlas 为[策略验证](research-web-strategy-validation.md)单独归类上传、运行、历史和逐笔分页接口。
 
 ## WeKnora 模块文档（2026-11-06）
