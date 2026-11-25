@@ -12,15 +12,17 @@ Python 命令封装在 `scripts/run_gateway_documentation_ci.sh`：新增分支�
 故沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，workflow 内只保留一行调用。
 该脚本已列入允许清单；漏登记会让真实 diff 回退全量范围，前一次候选即因此重跑完整矩阵。
 
-接口响应 schema 文档化沿同一步骤新增 `api_doc_only`：真实差异必须命中
-`app/research_web/schemas_responses.py`，其余文件仅限 workbench／asset 路由、对应 Python
-合同、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页、本
-workflow、范围测试和 `scripts/run_api_documentation_ci.sh`（Markdown 文档与 `.ai/reports/`
-结构决定照常允许）。命中后 Python 只运行 workbench 操作、asset loading／directory 和文档
-路由四个模块，JS 只运行 workbench、asset loading 与额度治理，并跳过不相关的编辑引擎安装；
-混入其他产品源码、其他测试或未知文件仍走原完整路径。收窄原因同样是全量 Web 合同在 45 分钟
-作业上限被取消，不是用例失败；实际候选仍须取得自己的 CI 结果。不新增 job、runner、依赖、
-权限、平台 dispatch 或时限。
+接口响应 schema 与参数说明沿同一步骤使用 `api_doc_only`：真实差异必须命中
+`app/research_web/schemas_responses.py` 或 `app/research_web/api_parameter_docs.py`，
+其余文件仅限 workbench／asset 路由、`main.py` 的单点接线、对应 Python 合同（含
+`test_api.py` 相关用例）、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页及 Atlas、
+本 workflow、范围测试和 `scripts/run_api_documentation_ci.sh`（Markdown 文档与
+`.ai/reports/` 结构决定照常允许）。命中后 Python 运行参数/响应文档合同、`test_api.py` 中的 schema/字段校验与同源用例、
+workbench 操作、asset loading／directory 和文档路由，JS 只运行 workbench、asset loading
+与额度治理，并跳过不相关的编辑引擎安装；混入其他产品源码、其他测试或未知文件仍走原完整
+路径。`main.py` 进入允许清单的前提是同一差异命中 `api_parameter_docs.py`，且 `test_api.py`
+中的相关用例验证主应用接线。收窄原因同样是全量 Web 合同在 45 分钟作业上限被取消，不是用例失败；实际
+候选仍须取得自己的 CI 结果。不新增 job、runner、依赖、权限、平台 dispatch 或时限。
 
 金融 MCP 与 configured DataHub scope 的改动在原入站 MCP 路由登记确切文件，并把两个
 相关回归模块及路由合同加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS

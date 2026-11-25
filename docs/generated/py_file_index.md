@@ -3044,6 +3044,24 @@ Functions:
 - `group_reports`
 
 
+## `app/research_web/api_parameter_docs.py`
+
+Module docstring:
+> Reviewed OpenAPI parameter descriptions.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `typing`
+
+Functions:
+- `parameter_description`
+  - Return the reviewed description for one OpenAPI parameter, if any.
+- `_enrich`
+- `install_openapi_parameter_docs`
+  - Attach the glossary to this app's lazily built OpenAPI schema.
+
+
 ## `app/research_web/asset_chip_inputs.py`
 
 Module docstring:
@@ -8602,6 +8620,7 @@ Imports:
 - `ai_news_routes`
 - `ai_news_service`
 - `aihot_routes`
+- `api_parameter_docs`
 - `asset_research`
 - `asset_routes`
 - `asset_workspace`
@@ -8628,8 +8647,7 @@ Imports:
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `frameworks.base`
-- `frameworks.routes`
-- ... 44 more
+- ... 45 more
 
 Classes:
 - `NewSession`

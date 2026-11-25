@@ -15,6 +15,19 @@
 回归：`tests/research_web/test_workbench_operations.py::test_desk_query_response_models_document_shape_without_filtering_runtime`
 同时断言 schema 已登记与响应仍为原始投影；`test_asset_loading.py` 覆盖资产侧运行时。
 
+## 参数说明词汇表（2026-11-25）
+
+`app/research_web/api_parameter_docs.py` 在 `create_app` 上安装一个只写 OpenAPI 的补充层：
+按 `location:name` 覆盖全部操作参数；同一名称在路由族中语义不同时，用路径前缀覆盖
+（例如 `did` 在数据集与档案、`code` 在证券与 OAuth、`state` 在业务状态与 OAuth）。
+它不参与请求解析或响应序列化，已有 `description` 不会被覆盖。
+
+当前覆盖 457 个业务参数用法（124 个不同的 location/name 组合），静态资源路径不列入手册。
+词汇表条目必须对应真实参数：
+`tests/research_web/test_api_parameter_docs.py` 在缺少说明、死条目或前缀覆盖不再匹配时失败；
+`test_api.py` 保留原接口合同。手册生成器直接读取 OpenAPI，因此同一份词汇表同时进入
+`/openapi.json` 与 API Manual。
+
 Fed RSS 预览入口为 `POST /api/research/discovery/registered-feeds/fed`，接收本人 `session_id`、可选已冻结 `dataset_id` 和 `horizon`；来源固定为 DataHub `ext_fed/news`。保存沿原 `/discovery/tracks`，手动运行使用 `POST /discovery/tracks/{id}/run`（`expected_version`、UUID `request_id`），历史使用 `GET /discovery/tracks/{id}/runs`。沿既有本人归属、宿主跟踪开关和明确用户动作校验，不开放通用 Automation 或任意 URL。
 
 `GET /api/research/release` 读取受管镜像内的不可变发布身份；普通运行返回 `managed:false`。维护控制只使用原容器内私有 Unix socket，不暴露外部写 API；新的受管写请求在维护中返回 `503 release_maintenance`。
