@@ -228,6 +228,7 @@
       "sources": [
         "app/research_web/__init__.py",
         "app/research_web/main.py",
+        "app/research_web/api_parameter_docs.py",
         "app/research_web/service.py",
         "app/research_web/service_manager.py",
         "app/research_web/service_diagnostics.py",
@@ -274,6 +275,7 @@
       ],
       "tests": [
         "tests/research_web/test_api.py",
+        "tests/research_web/test_api_parameter_docs.py",
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_runtime_launch.py",
         "tests/research_web/test_runtime_auth.py",

@@ -23,10 +23,12 @@ Python 命令放在 `scripts/run_gateway_documentation_ci.sh`；GitHub 的 `run:
 21000 字符，内联会越界，因此沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，分支只保留一行调用。
 该脚本本身也在允许清单里；新增或改名的配套脚本必须一并登记，否则选择器会回退全量。
 
-接口响应 schema 文档化复用同一选择步骤新增 `api_doc_only`：真实差异命中
-`app/research_web/schemas_responses.py`，其余文件仅限 workbench／asset 路由、对应 Python
-合同、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页、本
-workflow、范围测试和 `scripts/run_api_documentation_ci.sh`。命中后只跑 workbench 操作、
+接口响应 schema 与参数说明复用同一选择步骤使用 `api_doc_only`：真实差异命中
+`schemas_responses.py` 或 `api_parameter_docs.py`，其余文件仅限 workbench／asset 路由、
+`main.py` 单点接线、对应 Python 合同（含 `test_api.py`）、04 架构说明、架构映射、README
+复核回执、生成的 Python 文件索引、架构首页、本 workflow、范围测试和
+`scripts/run_api_documentation_ci.sh`。`main.py` 只有同时命中 `api_parameter_docs.py`
+才进入该范围。命中后运行参数/响应文档合同、`test_api.py` 中的 schema/字段校验与同源用例、workbench 操作、
 asset loading／directory、文档路由及对应 JS 合同，跳过编辑引擎安装；混合或未知文件仍走
 完整路径。收窄原因是全量合同超过 45 分钟作业上限被取消，不是用例失败。
 
