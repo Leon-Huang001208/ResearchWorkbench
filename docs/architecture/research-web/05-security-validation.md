@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+隔离文档返回首页时浏览器标记 cross-site，Strict 会话 Cookie 可能不随首跳发送。仅无 Origin 的
+GET / 用户点击顶层 document/navigation 可取得不含账号数据、不签发 Cookie 的同源重入页，
+固定执行 location.replace("/")；下一次首页请求仍走原会话鉴权，未登录则进入 /auth。
+iframe、脚本 fetch、API、写请求与显式 null/外站 Origin 均不因此放行。
+
 G2B 晋级绑定已验收制品、目标和前版，经原 Manager 身份与资源检查执行；维护只拒绝新工作，不强停已接纳研究。原凭据五卷不重建，Hot 状态尚无停写/回滚证明时不能据进程停止推断可晋级。
 
 ## 入站 MCP 的公开取数权限（2026-11-23）
