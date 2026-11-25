@@ -2,14 +2,208 @@
 
 import asyncio
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from app.research_web.asset_routes import BlockLoadRequest, ObservationRequest
 from app.research_web.asset_workspace import AssetWorkspace, AssetWorkspaceError
 from app.research_web.store import Store, StoreError
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["auto", "wind", "baostock"])
+@pytest.mark.parametrize("asset", ["600519.SH", "600519"])
+async def test_raw_daily_history_uses_the_same_contract_as_mcp(tmp_path, source, asset):
+    from app.research_web.mcp_facade.task_contracts import business_query
+
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "shared raw history")["id"]
+    calls = []
+
+    async def query(session_id, call_id, request):
+        calls.append((session_id, call_id, request))
+        return {"status": "empty", "row_count": 0}
+
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    try:
+        item = await workspace.create_observation(
+            ObservationRequest(
+                session_id=sid,
+                asset=asset,
+                asset_type="stock",
+                sections=["history"],
+                adjustment="none",
+                section_sources={"history": source},
+                section_ranges={"history": {"start_date": "2026-09-01", "end_date": "2026-09-11"}},
+            ),
+            "shared-history-fixture",
+        )
+        await asyncio.gather(*workspace.tasks.values())
+        _, expected = business_query(
+            "get_stock_kline",
+            {
+                "request_id": "shared-kline",
+                "asset": "600519.SH",
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-11",
+            },
+        )
+        assert calls[0][0] == sid
+        assert calls[0][2] == expected.model_copy(update={"source": source})
+        await workspace.load_block(
+            item["id"], "history", BlockLoadRequest(refresh=True), "shared-history-refresh"
+        )
+        await asyncio.gather(*workspace.tasks.values())
+        assert calls[-1][2] == expected.model_copy(update={"source": source, "refresh": True})
+        assert calls[0][1] != calls[-1][1]
+    finally:
+        await workspace.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"adjustment": "qfq"},
+        {"adjustment": "hfq"},
+        {"frequency": "weekly"},
+        {"frequency": "monthly"},
+        {"asset": "000300.SH", "asset_type": "index"},
+        {"asset": "510300.SH", "asset_type": "etf"},
+        {"end_date": datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()},
+    ],
+)
+async def test_non_tool_history_keeps_its_existing_path(tmp_path, changes):
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "legacy history compatibility")["id"]
+    calls = []
+
+    async def query(_sid, _call_id, request):
+        calls.append(request)
+        return {"status": "empty", "row_count": 0}
+
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    arguments = {
+        "session_id": sid,
+        "asset": "600519.SH",
+        "asset_type": "stock",
+        "source": "tinysoft",
+        "sections": ["history"],
+        "start_date": "2026-09-01",
+        "end_date": "2026-09-11",
+        "adjustment": "none",
+        **changes,
+    }
+    try:
+        await workspace.create_observation(ObservationRequest(**arguments), "legacy-history-path")
+        await asyncio.gather(*workspace.tasks.values())
+        assert len(calls) == 1
+        assert calls[0].required_semantics is None
+        assert calls[0].source == "tinysoft"
+        for field in ("asset", "asset_type", "frequency", "adjustment"):
+            assert calls[0].parameters[field] == arguments.get(field, "daily")
+    finally:
+        await workspace.close()
+
+
+@pytest.mark.asyncio
+async def test_raw_history_contract_failure_does_not_query_a_provider(tmp_path):
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "invalid raw asset")["id"]
+    calls = []
+
+    async def query(*args):
+        calls.append(args)
+        return {"status": "empty", "row_count": 0}
+
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    try:
+        item = await workspace.create_observation(
+            ObservationRequest(
+                session_id=sid,
+                asset="600519.SZ",
+                asset_type="stock",
+                sections=["history"],
+                start_date="2026-09-01",
+                end_date="2026-09-11",
+                adjustment="none",
+            ),
+            "invalid-raw-history",
+        )
+        await asyncio.gather(*workspace.tasks.values())
+        assert not calls
+        assert workspace.observation(item["id"])["blocks"]["history"]["status"] == "error"
+    finally:
+        await workspace.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["auto", "wind"])
+@pytest.mark.parametrize("range_mode", ["global", "section", "today_section", "body"])
+async def test_lazy_raw_history_inherits_observation_source(tmp_path, source, range_mode):
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "lazy raw source")["id"]
+    calls = []
+
+    async def query(_sid, _call, request):
+        calls.append(request)
+        return {"status": "empty", "row_count": 0}
+
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    today = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    historical_range = {"start_date": "2026-09-01", "end_date": "2026-09-11"}
+    section_ranges = (
+        {}
+        if range_mode == "global"
+        else {
+            "history": {
+                **historical_range,
+                "end_date": today if range_mode in {"today_section", "body"} else "2026-09-11",
+            }
+        }
+    )
+    try:
+        item = await workspace.create_observation(
+            ObservationRequest(
+                session_id=sid,
+                asset="600519.SH",
+                asset_type="stock",
+                source=source,
+                sections=["overview"],
+                start_date="2026-09-01",
+                end_date=today if range_mode in {"section", "body"} else "2026-09-11",
+                section_ranges=section_ranges,
+                adjustment="none",
+            ),
+            "lazy-raw-inherit",
+        )
+        await asyncio.gather(*workspace.tasks.values())
+        await workspace.load_block(
+            item["id"],
+            "history",
+            BlockLoadRequest(**historical_range) if range_mode == "body" else BlockLoadRequest(),
+            "lazy-raw-history",
+        )
+        await asyncio.gather(*workspace.tasks.values())
+        if range_mode == "today_section":
+            assert calls[-1].source == "tinysoft"
+            assert calls[-1].required_semantics is None
+        else:
+            assert calls[-1].source == source
+            assert calls[-1].required_semantics == "cn_stock_daily_cny_share_v1"
+    finally:
+        await workspace.close()
 
 
 @pytest.mark.asyncio

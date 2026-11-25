@@ -1,14 +1,13 @@
 """Business tools translate fixed contracts, never caller-selected providers."""
 
-from datetime import date, datetime
+from datetime import date
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from core.observability import get_logger
 
-from ..datahub.contracts import BusinessQuery
+from ..datahub.contracts import BusinessQuery, stock_kline_query
 from ..datahub.providers import ProviderError, cn_stock_identity
 
 log = get_logger(__name__)
@@ -159,6 +158,10 @@ def business_query(name: str, arguments: dict) -> tuple[str, BusinessQuery]:
     _, capability, schema, _ = TASKS[name]
     values = schema.model_validate(arguments).model_dump(exclude_none=True)
     request_id = values.pop("request_id")
+    if capability == "market_bars":
+        return request_id, stock_kline_query(
+            values["asset"], values["start_date"], values["end_date"]
+        )
     for key in ("start_date", "end_date", "date"):
         if key in values and date.fromisoformat(values[key]).isoformat() != values[key]:
             raise ValueError("invalid_date_range")
@@ -211,21 +214,9 @@ def business_query(name: str, arguments: dict) -> tuple[str, BusinessQuery]:
             values["dataset"], source = "holder_data", "wind"
         elif values["dataset"] in {"holder_data", "holder_details"}:
             source = "tinysoft"
-    if (
-        capability == "market_bars"
-        and end
-        and end > datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
-    ):
-        raise ValueError("future_provider_date")
-    if (
-        capability == "market_bars"
-        and end == datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
-    ):
-        raise ValueError("daily_history_requires_prior_session")
     log.info("mcp_business_query_validated", tool=name, capability=capability)
     return request_id, BusinessQuery(
         capability=capability,
         source=source,
         parameters=values,
-        required_semantics=("cn_stock_daily_cny_share_v1" if capability == "market_bars" else None),
     )
