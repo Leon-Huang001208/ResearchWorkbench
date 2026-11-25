@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "复核主线 API Manual 入口，并新增 DataHub 业务工具 README 入口。",
-  "reason": "保留主线架构/在线手册入口及安装命令；本候选增加9个业务工具与岗底斯原始日线绑定的合同链接，明确源码/部署边界。"
+  "summary": "保留主线文档返回导航，并增加DataHub业务工具README入口。",
+  "reason": "文档返回首页沿主线安全合同与原鉴权；本候选另增加9个业务工具与岗底斯原始日线的合同链接，明确源码/部署边界，安装命令不变。"
 }
