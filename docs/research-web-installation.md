@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+已审Native联合升级在新旧Host启动后的最终核验，遇活动/未知暂态最多等待30秒，
+仍须通过原完整健康、账号、模型与业务保全检查才能结束维护；到期不视为空闲。
+此修复只影响`apply-reviewed`的核验等待，不变更公开安装入口、依赖锁或固定DSH，
+详见[联合升级](research-web-gateway-upgrade.md#已审完整版本的联合升级)。
+
 DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
 仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
 源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
