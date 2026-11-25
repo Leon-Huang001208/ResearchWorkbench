@@ -10752,6 +10752,7 @@ Functions:
   - Keep an old tab from submitting to a newly logged-in account.
 - `documentation_navigation`
   - Top-level navigation into the fixed, isolated documentation allowlist.
+- `home_navigation`
 - `_session_token`
   - The document cookie is only accepted for the fixed documentation allowlist.
 - `_weknora_oauth_navigation`

@@ -100,6 +100,17 @@ def documentation_navigation(request: Request) -> bool:
     )
 
 
+def home_navigation(request: Request) -> bool:
+    return (
+        request.url.path == "/"
+        and request.method == "GET"
+        and request.headers.get("origin") is None
+        and request.headers.get("sec-fetch-mode") == "navigate"
+        and request.headers.get("sec-fetch-dest") == "document"
+        and request.headers.get("sec-fetch-user") == "?1"
+    )
+
+
 def _session_token(request: Request) -> str:
     """The document cookie is only accepted for the fixed documentation allowlist."""
     token = request.cookies.get(COOKIE, "")
@@ -333,6 +344,7 @@ def create_gateway(
         oauth_navigation = cross_site and _weknora_oauth_navigation(request, facade)
         fingpt_navigation = fingpt is not None and fingpt.navigation(request)
         document_navigation = cross_site and documentation_navigation(request)
+        home_entry = cross_site and home_navigation(request)
         if (
             (supplied_origin is not None and supplied_origin != origin)
             or (
@@ -340,6 +352,7 @@ def create_gateway(
                 and not oauth_navigation
                 and not fingpt_navigation
                 and not document_navigation
+                and not home_entry
             )
             or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
@@ -355,6 +368,16 @@ def create_gateway(
             return error("invalid_request", 400)
         if length < 0 or length > MAX_REQUEST_BYTES:
             return error("request_too_large", 413)
+        if home_entry:
+            log.info("multiuser_home_navigation")
+            return HTMLResponse(
+                '<!doctype html><title>返回 Research Web</title><script>location.replace("/")</script>',
+                headers={
+                    "Cache-Control": "no-store",
+                    "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+                    "Referrer-Policy": "no-referrer",
+                },
+            )
         public = request.url.path in {
             "/auth",
             "/api/server/login",
@@ -414,9 +437,7 @@ def create_gateway(
                 maximum = (
                     11 * 1024 * 1024
                     if request.url.path.startswith("/api/server/plugins/")
-                    else 65536
-                    if news
-                    else 16384
+                    else 65536 if news else 16384
                 )
                 if length > maximum:
                     return error("request_too_large", 413)

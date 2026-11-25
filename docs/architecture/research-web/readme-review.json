@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 API Manual 在线文档入口，README 无需改动。",
-  "reason": "手册挂在 README 已有的架构文档入口内，运行和安装命令保持；固定白名单与在线手册说明在文档合同维护。"
+  "summary": "复核隔离文档返回首页修复，README 无需改动。",
+  "reason": "仅修复现有返回首页导航；安装、运行入口及产品模块保持，首页重入与鉴权边界在安全合同说明。"
 }
