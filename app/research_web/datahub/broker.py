@@ -14,6 +14,7 @@ from .contracts import BusinessQuery, Query
 from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import validate_supported_query
 from .providers_baostock import validate_supported_query as validate_baostock_query
+from .providers_wind import SNAPSHOT_INPUT_FIELDS
 from .providers_wind import validate_supported_query as validate_wind_query
 from .providers_wind_api import WindAPIQuery
 
@@ -90,6 +91,25 @@ def _integer(value, name, default, minimum=1, maximum=100):
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise StoreError(f"{name} 参数非法")
     return value
+
+
+def _wind_snapshot_query(query: BusinessQuery) -> BusinessQuery:
+    """Translate public price fields without confusing amount with turnover rate."""
+    parameters = query.parameters
+    fields = parameters.get("fields", [])
+    if not isinstance(fields, list) or any(not isinstance(field, str) for field in fields):
+        raise StoreError("行情字段非法", "data_not_equivalent", 400)
+    native = query.source == "wind" or bool({"code", "trade_date", "close"}.intersection(fields))
+    if not native and "turnover" in fields:
+        raise StoreError("Wind快照不提供所需成交额", "data_not_equivalent", 400)
+    aliases = {"price": "close", "turnover_rate_pct": "turnover"}
+    translated = [aliases.get(field, field) for field in fields]
+    if any(field not in SNAPSHOT_INPUT_FIELDS for field in translated):
+        raise StoreError("Wind快照不支持所需字段", "data_not_equivalent", 400)
+    translated_parameters = dict(parameters)
+    if "fields" in parameters:
+        translated_parameters["fields"] = translated
+    return query.model_copy(update={"source": "wind", "parameters": translated_parameters})
 
 
 def _wind_financial_query(query: BusinessQuery) -> BusinessQuery:
@@ -222,7 +242,7 @@ def resolve(
         if (
             reason is None
             and query.required_semantics is not None
-            and source_id not in {"wind", "akshare", "baostock"}
+            and source_id not in {"wind", "akshare", "baostock", "ext_finance_mcp"}
         ):
             reason = "price_units_unverified"
             log.info(
@@ -230,12 +250,16 @@ def resolve(
                 source=source_id,
                 contract=query.required_semantics,
             )
+        if reason is None and source_id == "tinysoft" and query.capability == "market_snapshot":
+            assets = query.parameters.get("assets")
+            if not isinstance(assets, list) or len(assets) != 1:
+                reason = "single_asset_required"
         if reason is None and excluded_sources and not storage_read:
             # Matching qfq/hfq names do not prove matching factor anchors. Until
             # a canonical merge proof exists, runtime failover is raw daily stock
             # data only; historical adjusted blocks use the warehouse contract.
             reviewed_raw_bars = (
-                source_id in {"wind", "akshare", "baostock"}
+                source_id in {"wind", "akshare", "baostock", "ext_finance_mcp"}
                 and query.capability == "market_bars"
                 and query.parameters.get("asset_type") == "stock"
                 and query.parameters.get("adjustment") == "none"
@@ -243,6 +267,21 @@ def resolve(
             )
             if not reviewed_raw_bars:
                 reason = "data_not_equivalent"
+        if reason is None and source_id == "ext_finance_mcp":
+            from .providers_finance_market import validate_supported_query as validate_finance_query
+
+            try:
+                validate_finance_query(query)
+            except ProviderError as exc:
+                reason = unsupported_code = str(exc)
+                unsupported_source = source_id
+                log.info("datahub_finance_market_rejected", code=reason)
+        if reason is None and source_id == "wind" and query.capability == "market_snapshot":
+            try:
+                validate_wind_query(_wind_snapshot_query(query), storage_read=storage_read)
+            except (ProviderError, StoreError):
+                reason = unsupported_code = "data_not_equivalent"
+                unsupported_source = source_id
         if reason is None and source_id in {"akshare", "baostock"}:
             try:
                 validator = (
@@ -413,8 +452,14 @@ def resolve(
         legacy = (
             _wind_financial_query(query)
             if query.capability == "financials"
-            else query.model_copy(update={"source": "wind"})
+            else (
+                _wind_snapshot_query(query)
+                if query.capability == "market_snapshot"
+                else query.model_copy(update={"source": "wind"})
+            )
         )
+    elif selected == "ext_finance_mcp" and query.capability == "market_bars":
+        legacy = query.model_copy(update={"source": selected})
     elif selected == "mysql" and query.capability in {"database_schema", "table_query"}:
         legacy = query.model_copy(update={"source": "mysql"})
     else:

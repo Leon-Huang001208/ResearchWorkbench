@@ -1,5 +1,9 @@
 # Research Web DataHub
 
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
 金融数据 MCP 作为 `ext_finance_mcp` 接入原 `external_data` 能力，使用当前账号的一份
 客户端令牌，复用原查询、原件和快照。WeKnora 经新确认的 configured scope 查询当前
 callable／allowed 来源，旧 FRED/BLS 授权不自动扩权。见[金融 MCP 合同](research-web-finance-mcp.md)。

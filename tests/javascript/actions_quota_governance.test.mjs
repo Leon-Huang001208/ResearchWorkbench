@@ -1116,6 +1116,7 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
     'app/research_web/datahub/connections.py','.agents/verification-policy.json',
     '.github/workflows/research-web-checks.yml','scripts/run_mcp_datahub_ci.sh',
     'docs/architecture/research-web/readme-review.json','docs/research-web-finance-mcp.md',
+    'README.md','app/research_web/datahub/__init__.py','app/research_web/datahub/broker.py','app/research_web/datahub/catalog.py','app/research_web/datahub/warehouse.py','app/research_web/datahub/research_warehouse.py','app/research_web/datahub/planning.py','app/research_web/datahub/providers_finance_market.py','app/research_web/datahub/providers_wind.py','app/research_web/mcp_facade/task_contracts.py','tests/research_web/test_datahub_planning.py','tests/research_web/test_finance_market_contract.py','tests/research_web/test_mcp_task_contracts.py','scripts/architecture/build_weknora_skill_layer_reader.mjs','outputs/weknora-datahub-skill-layer/index.html',
     'tests/javascript/actions_quota_governance.test.mjs'];
   for (const [paths,base,gitFailure,expected] of [[files,'a'.repeat(40),'',true],
     [[...files,'app/research_web/main.py'],'a'.repeat(40),'',false],
@@ -1132,7 +1133,7 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
   const helper=fs.readFileSync(new URL('../../scripts/run_mcp_datahub_ci.sh',import.meta.url),'utf8');
   const selected=[...helper.matchAll(/tests\/research_web\/[a-z0-9_]+\.py/g)].map(x=>x[0]);
   assert.equal(selected.length,new Set(selected).size);
-  for (const file of ['test_mcp_facade_store.py','test_mcp_facade_datahub.py','test_mcp_facade_oauth.py','test_datahub_finance_mcp.py','test_external_sources.py','test_connection_center.py','test_datahub_broker.py','test_datahub_reliability.py','test_datahub_wind.py','test_datahub_cjpy.py','test_protocol.py','test_workbench_operations.py','test_store.py','test_capabilities_native.py','test_weknora_formal_scope.py'])assert.ok(selected.includes(`tests/research_web/${file}`),file);
+  for (const file of ['test_mcp_facade_store.py','test_mcp_facade_datahub.py','test_mcp_facade_oauth.py','test_datahub_finance_mcp.py','test_external_sources.py','test_connection_center.py','test_datahub_broker.py','test_datahub_reliability.py','test_datahub_wind.py','test_datahub_cjpy.py','test_protocol.py','test_workbench_operations.py','test_store.py','test_capabilities_native.py','test_weknora_formal_scope.py','test_research_warehouse_management.py','test_market_store.py','test_warehouse_diagnostics.py','test_datahub_planning.py','test_finance_market_contract.py','test_mcp_task_contracts.py'])assert.ok(selected.includes(`tests/research_web/${file}`),file);
   assert.ok(!selected.includes('tests/research_web/test_ai_news.py'));
   fs.mkdirSync(path.join(root,'.venv/bin'),{recursive:true});fs.mkdirSync(path.join(root,'scripts'));
   fs.writeFileSync(path.join(root,'scripts/run_mcp_datahub_ci.sh'),helper);

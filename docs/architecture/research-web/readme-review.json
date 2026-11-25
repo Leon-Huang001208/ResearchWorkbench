@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核隔离文档返回首页修复，README 无需改动。",
-  "reason": "仅修复现有返回首页导航；安装、运行入口及产品模块保持，首页重入与鉴权边界在安全合同说明。"
+  "disposition": "updated",
+  "summary": "保留主线文档返回导航，并增加DataHub业务工具README入口。",
+  "reason": "文档返回首页沿主线安全合同与原鉴权；本候选另增加9个业务工具与岗底斯原始日线的合同链接，明确源码/部署边界，安装命令不变。"
 }

@@ -23,6 +23,7 @@ from ..market_store import (
 )
 from ..market_store.models import parse_batch
 from .contracts import BusinessQuery
+from .planning import Plan, merge_gaps, plan_queries
 from .providers import MAX_QUERY_BYTES, Result
 
 log = get_logger(__name__)
@@ -104,35 +105,8 @@ class WarehouseBridge:
         if any(not window[0] <= day <= window[1] for day in expected):
             raise MarketStoreError("warehouse_calendar_outside_request")
         gaps = set(self.service.find_gaps(context.actor, context.scope, context.dataset, expected))
-        ranges: list[tuple[date, date]] = []
-        start = end = None
-        for day in expected:
-            if day in gaps:
-                start = day if start is None else start
-                end = day
-            elif start is not None:
-                assert end is not None
-                ranges.append((start, end))
-                start = end = None
-        if start is not None:
-            assert end is not None
-            ranges.append((start, end))
-        if len(ranges) > 16:
-            ranges = [(min(gaps), max(gaps))]
-        return tuple(
-            query.model_copy(
-                update={
-                    "source": source,
-                    "allow_fallback": False,
-                    "parameters": {
-                        **query.parameters,
-                        "start_date": start.isoformat(),
-                        "end_date": end.isoformat(),
-                    },
-                }
-            )
-            for start, end in ranges
-        )
+        ranges = merge_gaps(expected, gaps)
+        return plan_queries(query, Plan(gaps=ranges), source)
 
     def read(self, query: BusinessQuery, source: str, configuration_digest: str) -> Result | None:
         context = self._context(query, source, configuration_digest)

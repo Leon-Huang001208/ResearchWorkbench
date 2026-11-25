@@ -4455,6 +4455,8 @@ Functions:
 - `resolve_report_weekly`
   - Authorize the private Client API path without broadening public Wind tools.
 - `_integer`
+- `_wind_snapshot_query`
+  - Translate public price fields without confusing amount with turnover rate.
 - `_wind_financial_query`
   - Translate equivalent indicator naming without reducing requested periods.
 - `resolve`
@@ -4670,6 +4672,41 @@ Imports:
 Classes:
 - `MarketReader`
   - methods: __init__, _identity, _recheck, _metadata, indices
+
+
+## `app/research_web/datahub/planning.py`
+
+Module docstring:
+> Warehouse-first planning: decide what to read locally and what to fetch.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `market_store`
+
+Classes:
+- `Segment`
+  - Inclusive calendar-day range.
+  - methods: __post_init__, as_parameter_updates, as_manifest
+- `Plan`
+  - What the warehouse already covers and what still needs a supplier.
+  - methods: complete, manifest
+
+Functions:
+- `plannable`
+  - Whether a request may consult the warehouse before choosing a source.
+- `merge_days`
+  - Merge sorted business days into contiguous calendar-day segments.
+- `plan`
+  - Build a plan, or return ``None`` when this request is not plannable.
+- `merge_gaps`
+  - Merge adjacent trading days, preserving covered days as boundaries.
+- `plan_queries`
+  - Turn gap segments into source-bound queries, one per segment.
 
 
 ## `app/research_web/datahub/probes.py`
@@ -5120,6 +5157,26 @@ Functions:
   - Verify existing access via metadata, or exchange a refresh-only config.
 - `cicc_request`
 - `fetch`
+
+
+## `app/research_web/datahub/providers_finance_market.py`
+
+Module docstring:
+> Source-qualified Gangtise raw daily bars through the fixed finance gateway.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `providers`
+- `providers_finance_mcp`
+
+Functions:
+- `validate_supported_query`
+- `project`
+  - Reject truncation, mixed identities, duplicated dates and invalid OHLC.
+- `fetch_market`
 
 
 ## `app/research_web/datahub/providers_finance_mcp.py`
@@ -5861,6 +5918,7 @@ Imports:
 - `json`
 - `market_store`
 - `market_store.models`
+- `planning`
 - `providers`
 
 Classes:
@@ -9378,7 +9436,7 @@ Classes:
   - methods: __init__, _get, read
 - `DataHubBackend`
   - Opt-in public queries on an already-running account Host/DataHub.
-  - methods: _backend, _request, _context, query, configured_catalog, configured_query, _owned_query, status, cancel
+  - methods: _backend, _request, _context, query, configured_catalog, configured_query, task_query, _submit_business_query, _owned_query, status, cancel
 
 Functions:
 - `public_data_query`
@@ -9604,6 +9662,37 @@ Functions:
   - Use the SDK public middleware hook to narrow its default capabilities.
 
 
+## `app/research_web/mcp_facade/task_contracts.py`
+
+Module docstring:
+> Business tools translate fixed contracts, never caller-selected providers.
+
+Imports:
+- `core.observability`
+- `datahub.contracts`
+- `datahub.providers`
+- `datetime`
+- `pydantic`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `TaskArguments`
+- `StockKline`
+- `StockQuote`
+- `StockFinancials`
+- `StockActivity`
+- `FundDetail`
+- `IndexQuote`
+- `EconomicSeries`
+- `SearchAssets`
+- `TradingCalendar`
+
+Functions:
+- `stock_identity`
+- `business_query`
+
+
 ## `app/research_web/mcp_facade/tools.py`
 
 Module docstring:
@@ -9613,6 +9702,7 @@ Imports:
 - `backend`
 - `config`
 - `core.observability`
+- `inspect`
 - `json`
 - `mcp.server.auth.middleware.auth_context`
 - `mcp.server.mcpserver.exceptions`
@@ -9620,6 +9710,7 @@ Imports:
 - `models`
 - `multiuser.accounts`
 - `pydantic`
+- `task_contracts`
 - `typing`
 
 Functions:

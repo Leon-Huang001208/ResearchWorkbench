@@ -1068,6 +1068,16 @@ class DataHub:
                 defer_workload_limit=using_wind_plan,
             )
             result.metadata = {**result.metadata, "execution_authorization_digest": before}
+            if planned is not None:
+                result.metadata["plan"] = {
+                    "version": "plan-v2",
+                    "source": resolution.provider_id,
+                    "fetch_segments": [
+                        [item.parameters["start_date"], item.parameters["end_date"]]
+                        for item in planned[:16]
+                    ],
+                    "fetch_range_count": len(planned),
+                }
             self.runtime_health.record(
                 health_key(resolution),
                 accepted=result.status in {"complete", "snapshot", "empty"},

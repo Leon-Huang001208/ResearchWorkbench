@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
 `mcp_facade/models.py`／`oauth_views.py` 管理新 `rwb.data.configured` 同意范围，
 `tools.py`／`backend.py` 将来源发现与业务查询接回原 DataHub。
 `datahub/providers_finance_mcp.py` 使用已锁定 MCP SDK 访问固定金融网关；连接字段由

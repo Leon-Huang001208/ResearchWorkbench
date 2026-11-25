@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
 已配置来源的入站 MCP 在原账号 OAuth／Host／DataHub 链新增显式 scope，按当前账号目录的
 callable、allowed 和已实现绑定执行原 BusinessQuery。金融 MCP 为 DataHub 的固定上游
 Provider，复用 OS 凭据库、原查询记录及冻结快照；不将厂商密钥交给 WeKnora，不创建第二

@@ -486,6 +486,10 @@ async def supplement(client, query, result):
 
 async def fetch(query: Query | BusinessQuery, *, transport=None, connections=None):
     if isinstance(query, BusinessQuery):
+        if query.capability == "market_bars" and query.source == "ext_finance_mcp":
+            from .providers_finance_market import fetch_market
+
+            return await fetch_market(query, transport=transport, connections=connections)
         if query.capability == "external_data" and query.source == "ext_finance_mcp":
             from .providers_finance_mcp import fetch as finance_fetch
 
