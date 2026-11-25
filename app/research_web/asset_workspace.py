@@ -527,6 +527,7 @@ class AssetWorkspace:
             if (
                 block == "history"
                 and row["asset_type"] == "stock"
+                and not re.fullmatch(r"(?:[0-9]{6}\.BJ|BJ[0-9]{6})", row["asset"])
                 and request.get("frequency", "daily") == "daily"
                 and request.get("adjustment", "qfq") == "none"
                 and history_end < datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
@@ -669,13 +670,16 @@ class AssetWorkspace:
             if (
                 block == "history"
                 and parameters.get("asset_type") == "stock"
+                and not re.fullmatch(r"(?:[0-9]{6}\.BJ|BJ[0-9]{6})", parameters["asset"])
                 and parameters.get("frequency") == "daily"
                 and parameters.get("adjustment") == "none"
                 and parameters.get("end_date", "")
                 < datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
             ):
                 query = stock_kline_query(
-                    cn_stock_identity(parameters["asset"]),
+                    cn_stock_identity(
+                        re.sub(r"^(SH|SZ)([0-9]{6})$", r"\2.\1", parameters["asset"])
+                    ),
                     parameters["start_date"],
                     parameters["end_date"],
                     source=self._source(row, block),

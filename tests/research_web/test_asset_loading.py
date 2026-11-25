@@ -15,7 +15,7 @@ from app.research_web.store import Store, StoreError
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("source", ["auto", "wind", "baostock"])
-@pytest.mark.parametrize("asset", ["600519.SH", "600519"])
+@pytest.mark.parametrize("asset", ["600519.SH", "600519", "SH600519"])
 async def test_raw_daily_history_uses_the_same_contract_as_mcp(tmp_path, source, asset):
     from app.research_web.mcp_facade.task_contracts import business_query
 
@@ -75,6 +75,8 @@ async def test_raw_daily_history_uses_the_same_contract_as_mcp(tmp_path, source,
         {"frequency": "monthly"},
         {"asset": "000300.SH", "asset_type": "index"},
         {"asset": "510300.SH", "asset_type": "etf"},
+        {"asset": "830099.BJ"},
+        {"asset": "BJ830099"},
         {"end_date": datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()},
     ],
 )
