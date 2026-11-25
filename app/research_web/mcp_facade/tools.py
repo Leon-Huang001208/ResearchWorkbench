@@ -1,5 +1,6 @@
 """Four account-bound readonly tools. Identity comes exclusively from SDK bearer context."""
 
+import inspect
 import json
 from typing import Annotated, Literal
 
@@ -14,6 +15,7 @@ from ..multiuser.accounts import AccountError
 from .backend import ReadError, canonical_id
 from .config import RESPONSE_BYTES
 from .models import DATA_SCOPE, SCOPE
+from .task_contracts import TASKS
 
 log = get_logger(__name__)
 TOOL_ARGUMENTS = {
@@ -33,6 +35,11 @@ CONFIGURED_TOOL_ARGUMENTS = {
     "rwb_datahub_business_query": frozenset({"request_id", "query"}),
 }
 TOOL_ARGUMENTS.update(CONFIGURED_TOOL_ARGUMENTS)
+TASK_TOOL_ARGUMENTS = {
+    name: frozenset(schema.model_fields) for name, (_, _, schema, _) in TASKS.items()
+}
+CONFIGURED_TOOL_ARGUMENTS.update(TASK_TOOL_ARGUMENTS)
+TOOL_ARGUMENTS.update(TASK_TOOL_ARGUMENTS)
 UUIDArg = Annotated[
     str, Field(pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 ]
@@ -304,3 +311,37 @@ def register_tools(server, store, backend, datahub=None):
     ) -> dict:
         """Submit a DataHub BusinessQuery for an explicit source/capability returned by rwb_datahub_catalog. query contains capability, source, parameters and optional purpose/quality/refresh; no credentials or arbitrary endpoints. Uses that account's configured provider without fallback. Read the returned id with rwb_datahub_status; check data_success, provenance, units, missing values and PIT separately."""
         return await data_operation(datahub.configured_query, request_id, query)
+
+    if callable(getattr(datahub, "task_query", None)):
+        for name, (domain, _, schema, description) in TASKS.items():
+
+            def build_task(tool_name, argument_model, business_domain, text):
+                async def operation(**arguments) -> dict:
+                    return await data_operation(datahub.task_query, tool_name, arguments)
+
+                operation.__name__ = tool_name
+                operation.__doc__ = (
+                    f"[{business_domain}] {text} "
+                    "返回原查询 id；使用 rwb_datahub_status(query_id=id)读取冻结结果与分页，"
+                    "核对 data_success、单位、缺失与 PIT。request_id 同键同参复用。"
+                )
+                annotations_map = {"return": dict}
+                parameters = []
+                for key, field in argument_model.model_fields.items():
+                    annotations_map[key] = field.rebuild_annotation()
+                    default = inspect.Parameter.empty
+                    if not field.is_required():
+                        default = field.get_default(call_default_factory=True)
+                    parameters.append(
+                        inspect.Parameter(
+                            key,
+                            inspect.Parameter.KEYWORD_ONLY,
+                            default=default,
+                            annotation=annotations_map[key],
+                        )
+                    )
+                operation.__annotations__ = annotations_map
+                operation.__signature__ = inspect.Signature(parameters, return_annotation=dict)
+                return operation
+
+            server.tool(annotations=execution)(build_task(name, schema, domain, description))

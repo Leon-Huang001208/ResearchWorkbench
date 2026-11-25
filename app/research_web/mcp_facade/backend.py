@@ -330,6 +330,18 @@ class DataHubBackend(FrozenBackend):
         ):
             raise ReadError("configured_source_unavailable")
         query = query.model_copy(update={"allow_fallback": False})
+        return await self._submit_business_query(record, request_id, query)
+
+    async def task_query(self, record, tool_name, arguments):
+        """Reuse the account's original query job; the Host selects the source."""
+        if CONFIGURED_DATA_SCOPE not in record.scopes:
+            raise ReadError("access_denied")
+        from .task_contracts import business_query
+
+        request_id, query = business_query(tool_name, arguments)
+        return await self._submit_business_query(record, request_id, query)
+
+    async def _submit_business_query(self, record, request_id, query):
         backend = await self._backend(record.user_id)
         sid = await self._context(backend, record, create=True)
         key = hashlib.sha256((record.grant_id + ":" + request_id).encode()).hexdigest()

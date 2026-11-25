@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 API Manual 在线文档入口，README 无需改动。",
-  "reason": "手册挂在 README 已有的架构文档入口内，运行和安装命令保持；固定白名单与在线手册说明在文档合同维护。"
+  "disposition": "updated",
+  "summary": "复核主线 API Manual 入口，并新增 DataHub 业务工具 README 入口。",
+  "reason": "保留主线架构/在线手册入口及安装命令；本候选增加9个业务工具与岗底斯原始日线绑定的合同链接，明确源码/部署边界。"
 }
