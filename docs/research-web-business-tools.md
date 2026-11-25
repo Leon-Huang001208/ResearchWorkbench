@@ -29,6 +29,9 @@ Wind 七域用于分类。当前实现股票、基金、指数、宏观域的 7 
 
 ## K 线与仓库规划
 
+资产入口保留既有裸代码及 SH600519/SZ000001 厂商格式解析；MCP仍要求规范后缀代码。
+北交所显式前缀/后缀请求不进入本次沪深共享合同，继续原原生历史路径。
+
 资产观察的普通 history 区块在明确 stock/daily/none 且截止日早于上海今日时，
 与 MCP get_stock_kline 共用 `datahub/contracts.py::stock_kline_query`。
 该函数固定规范证券身份、历史日期与 CNY/股原始日线语义，再交原 DataHub.query，
