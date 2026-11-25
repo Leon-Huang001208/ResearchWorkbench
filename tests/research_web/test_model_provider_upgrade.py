@@ -1399,6 +1399,55 @@ def test_busy_during_signal_drain_does_not_retry_or_force_stop():
     assert "restore_sources_and_wheel" not in ops.events
 
 
+@pytest.mark.parametrize("action", ["verify_target", "verify_previous"])
+def test_reviewed_final_verification_waits_for_startup_activity(monkeypatch, action):
+    ops = object.__new__(upgrade.Operations)
+    ops.state = {"mode": upgrade.REVIEWED_MODE}
+    calls, sleeps = [], []
+
+    def verify(previous):
+        calls.append(previous)
+        if len(calls) < 3:
+            raise MaintenanceBusy("research_active_or_unknown")
+
+    monkeypatch.setattr(ops, "verify", verify)
+    monkeypatch.setattr(upgrade.time, "sleep", sleeps.append)
+    monkeypatch.setattr(upgrade.time, "monotonic", lambda: 0)
+    ops.action(action, ops.state)
+    assert calls == [action == "verify_previous"] * 3
+    assert len(sleeps) == 2
+
+
+@pytest.mark.parametrize("mode", [upgrade.REVIEWED_MODE, upgrade.FINGPT_MODE])
+def test_final_verification_keeps_busy_deadline_and_old_profiles(monkeypatch, mode):
+    ops = object.__new__(upgrade.Operations)
+    ops.state = {"mode": mode}
+    calls = []
+
+    def verify(previous):
+        calls.append(previous)
+        raise MaintenanceBusy("research_active_or_unknown")
+
+    clock = iter([0, 30])
+    monkeypatch.setattr(ops, "verify", verify)
+    monkeypatch.setattr(upgrade.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(upgrade.time, "sleep", lambda _: pytest.fail("deadline passed"))
+    with pytest.raises(MaintenanceBusy):
+        ops.action("verify_target", ops.state)
+    assert calls == [False]
+
+
+def test_reviewed_final_verification_does_not_retry_integrity_failure(monkeypatch):
+    ops = object.__new__(upgrade.Operations)
+    ops.state = {"mode": upgrade.REVIEWED_MODE}
+    monkeypatch.setattr(
+        ops, "verify", lambda _: (_ for _ in ()).throw(upgrade.UpdateBlocked("changed"))
+    )
+    monkeypatch.setattr(upgrade.time, "sleep", lambda _: pytest.fail("integrity failure"))
+    with pytest.raises(upgrade.UpdateBlocked, match="changed"):
+        ops.action("verify_target", ops.state)
+
+
 def test_real_birth_fence_reservations_are_not_native_owners(tmp_path):
     server = tmp_path / "server"
     server.mkdir(mode=0o700)
