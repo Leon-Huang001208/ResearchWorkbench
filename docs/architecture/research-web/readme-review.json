@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核文档中心并保留最新主线 DataHub/MCP README，根 README 本轮无需改动。",
-  "reason": "保留主线业务工具说明；本任务沿既有文档入口提供分层阅读，安装和业务语义保持，用户与工程文档入口在 docs/README.md 维护。"
+  "summary": "复核阅读布局及主题修复，根README无需改动。",
+  "reason": "沿原文档入口及隔离CSP调整阅读展示，不改变安装、运行、业务或权限；交互合同更新在模块文档。"
 }
