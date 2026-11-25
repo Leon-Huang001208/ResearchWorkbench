@@ -25,9 +25,44 @@ main{min-width:0;padding:30px 0 80px}.crumbs{font-size:13px;color:var(--muted);m
 @media(max-width:1200px){.layout{grid-template-columns:220px minmax(0,1fr);gap:28px}.page-toc{display:none}.version{display:none}}@media(max-width:760px){.top{gap:10px;padding:10px 16px;flex-wrap:wrap}.brand{font-size:16px}.menu{display:block}.search-box{order:4;flex-basis:100%;max-width:none}.top select{margin-left:auto}.layout{display:block;padding:0 20px}.sidebar{display:none;position:fixed;top:112px;left:0;bottom:0;width:280px;height:auto;background:var(--bg);border-right:1px solid var(--line);padding:20px;z-index:9}.sidebar.open{display:block}main{padding-top:22px}h1{font-size:29px}h2{font-size:21px}.starts,.home-groups,.topics{grid-template-columns:1fr}.starts{gap:20px}.topics{gap:12px}.pager{font-size:13px}.search-results{max-height:55vh}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 .search-results a{overflow-wrap:anywhere}
+td:first-child{white-space:nowrap;overflow-wrap:normal}td:first-child code{white-space:nowrap}
+.top{min-height:54px;padding:8px 28px;gap:20px}.top-links{display:flex;gap:24px;margin-left:auto;font-size:14px}.top-links a{text-decoration:none;color:var(--muted)}
+.layout{max-width:1540px;padding:0;grid-template-columns:260px minmax(0,1fr) 220px;gap:0}
+.sidebar{top:54px;height:calc(100vh - 54px);padding:24px 20px 32px;background:var(--panel);border-right:1px solid var(--line)}
+.search-box{margin:0 0 24px;max-width:none}.search-box input{background:var(--bg);font-size:13px;padding:8px}.search-results{z-index:20;position:relative;margin-top:6px;max-height:45vh;box-shadow:none}
+.sidebar .home{margin-bottom:14px}.sidebar details{margin-bottom:16px}.sidebar summary{font-size:13px;color:var(--fg)}.sidebar a{font-size:13px;padding:4px 10px;line-height:1.55}.sidebar-foot{margin-top:24px}.theme-control{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:14px}.theme-control select{font-size:12px;padding:4px}
+main{padding:30px 44px 64px}.crumbs{margin-bottom:18px;font-size:12px}h1{font-size:30px;line-height:1.3;margin-bottom:24px}h2{font-size:22px;margin:32px 0 12px;padding:0;border:0}h3{margin-top:24px}body{font-size:15px;line-height:1.7}p{margin:12px 0}li{margin:5px 0}pre{border-radius:2px;padding:14px}table{font-size:13px}.tw{border-radius:0}th,td{padding:8px 10px}.page-toc{top:80px;max-height:calc(100vh - 100px);margin:28px 20px 0 0;font-size:12px;padding-left:18px}.page-toc a{line-height:1.5}.page-toc a.current{color:var(--link);font-weight:600}.page-toc a.toc-sub{padding-left:12px}.footer{line-height:1.6}.pager{margin-top:40px}.home-groups h2{font-size:20px}
+@media(min-width:1101px) and (max-width:1200px){.layout{grid-template-columns:230px minmax(0,1fr) 180px}.page-toc{display:block}main{padding-left:30px;padding-right:30px}}
+@media(max-width:1100px){.layout{grid-template-columns:240px minmax(0,1fr)}.page-toc{display:none}.top-links{gap:16px}main{padding:28px 32px 60px}}
+@media(max-width:760px){.top{min-height:54px;flex-wrap:nowrap;padding:8px 16px}.top-links{display:none}.layout{display:block}.sidebar{top:54px;height:calc(100vh - 54px);width:290px;padding:22px 20px}.search-box{margin:0 0 20px}.search-results{max-height:40vh}.brand{font-size:15px}main{padding:24px 20px 48px}h1{font-size:26px}h2{font-size:21px}.menu{margin-left:auto;order:3}.version{display:inline;font-size:11px}.starts{margin-top:22px}.page-toc{display:none}}
+"""
+
+THEME_SCRIPT = """
+const themeMedia=matchMedia('(prefers-color-scheme: dark)');
+let themePreference=new URLSearchParams(location.search).get('theme');
+if(!['light','dark','auto'].includes(themePreference))themePreference='auto';
+function applyTheme(){document.documentElement.dataset.theme=themePreference==='auto'?(themeMedia.matches?'dark':'light'):themePreference;}
+applyTheme();
+themeMedia.addEventListener('change',()=>{if(themePreference==='auto')applyTheme();});
 """
 
 SCRIPT = """
+const themeSelect=document.getElementById('theme');
+themeSelect.value=themePreference;
+function themedHref(href){
+ const url=new URL(href,location.href);
+ if(url.origin===new URL(location.href).origin&&url.pathname.startsWith(location.pathname.slice(0,location.pathname.lastIndexOf('/')+1))&&url.pathname.endsWith('.html')){
+  url.searchParams.set('theme',themePreference);return url.pathname+url.search+url.hash;
+ }
+ return href;
+}
+function themeLinks(){document.querySelectorAll('a[href]').forEach(link=>{const href=link.getAttribute('href');if(!href.startsWith('#'))link.setAttribute('href',themedHref(href));});}
+themeLinks();
+themeSelect.addEventListener('change',()=>{
+ themePreference=themeSelect.value;applyTheme();themeLinks();
+ const url=new URL(location.href);url.searchParams.set('theme',themePreference);
+ try{history.replaceState(null,'',url.href);}catch{location.replace(url.href);}
+});
 const search=document.getElementById('doc-search'), results=document.getElementById('search-results');
 const entries=JSON.parse(document.getElementById('search-data').textContent);
 search.disabled=false;
@@ -36,14 +71,16 @@ search.addEventListener('input',()=>{
  if(!query)return;
  const matches=entries.filter(entry=>entry.text.toLowerCase().includes(query)).slice(0,16);
  if(!matches.length){const p=document.createElement('p');p.textContent='没有匹配结果，试试接口名、字段名或任务关键词。';results.append(p);}
- for(const entry of matches){const link=document.createElement('a');link.href=entry.href;link.textContent=entry.label;const caption=document.createElement('small');caption.textContent=entry.group;link.append(caption);results.append(link);}
+ for(const entry of matches){const link=document.createElement('a');link.href=themedHref(entry.href);link.textContent=entry.label;const caption=document.createElement('small');caption.textContent=entry.group;link.append(caption);results.append(link);}
 });
-document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();search.focus();}if(event.key==='Escape'){results.replaceChildren();document.getElementById('doc-sidebar').classList.remove('open');document.getElementById('nav-toggle').setAttribute('aria-expanded','false');}});
+document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();if(matchMedia('(max-width:760px)').matches){document.getElementById('doc-sidebar').classList.add('open');document.getElementById('nav-toggle').setAttribute('aria-expanded','true');}search.focus();}if(event.key==='Escape'){results.replaceChildren();document.getElementById('doc-sidebar').classList.remove('open');document.getElementById('nav-toggle').setAttribute('aria-expanded','false');}});
 document.getElementById('nav-toggle').addEventListener('click',event=>{const open=document.getElementById('doc-sidebar').classList.toggle('open');event.currentTarget.setAttribute('aria-expanded',String(open));});
-document.getElementById('theme').addEventListener('change',event=>{if(event.target.value==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=event.target.value;});
+const tocLinks=[...document.querySelectorAll('.page-toc a')];
+if('IntersectionObserver' in window){const headings=tocLinks.map(link=>document.getElementById(decodeURIComponent(link.hash.slice(1)))).filter(Boolean);
+ const observer=new IntersectionObserver(items=>{for(const item of items)if(item.isIntersecting)tocLinks.forEach(link=>{const active=decodeURIComponent(link.hash.slice(1))===item.target.id;link.classList.toggle('current',active);if(active)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});},{rootMargin:'-60px 0px -65% 0px'});headings.forEach(heading=>observer.observe(heading));}
 if(location.pathname.endsWith('/index.html')||location.pathname.endsWith('/')){
  const legacy=['overview','deployment','subsystems','flows','details','modules'];
- if(legacy.includes(location.hash.slice(1)))location.replace('architecture.html'+location.hash);
+ if(legacy.includes(location.hash.slice(1)))location.replace(themedHref('architecture.html'+location.hash));
 }
 """
 
@@ -150,7 +187,10 @@ def build(root, legacy):
 
     def shell(page, content):
         slug = page["slug"]
-        sidebar = '<a class="home" href="index.html">文档首页</a>'
+        sidebar = (
+            '<div class="search-box"><label class="sr-only" for="doc-search">搜索文档</label><input id="doc-search" placeholder="搜索文档 · Ctrl K" type="search" disabled><div class="search-results" id="search-results" role="status" aria-live="polite"></div></div>'
+            '<a class="home" href="index.html">文档首页</a>'
+        )
         for group in groups:
             links = [
                 item
@@ -159,13 +199,7 @@ def build(root, legacy):
                 and not item["slug"].startswith("reference-api-")
                 and item["slug"] != "api-manual"
             ]
-            sidebar += (
-                "<details"
-                + (" open" if group == page["group"] else "")
-                + "><summary>"
-                + html.escape(group)
-                + "</summary>"
-            )
+            sidebar += "<details open" + "><summary>" + html.escape(group) + "</summary>"
             for item in links:
                 active = ' aria-current="page"' if item["slug"] == slug else ""
                 sidebar += (
@@ -190,13 +224,15 @@ def build(root, legacy):
             sidebar += "</details>"
         toc = []
         for heading in re.finditer(
-            r'<h[23][^>]*id="([^"]+)"[^>]*>(.*?)</h[23]>', content, re.DOTALL
+            r'<h([23])[^>]*id="([^"]+)"[^>]*>(.*?)</h[23]>', content, re.DOTALL
         ):
             toc.append(
-                '<a href="#'
-                + heading.group(1)
+                "<a"
+                + (' class="toc-sub"' if heading.group(1) == "3" else "")
+                + ' href="#'
+                + heading.group(2)
                 + '">'
-                + html.escape(plain(heading.group(2)))
+                + html.escape(plain(heading.group(3)))
                 + "</a>"
             )
         siblings = [
@@ -229,7 +265,9 @@ def build(root, legacy):
             "<title>"
             + html.escape(page["title"])
             + ("" if slug == "index" else " · RWB 文档")
-            + "</title><style>"
+            + "</title><script>"
+            + THEME_SCRIPT
+            + "</script><style>"
             + CSS
             + '</style></head><body id="top">'
             '<a class="skip" href="#content">跳到正文</a><header class="top"><button class="menu" id="nav-toggle" aria-label="展开文档目录" aria-expanded="false" aria-controls="doc-sidebar">目录</button>'
@@ -238,11 +276,10 @@ def build(root, legacy):
             + 'RWB 文档</a><span class="version">'
             + version
             + "</span>"
-            '<div class="search-box"><label class="sr-only" for="doc-search">搜索文档</label><input id="doc-search" placeholder="搜索文档、接口或字段 · Ctrl K" type="search" disabled><div class="search-results" id="search-results" role="status" aria-live="polite"></div></div>'
-            '<label class="sr-only" for="theme">阅读主题</label><select id="theme"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></header>'
+            '<nav class="top-links" aria-label="文档栏目"><a href="getting-started.html">快速开始</a><a href="reference-api.html">参考手册</a><a href="architecture-guide.html">架构与设计</a></nav></header>'
             '<div class="layout"><aside class="sidebar" id="doc-sidebar" aria-label="文档目录">'
             + sidebar
-            + '<div class="sidebar-foot"><a href="glossary.html">术语表</a><a href="/">返回 Research Web</a></div></aside>'
+            + '<div class="sidebar-foot"><div class="theme-control"><label for="theme">阅读主题</label><select id="theme"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><a href="glossary.html">术语表</a><a href="/">返回 Research Web</a></div></aside>'
             '<main id="content"><nav class="crumbs" aria-label="面包屑">'
             + crumbs
             + "</nav><h1>"

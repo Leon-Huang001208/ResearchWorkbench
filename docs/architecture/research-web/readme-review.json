@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "保留主线文档中心导航；资产观察共用K线合同不需要新增README入口。",
-  "reason": "最新master已包含任务导向文档中心和18域API入口；本次只将stock/daily/none历史区块接入原DataHub合同，复核现有资产观察和业务工具说明仍准确，不改安装、路由权限或部署承诺。"
+  "summary": "保留主线文档中心主题与阅读布局；资产观察共用K线合同不需要新增README入口。",
+  "reason": "最新master已包含文档中心和主题修复；本次只将stock/daily/none历史区块及主图规范raw分段接入原DataHub合同，现有README资产观察和业务工具入口仍准确，不改安装、权限或部署承诺。"
 }
