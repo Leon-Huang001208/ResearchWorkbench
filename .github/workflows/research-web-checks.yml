@@ -278,7 +278,6 @@ jobs:
               'tests/research_web/fixtures/pack-owned-source-v1/manifest.json',
               'tests/research_web/source_capture_fixture.py',
           }
-          # Existing Mac-only manual journey fixtures are not executed by this Linux CI.
           manual_fixtures = {
               'tests/e2e/research_web_packs_backend.py',
               'tests/e2e/research_web_packs_real_backend.mjs',
