@@ -31,6 +31,7 @@ DOCUMENT_NAMES = frozenset(
         "reference-mcp",
         "reference-api",
         "architecture-guide",
+        "design-weknora-datahub",
         "operations-guide",
         "troubleshooting",
         "glossary",

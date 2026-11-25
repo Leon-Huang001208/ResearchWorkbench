@@ -4,7 +4,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 
 export const API_DOMAINS = ['sessions','datahub','assets','capabilities','mcp','events','ai-news','report-workflows','legacy-reports','automation','hot','knowledge','frameworks','operations','integrations','local-integrations','strategy','documentation'];
-export const CENTER_DOCUMENT_NAMES = ['architecture','getting-started','guide-data','guide-skills','guide-mcp','reference-data','reference-skills','reference-mcp','reference-api','architecture-guide','operations-guide','troubleshooting','glossary','documentation-version',...API_DOMAINS.map(name=>'reference-api-'+name)];
+export const CENTER_DOCUMENT_NAMES = ['architecture','getting-started','guide-data','guide-skills','guide-mcp','reference-data','reference-skills','reference-mcp','reference-api','architecture-guide','design-weknora-datahub','operations-guide','troubleshooting','glossary','documentation-version',...API_DOMAINS.map(name=>'reference-api-'+name)];
 
 export function renderDocumentationCenter(root, legacyArtifacts) {
   if(!fs.existsSync(path.join(root,'docs/manual/navigation.json')))return {};

@@ -112,6 +112,30 @@ def test_one_snapshot_preserves_all_operation_anchors():
     assert operations == document("api-manual.html").operations
 
 
+def test_design_contains_business_domains_tools_and_source_status():
+    content = (ARTIFACTS / "design-weknora-datahub.html").read_text()
+    for name in (
+        "stock_data",
+        "fund_data",
+        "index_data",
+        "bond_data",
+        "financial_docs",
+        "economic_data",
+        "analytics_data",
+        "get_stock_kline",
+        "get_stock_quote",
+        "get_stock_financials",
+        "get_stock_activity",
+        "adjustment_base_date",
+    ):
+        assert name in content
+    assert "12个候选工具" in content and "尚未全部部署" in content
+    assert "41-工具面" in document("design-weknora-datahub.html").ids
+    assert "12-工具输入契约12-个" in document("design-weknora-datahub.html").ids
+    assert "17-资产观察首条接入的源码候选" in document("design-weknora-datahub.html").ids
+    assert "7a3e5c43239fb39c84df75e2afa8b7d27c7b3292" in content
+
+
 def test_search_is_inline_and_includes_body_fields_and_tools():
     content = (ARTIFACTS / "index.html").read_text()
     match = re.search(

@@ -174,7 +174,9 @@ def render(md: str) -> str:
                     break
                 line_index += 1
             items = "".join(
-                f'<li id="n{column_index + 1}">{inline(text_value)}</li>'
+                "<li"
+                + (f' id="n{column_index + 1}"' if FOOTNOTES else "")
+                + f">{inline(text_value)}</li>"
                 for column_index, text_value in enumerate(ordered)
             )
             out.append(f'<ol class="notes">{items}</ol>')

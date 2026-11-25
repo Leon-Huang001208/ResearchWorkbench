@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import html
 import json
+import posixpath
 import re
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from documentation_markdown import render
 
@@ -46,6 +48,20 @@ applyTheme();
 themeMedia.addEventListener('change',()=>{if(themePreference==='auto')applyTheme();});
 """
 
+# Reference layout: global navigation, a section tree, and a quiet article column.
+CSS += """
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"PingFang SC",sans-serif}
+body{font-size:16px;line-height:1.65}.top{min-height:80px;padding:16px 32px;gap:24px;box-shadow:0 2px 4px #0000000b}.brand{font-size:18px;font-weight:600}.version{display:block;border:1px solid var(--line);padding:4px 8px;border-radius:3px;color:var(--link);font-size:13px;text-decoration:none;white-space:nowrap}.top-links{margin:0;gap:20px;flex:1;align-items:center}.top-links a{font-size:14px;white-space:nowrap}.search-box{position:relative;flex:0 1 240px;margin:0}.search-box input{font-size:14px;padding:7px 10px}.search-results{position:absolute;top:100%;left:0;right:0;min-width:270px;max-height:65vh;box-shadow:0 6px 16px #0002}.theme-control{margin:0}.theme-control label{display:none}.theme-control select{font-size:12px;padding:6px;max-width:110px}
+:root[data-theme=dark] .brand img{filter:brightness(0) invert(1)}
+.layout{max-width:none;grid-template-columns:240px minmax(0,1fr) 200px}.sidebar{background:var(--bg);top:80px;height:calc(100vh - 80px);padding:22px 20px 32px 32px}.sidebar summary{font-size:14px}.sidebar a{font-size:14px;line-height:1.65;padding:5px 10px}.sidebar .nav-child{padding-left:22px;font-size:13px}.sidebar .api-tree{margin:4px 0 12px 10px}.sidebar .api-tree summary{font-size:13px;font-weight:400;color:var(--muted)}main{padding:24px 32px 72px}h1{font-size:38px;font-weight:550;line-height:1.2;margin:0 0 26px}h2{font-size:26px;font-weight:600;margin:34px 0 16px}h3{font-size:21px}.crumbs{font-size:13px;margin-bottom:24px}.page-toc{top:104px;margin:24px 28px 0 0;padding-left:16px;font-size:13px;max-height:calc(100vh - 125px)}.page-toc strong{font-weight:500}.page-toc a{line-height:1.55}.home-page .layout{max-width:1184px;grid-template-columns:minmax(0,1fr) 180px;gap:32px}.home-page .sidebar{display:none}.home-page main{padding:34px 0 72px}.home-page .crumbs{display:none}.home-page h1{font-size:40px;font-weight:500;margin-bottom:20px}.home-page .catalogue{padding:0;list-style:none;margin-top:24px}.catalogue>li{margin:22px 0}.catalogue>li>a{font-weight:600}.catalogue ul{list-style:none;padding-left:24px;margin:8px 0}.catalogue li li{margin:6px 0}.catalogue a{text-decoration:underline}.release-status{max-width:960px}.release-status p{margin:18px 0}.design-banner{border-left:3px solid var(--link);padding:10px 16px;background:var(--panel)}
+@media(min-width:1600px){.layout{max-width:1600px}.home-page .layout{max-width:1280px}}
+@media(max-width:1200px){.top{gap:14px;padding:14px 24px}.top-links{gap:12px}.top-links a{font-size:13px}.search-box{flex-basis:190px}.layout{grid-template-columns:220px minmax(0,1fr)}.page-toc{display:none}.home-page .layout{display:block;max-width:980px}.home-page main{padding:30px 32px}}
+@media(max-width:960px){.top-links{display:none}.search-box{margin-left:auto;flex-basis:260px}}
+@media(max-width:760px){.top{min-height:110px;flex-wrap:wrap;padding:12px 16px;gap:12px}.version{font-size:11px}.menu{margin:0 0 0 auto;order:2}.theme-control{order:3}.search-box{flex-basis:100%;order:4;max-width:none;margin:0}.search-results{min-width:0}.layout{display:block}.sidebar,.home-page .sidebar{top:110px;height:calc(100vh - 110px);padding:20px;display:none}.sidebar.open,.home-page .sidebar.open{display:block}.home-page main,main{padding:24px 20px 48px}.home-page .layout{margin:0}.home-page h1,h1{font-size:30px}h2{font-size:23px}.brand{font-size:15px}.theme-control select{max-width:96px}.brand img{width:21px}.home-page .catalogue{margin-top:22px}}
+.catalogue h2{font-size:18px;margin:20px 0 10px}.catalogue li{line-height:1.7}h2 code,h3 code{font-size:inherit;background:none;padding:0}h2,h3,[id]{scroll-margin-top:104px}
+@media(max-width:760px){.version{display:none}h2,h3,[id]{scroll-margin-top:128px}}
+"""
+
 SCRIPT = """
 const themeSelect=document.getElementById('theme');
 themeSelect.value=themePreference;
@@ -58,6 +74,8 @@ function themedHref(href){
 }
 function themeLinks(){document.querySelectorAll('a[href]').forEach(link=>{const href=link.getAttribute('href');if(!href.startsWith('#'))link.setAttribute('href',themedHref(href));});}
 themeLinks();
+const currentNav=document.querySelector('.sidebar a[aria-current="page"]');
+if(currentNav&&matchMedia('(min-width:761px)').matches){const panel=document.getElementById('doc-sidebar'),item=currentNav.getBoundingClientRect(),bounds=panel.getBoundingClientRect();if(item.bottom>bounds.bottom-24)panel.scrollTop+=item.top-bounds.top-60;}
 themeSelect.addEventListener('change',()=>{
  themePreference=themeSelect.value;applyTheme();themeLinks();
  const url=new URL(location.href);url.searchParams.set('theme',themePreference);
@@ -69,11 +87,11 @@ search.disabled=false;
 search.addEventListener('input',()=>{
  const query=search.value.trim().toLowerCase();results.replaceChildren();
  if(!query)return;
- const matches=entries.filter(entry=>entry.text.toLowerCase().includes(query)).slice(0,16);
+ const matches=entries.filter(entry=>entry.text.toLowerCase().includes(query)).sort((a,b)=>Number(b.label.toLowerCase().includes(query))-Number(a.label.toLowerCase().includes(query))).slice(0,16);
  if(!matches.length){const p=document.createElement('p');p.textContent='没有匹配结果，试试接口名、字段名或任务关键词。';results.append(p);}
  for(const entry of matches){const link=document.createElement('a');link.href=themedHref(entry.href);link.textContent=entry.label;const caption=document.createElement('small');caption.textContent=entry.group;link.append(caption);results.append(link);}
 });
-document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();if(matchMedia('(max-width:760px)').matches){document.getElementById('doc-sidebar').classList.add('open');document.getElementById('nav-toggle').setAttribute('aria-expanded','true');}search.focus();}if(event.key==='Escape'){results.replaceChildren();document.getElementById('doc-sidebar').classList.remove('open');document.getElementById('nav-toggle').setAttribute('aria-expanded','false');}});
+document.addEventListener('keydown',event=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){event.preventDefault();search.focus();}if(event.key==='Escape'){results.replaceChildren();document.getElementById('doc-sidebar').classList.remove('open');document.getElementById('nav-toggle').setAttribute('aria-expanded','false');}});
 document.getElementById('nav-toggle').addEventListener('click',event=>{const open=document.getElementById('doc-sidebar').classList.toggle('open');event.currentTarget.setAttribute('aria-expanded',String(open));});
 const tocLinks=[...document.querySelectorAll('.page-toc a')];
 if('IntersectionObserver' in window){const headings=tocLinks.map(link=>document.getElementById(decodeURIComponent(link.hash.slice(1)))).filter(Boolean);
@@ -105,6 +123,39 @@ def build(root, legacy):
     for page in pages:
         if not re.fullmatch(r"[a-z0-9-]+", page["slug"]):
             raise ValueError("Invalid documentation page name")
+        source = page.get("source")
+        if source is not None:
+            if (page["slug"], source) != (
+                "design-weknora-datahub",
+                "docs/manual/design-weknora-datahub.md",
+            ) or not re.fullmatch(r"[a-f0-9]{40}", page.get("source_revision", "")):
+                raise ValueError("Unregistered documentation source")
+            markdown = read(root, source).split("\n", 1)[1]
+            page["body"] = render(markdown)
+
+            def source_link(match, revision=page["source_revision"]):
+                href = html.unescape(match.group(1))
+                url = urlsplit(href)
+                if url.scheme or url.netloc or not url.path:
+                    return match.group(0)
+                target = posixpath.normpath(posixpath.join("docs/plans", url.path))
+                if target.startswith(("../", "/")):
+                    raise ValueError("Invalid design source link")
+                return (
+                    'href="https://github.com/Leon-Huang001208/ResearchWorkbench/blob/'
+                    + revision
+                    + "/"
+                    + html.escape(target, quote=True)
+                    + ("#" + html.escape(url.fragment, quote=True) if url.fragment else "")
+                    + '"'
+                )
+
+            page["body"] = re.sub(r'href="([^"]+)"', source_link, page["body"])
+            page["body"] = (
+                '<blockquote><p>设计与实施记录：本页为用户指定的8765讨论稿2026-11-25快照，完整保留17节与历史候选记录，尚未全部部署。七域与12个候选工具是早期目标设计，后续目录扩展见原文落实表；当前可用工具请查<a href="reference-mcp.html">MCP工具参考</a>与实际授权发现结果。工程资料链接对齐主线7a3e5c43。</p></blockquote>'
+                + page["body"]
+            )
+            continue
         page["body"] = render(read(root, f"docs/manual/pages/{page['slug']}.md")).replace(
             'href="../../../outputs/research-web-architecture/', 'href="'
         )
@@ -154,7 +205,7 @@ def build(root, legacy):
             }
         )
         headings = list(
-            re.finditer(r'<h([23])[^>]*id="([^"]+)"[^>]*>(.*?)</h\1>', page["body"], re.DOTALL)
+            re.finditer(r'<h([234])[^>]*id="([^"]+)"[^>]*>(.*?)</h\1>', page["body"], re.DOTALL)
         )
         for index, heading in enumerate(headings):
             end = headings[index + 1].start() if index + 1 < len(headings) else len(page["body"])
@@ -187,11 +238,10 @@ def build(root, legacy):
 
     def shell(page, content):
         slug = page["slug"]
-        sidebar = (
-            '<div class="search-box"><label class="sr-only" for="doc-search">搜索文档</label><input id="doc-search" placeholder="搜索文档 · Ctrl K" type="search" disabled><div class="search-results" id="search-results" role="status" aria-live="polite"></div></div>'
-            '<a class="home" href="index.html">文档首页</a>'
-        )
+        sidebar = '<a class="home" href="index.html">全部文档</a>'
         for group in groups:
+            if page["group"] and group != page["group"]:
+                continue
             links = [
                 item
                 for item in pages
@@ -211,21 +261,27 @@ def build(root, legacy):
                     + html.escape(item["title"])
                     + "</a>"
                 )
-                if item["slug"] == "reference-api" and (
-                    slug.startswith("reference-api-") or slug == "api-manual"
-                ):
-                    sidebar += (
-                        '<a aria-current="page" href="'
-                        + slug
-                        + '.html">↳ '
-                        + html.escape(page["title"])
-                        + "</a>"
-                    )
+                if item["slug"] == "reference-api":
+                    sidebar += '<details class="api-tree" open><summary>API 业务域</summary>'
+                    for domain in api["domains"]:
+                        domain_slug = "reference-api-" + domain["slug"]
+                        sidebar += (
+                            '<a class="nav-child"'
+                            + (' aria-current="page"' if slug == domain_slug else "")
+                            + ' href="'
+                            + domain_slug
+                            + '.html">'
+                            + html.escape(domain["title"])
+                            + "</a>"
+                        )
+                    sidebar += "</details>"
             sidebar += "</details>"
         toc = []
         for heading in re.finditer(
             r'<h([23])[^>]*id="([^"]+)"[^>]*>(.*?)</h[23]>', content, re.DOTALL
         ):
+            if page.get("source") and heading.group(1) != "2":
+                continue
             toc.append(
                 "<a"
                 + (' class="toc-sub"' if heading.group(1) == "3" else "")
@@ -269,17 +325,20 @@ def build(root, legacy):
             + THEME_SCRIPT
             + "</script><style>"
             + CSS
-            + '</style></head><body id="top">'
+            + '</style></head><body id="top"'
+            + (' class="home-page"' if slug == "index" else "")
+            + ">"
             '<a class="skip" href="#content">跳到正文</a><header class="top"><button class="menu" id="nav-toggle" aria-label="展开文档目录" aria-expanded="false" aria-controls="doc-sidebar">目录</button>'
             '<a class="brand" href="index.html">'
             + brand
-            + 'RWB 文档</a><span class="version">'
+            + 'RWB 文档</a><a class="version" href="documentation-version.html" aria-label="文档版本与范围">'
             + version
-            + "</span>"
-            '<nav class="top-links" aria-label="文档栏目"><a href="getting-started.html">快速开始</a><a href="reference-api.html">参考手册</a><a href="architecture-guide.html">架构与设计</a></nav></header>'
+            + '</a><nav class="top-links" aria-label="文档栏目"><a href="getting-started.html">快速开始</a><a href="guide-data.html">使用指南</a><a href="reference-api.html">API 参考</a><a href="architecture-guide.html">架构与设计</a><a href="operations-guide.html">安装运维</a></nav>'
+            '<div class="search-box"><label class="sr-only" for="doc-search">搜索文档</label><input id="doc-search" placeholder="搜索文档 · Ctrl K" type="search" disabled><div class="search-results" id="search-results" role="status" aria-live="polite"></div></div>'
+            '<div class="theme-control"><label for="theme">阅读主题</label><select id="theme"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></header>'
             '<div class="layout"><aside class="sidebar" id="doc-sidebar" aria-label="文档目录">'
             + sidebar
-            + '<div class="sidebar-foot"><div class="theme-control"><label for="theme">阅读主题</label><select id="theme"><option value="auto">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><a href="glossary.html">术语表</a><a href="/">返回 Research Web</a></div></aside>'
+            + '<div class="sidebar-foot"><a href="glossary.html">术语表</a><a href="/">返回 Research Web</a></div></aside>'
             '<main id="content"><nav class="crumbs" aria-label="面包屑">'
             + crumbs
             + "</nav><h1>"
@@ -305,12 +364,10 @@ def build(root, legacy):
         )
 
     home = {"slug": "index", "title": "RWB 文档", "group": ""}
-    content = '<p class="intro">从数据和资料出发，使用技能完成研究，并保留可复查的来源与交付文件。<br>按任务阅读指南，按接口查阅定义。</p>'
-    content += '<div class="starts"><a href="getting-started.html">第一次使用<small>先了解基本概念，再完成第一个任务。</small></a><a href="#guides">按任务查指南<small>数据、技能与 MCP，各有一条清楚的路径。</small></a><a href="reference-api.html">查接口与字段<small>找到参数、默认值、结构和限制。</small></a></div>'
-    content += '<div class="topics"><div><a href="guide-data.html">数据</a><p>了解能查什么、来源是否可用，以及怎样解释快照。</p></div><div><a href="guide-skills.html">Skill</a><p>选择研究方法，核对输入、依赖、版本和输出。</p></div><div><a href="guide-mcp.html">MCP</a><p>从外部客户端发现并调用获准的 RWB 能力。</p></div></div><div class="home-groups">'
+    content = '<p>RWB 提供数据与资料访问、研究技能及获准的 MCP 接入。本手册说明使用方法、接口与字段，以及实现边界。</p><div class="release-status"><p><strong>已发布参考：</strong>使用指南与接口参考描述现有入口；实际可用范围取决于当前账号的配置、授权和服务版本。</p><p><strong>设计与源码候选：</strong>七个业务域和12个候选工具收录在<a href="design-weknora-datahub.html">DataHub 工具与技能层设计</a>。待实现和未部署的内容不代表当前可调用能力。</p></div><ul class="catalogue">'
     for index, group in enumerate(groups):
         content += (
-            '<section><h2 id="'
+            '<li><h2 id="'
             + ["start", "guides", "reference", "design", "operations"][index]
             + '">'
             + html.escape(group)
@@ -323,16 +380,24 @@ def build(root, legacy):
                 and page["slug"] != "api-manual"
             ):
                 content += (
-                    '<li><a href="'
-                    + page["slug"]
-                    + '.html">'
-                    + html.escape(page["title"])
-                    + "</a><small>"
-                    + html.escape(page["summary"])
-                    + "</small></li>"
+                    '<li><a href="' + page["slug"] + '.html">' + html.escape(page["title"]) + "</a>"
                 )
-        content += "</ul></section>"
-    content += "</div>"
+                if page["slug"] == "reference-api":
+                    content += (
+                        "<ul>"
+                        + "".join(
+                            '<li><a href="reference-api-'
+                            + domain["slug"]
+                            + '.html">'
+                            + html.escape(domain["title"])
+                            + "</a></li>"
+                            for domain in api["domains"]
+                        )
+                        + "</ul>"
+                    )
+                content += "</li>"
+        content += "</ul></li>"
+    content += "</ul>"
     content += (
         "<div hidden>"
         + "".join('<a id="' + html.escape(value) + '"></a>' for value in legacy_fragments)
