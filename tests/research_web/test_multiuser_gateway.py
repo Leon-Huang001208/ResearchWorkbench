@@ -551,6 +551,50 @@ def test_sandbox_document_navigation_reaches_the_allowlisted_document(server):
     assert pool.users
 
 
+def test_document_return_home_reenters_the_normal_session_boundary(server):
+    browser, _, pool, _, _ = server
+    assert login(browser).status_code == 200
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+    }
+    response = browser.get("/", headers=headers)
+    assert response.status_code == 200
+    assert 'location.replace("/")' in response.text
+    assert "set-cookie" not in response.headers
+    assert response.headers["cache-control"] == "no-store"
+    assert "sandbox" not in response.headers["content-security-policy"]
+    assert browser.get("/").status_code == 200
+    browser.cookies.clear()
+    assert browser.get("/", headers=headers).status_code == 200
+    assert browser.get("/", follow_redirects=False).headers["location"] == "/auth"
+    assert not pool.users
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"Sec-Fetch-Mode": "cors"},
+        {"Sec-Fetch-Dest": "iframe"},
+        {"Sec-Fetch-User": "?0"},
+        {"Origin": "null"},
+    ],
+)
+def test_home_return_does_not_admit_embeds_or_script_fetches(server, override):
+    browser, _, _, _, _ = server
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        **override,
+    }
+    assert browser.get("/", headers=headers).status_code == 403
+    assert browser.get("/api/server/me", headers=headers).status_code == 403
+
+
 @pytest.mark.parametrize(
     "override",
     [
