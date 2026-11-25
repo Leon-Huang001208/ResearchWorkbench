@@ -7,7 +7,7 @@ Baseline: `63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb`
 
 本批源码实现状态见[业务工具合同](../research-web-business-tools.md)与
 [实现报告](../../.ai/reports/2026-11-25-weknora-datahub-tools.md)。下文保留12个候选的目标设计；
-当前实现9个：K线仅daily/none、指数仅单个index、证券检索无limit、筹码尚未映射。
+当前实现9个：K线仅daily/none、指数仅最新单个index且无date、证券检索仅A股且无limit；宏观起止日期必填；筹码/大宗不开放。
 新闻/公告/MySQL按条件不注册；此前“任务工具尚未注册”等盘点属于实现前历史，
 不得据此判断当前候选源码，更不能将候选源码当作常驻已部署。
 
@@ -192,10 +192,10 @@ Baseline: `63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb`
 
 | 工具 | 中文说明 | 业务输入 | 状态 |
 | --- | --- | --- | --- |
-| `get_stock_kline` | 单只沪深 A 股日 K：开高低收、真实成交量额；复权分源验收 | `asset`、`start_date`、`end_date`、`frequency?`、`adjustment?`、`adjustment_base_date?` | 优先实现 |
+| `get_stock_kline` | 单只沪深 A 股日 K：开高低收、真实成交量额；复权分源验收 | `asset`、`start_date`、`end_date`、`frequency=daily`、`adjustment=none` | 优先实现 |
 | `get_stock_quote` | 1–20 只 A 股最新行情快照：价格、涨跌幅、量额 | `assets`、`fields?` | 待实现 |
 | `get_stock_financials` | 单只 A 股财务摘要、利润表、盈利指标、现金流指标 | `asset`、`dataset`、`periods?` | 待实现 |
-| `get_stock_activity` | 个股资金流、融资融券、股东数据、大宗交易与筹码换手 | `asset`、`dataset`、`start_date?`、`end_date?` | 待实现 |
+| `get_stock_activity` | 个股资金流、融资融券、股东户数、前十名股东；大宗/筹码待后续 | `asset`、`dataset`、`start_date?`、`end_date?` | 待实现 |
 
 #### 2. fund_data · 基金数据
 
@@ -207,7 +207,7 @@ Baseline: `63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb`
 
 | 工具 | 中文说明 | 业务输入 | 状态 |
 | --- | --- | --- | --- |
-| `get_index_quote` | 指数单时点行情；不代表已支持指数历史 K 线或板块排名 | `indexes`、`date?` | 待实现 |
+| `get_index_quote` | 指数单时点行情；不代表已支持指数历史 K 线或板块排名 | `index`（最新快照） | 待实现 |
 
 #### 4. bond_data · 债券数据
 
@@ -224,7 +224,7 @@ Baseline: `63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb`
 
 | 工具 | 中文说明 | 业务输入 | 状态 |
 | --- | --- | --- | --- |
-| `get_economic_series` | 中国 CPI 当月同比、GDP 累计同比、制造业 PMI、M2 同比 | `series`、`start_date?`、`end_date?` | 待实现 |
+| `get_economic_series` | 中国 CPI 当月同比、GDP 累计同比、制造业 PMI、M2 同比 | `series`、`start_date`、`end_date` | 待实现 |
 
 #### 7. analytics_data · 通用结构化取数
 
@@ -234,7 +234,7 @@ Baseline: `63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb`
 
 | 工具 | 中文说明 | 业务输入 | 状态 |
 | --- | --- | --- | --- |
-| `search_assets` | 按名称或代码查股票、基金、指数的规范证券身份；不是条件选股 | `query`、`asset_type?`、`market?`、`limit?` | 待实现 |
+| `search_assets` | 按名称或代码查A股身份；当前基金/指数检索未开放 | `query`、`asset_type?`、`market?`、`limit?` | 待实现 |
 | `get_trading_calendar` | 查询市场开市与休市日期，为各金融域共用 | `market`、`start_date`、`end_date` | 待实现 |
 
 #### 用户数据库工具（RWB 扩展）
@@ -408,7 +408,7 @@ RWB 统一契约：价格按所选口径输出，`volume` 和 `turnover` 保留�
 这是 RWB 的产品约定，不是所有供应商的默认行为。RQData 明确存在调整成交量的
 选项；供应商返回复权量时，需独立取原始量并验证，不能直接换字段名后声称等价。
 
-新增可选 `adjustment_base_date`：仅 `qfq` 可传，默认有效窗口末个已完成交易日。
+后续复权设计（当前业务工具不接受）：可选 `adjustment_base_date`：仅 `qfq` 可传，默认有效窗口末个已完成交易日。
 `hfq` 使用该源经核验的起始/上市基准，manifest 写明；`none/hfq` 带该参数时拒绝，
 不把自定义锚点静默称为标准后复权。显式基准日需为已完成交易日且不早于有效窗口结束日；不得晚于当前可获得因子的日期。
 只表示复权锚点，不表示历史可知时点；`as_of` 仍专指 PIT。无能力支持该锚点的源
@@ -585,8 +585,7 @@ configured scope 来自历史重授权；无权限变化时不重复要求授权
 | `start_date` | string | 是 | `YYYY-MM-DD` |
 | `end_date` | string | 是 | `YYYY-MM-DD`，不晚于今天 |
 | `frequency` | literal | 否 | 默认 `daily`，v1 仅日频 |
-| `adjustment` | literal | 否 | 默认 `none`；`qfq` / `hfq` 需满足 4.2.1 |
-| `adjustment_base_date` | string | 否 | 仅 qfq 使用；规则见 4.2.1，不能代替 PIT |
+| `adjustment` | literal | 否 | 当前仅 `none`，复权为后续设计 |
 
 输出复用现有查询提交结构；以下仅为关键字段示意，不表示新增完整 DTO：
 
@@ -912,8 +911,7 @@ PIT 查询继续走已验证的时点读取路径，v2 不把实时源当作历�
 | `start_date` | string | 是 | `YYYY-MM-DD` |
 | `end_date` | string | 是 | `YYYY-MM-DD`，与 start 同日或之后 |
 | `frequency` | literal | 否 | 固定 `daily`；v1 不支持周/月/分钟 |
-| `adjustment` | literal | 否 | `none`（默认）/ `qfq` / `hfq` |
-| `adjustment_base_date` | string | 否 | 仅 qfq 可用，规则见 4.2.1 |
+| `adjustment` | literal | 否 | 当前仅 `none`（默认） |
 
 返回行字段：`asset`、`date`、`open`、`high`、`low`、`close`、`volume`、`turnover`、
 `turnover_rate_pct`。
@@ -985,7 +983,7 @@ volume=股、turnover=元、total_shares=股、pe_ttm/pb=倍。
 | `profitability` | BaoStock | 仅一个明确季度末，2017 年起 |
 | `cash_flow` | BaoStock | 仅一个明确季度末的现金流比率，不能冒充完整现金流量表 |
 
-返回行字段：`asset`、`report_period`、`field`、`value`、`unit`、`as_of`。
+返回实际来源的原生行和manifest.fields字典；利润表保留data[]，不声称已经统一成长表field/value。
 
 约束：单季与累计值必须分开返回，不得相加；`BaoStock` 的季度末快照不是
 完整季度流量。`profitability/cash_flow` 必须显式传单个季度末列表；
@@ -1013,18 +1011,17 @@ summary 未传 periods 时按当前源最新可得报告期返回，并在元数
 | `start_date` | string | 条件 | `margin_trading` 必填 |
 | `end_date` | string | 条件 | `margin_trading` 必填 |
 
-数据集（对齐天软已实现的六类）：
+当前业务工具数据集（不把不同股东语义合并）：
 
 | dataset | 说明 | 时间参数 | 跨度 |
 | --- | --- | --- | --- |
-| `fund_flow` | 资金流 | 可选 | 按源限制 |
+| `fund_flow` | 资金流 | 起止日期必填 | 起止相差<60天 |
 | `margin_trading` | 融资融券 | 必填 | < 60 天 |
-| `holder_data` | 前十名股东合计 | 不需要 | 取最新报告期 |
+| `holder_count` | 股东户数（Wind） | 不允许日期 | 最新可得 |
+| `holder_data` | 前十名股东合计（天软） | 不允许日期 | 最新报告期 |
 | `holder_details` | 前十名股东明细 | 不需要 | 取最新报告期 |
-| `block_trade` | 大宗交易 | 可选 | 按源限制 |
-| `chip_turnover` | 筹码换手 | 可选 | 按源限制 |
 
-返回行字段：`asset`、`date`、`dataset`、`field`、`value`、`unit`。
+返回来源原生行与字段字典；holder_count是人数，holder_data是前十名合计，不是同一个指标。
 
 约束：
 
@@ -1054,7 +1051,7 @@ summary 未传 periods 时按当前源最新可得报告期返回，并在元数
 | `year` | int | 否 | 仅 `holdings` 使用，1990–当前年 |
 | `limit` | int | 否 | 1–100，默认 30 |
 
-返回行字段：`code`、`date` 或 `report_period`、`field`、`value`、`unit`。
+返回来源各dataset的原生行与字段字典；净值、档案、分红、持仓不假设同一长表形状。
 
 约束：`holdings` 是「已披露持仓」，不是完整持仓；`nav` 的净值单位是元/份，
 不得与累计净值相加。当前唯一源是东方财富。
@@ -1068,27 +1065,22 @@ summary 未传 periods 时按当前源最新可得报告期返回，并在元数
 
 所属域：`index_data`。
 
-指数单时点行情。注意：RWB 的 `index_data` 目前只有单日快照，**没有指数区间 K 线**。
+指数最新快照。当前不接受历史日期或区间K线。
 
 | 字段 | 类型 | 必填 | 约束 |
 | --- | --- | --- | --- |
-| `indexes` | string[] | 是 | 1–20 个指数代码，如 `000300.SH` |
-| `date` | string | 否 | `YYYY-MM-DD`；省略取最近可得交易日 |
+| `index` | string | 是 | 000/93开头.SH或399开头.SZ，如000300.SH；当前单个指数 |
 
 返回行字段：`asset`、`as_of`、`name`、`price`、`change_pct`。
 
 约束：
 
 - 当前已实现的对应来源为 Wind Excel，不代表此刻 callable；未就绪时按本地覆盖/来源规则判断。
-- `indexes` 是计划中的批量业务输入，底层 `BusinessQuery` 只有单个 `index`：
-  查询服务逐个构造 `index_data / dataset=quotes / index=代码 / date?` 并在原作业内组合结果，
-  全部标的使用同一来源，不新增子任务服务。任一失败需列出标的缺项，不伪报整批完整。
-  该批量映射尚未实现，注册前必须验收；源分页完成不代表整批标的齐全。
 - 需要指数历史走势时，本批不提供；不要用 `get_stock_kline` 冒充，
   那会走股票端点并返回 `data_not_equivalent`。
 
 ```json
-{"request_id":"index-20261124","indexes":["000300.SH"],"date":"2026-11-14"}
+{"request_id":"index-20261124","index":"000300.SH"}
 ```
 
 ### 12.7 search_news（条件启用）
@@ -1164,10 +1156,10 @@ iFinD 的日期格式描述写成 `yyyyy-MM-dd`（五个 y），本身也需要�
 | 字段 | 类型 | 必填 | 约束 |
 | --- | --- | --- | --- |
 | `series` | literal | 是 | `cn_cpi` / `cn_gdp` / `cn_pmi` / `cn_m2` |
-| `start_date` | string | 否 | 省略取源默认窗口 |
-| `end_date` | string | 否 | 不晚于今天 |
+| `start_date` | string | 是 | 明确的参考期过滤起点，不猜源默认窗口 |
+| `end_date` | string | 是 | 不晚于今天 |
 
-返回行字段：`date`、`series`、`value`、`unit`、`frequency`。
+返回宏观原生列与manifest字段字典；四个主要列分别NATIONAL_SAME/SUM_SAME/MAKE_INDEX/BASIC_CURRENCY_SAME。
 
 约束：
 
@@ -1190,11 +1182,10 @@ iFinD 的日期格式描述写成 `yyyyy-MM-dd`（五个 y），本身也需要�
 | 字段 | 类型 | 必填 | 约束 |
 | --- | --- | --- | --- |
 | `query` | string | 是 | 1–128 字符；代码或名称 |
-| `asset_type` | literal | 否 | `stock`（默认）/ `fund` / `index` |
+| `asset_type` | literal | 否 | 当前固定stock，基金/指数检索未开放 |
 | `market` | literal | 否 | `CN`（默认） |
-| `limit` | int | 否 | 1–50，默认 20 |
 
-返回行字段：`asset_id`、`code`、`name`、`market`、`asset_type`。
+返回来源提供的规范asset、名称及类型；以manifest.fields为准。
 
 约束：
 
@@ -1205,7 +1196,7 @@ iFinD 的日期格式描述写成 `yyyyy-MM-dd`（五个 y），本身也需要�
 - 结果可能为空，`empty` 不等于「该证券不存在」。
 
 ```json
-{"request_id":"find-maotai","query":"600519","limit":10}
+{"request_id":"find-maotai","query":"600519"}
 ```
 
 ### 12.11 get_trading_calendar

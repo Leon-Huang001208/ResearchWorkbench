@@ -4455,6 +4455,8 @@ Functions:
 - `resolve_report_weekly`
   - Authorize the private Client API path without broadening public Wind tools.
 - `_integer`
+- `_wind_snapshot_query`
+  - Translate public price fields without confusing amount with turnover rate.
 - `_wind_financial_query`
   - Translate equivalent indicator naming without reducing requested periods.
 - `resolve`

@@ -665,6 +665,10 @@ def test_configured_query_rejects_missing_credential_and_auto_source(gateway):
 def test_business_kline_uses_original_query_status_and_gangtise_binding(gateway, monkeypatch):
     env = gateway
     token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    described = {item["name"]: item for item in mcp(env, token)["tools"]}
+    macro_schema = described["get_economic_series"]["inputSchema"]
+    assert {"start_date", "end_date"} <= set(macro_schema["required"])
+    assert "NATIONAL_SAME" in macro_schema["properties"]["series"]["description"]
     from app.research_web.datahub import catalog
 
     monkeypatch.setattr(catalog, "_dependency_status", lambda *_: (False, "fixture_unavailable"))
