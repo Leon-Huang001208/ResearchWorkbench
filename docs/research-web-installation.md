@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
 Docker G2B 构建从完整提交封存当前固定 DSH、Hot 锁定依赖和格式源码，镜像中的 SQL 仅作兼容性识别，不自动迁移。管理员经 `rwb-docker release` 在独立 stage 验收后晋级同一镜像；维护、原实例五卷和密钥保全见[Docker 手册](research-web-docker.md#g2b-冻结制品与受管切换)。公开 Native/Windows 安装入口不变。
 
 附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版

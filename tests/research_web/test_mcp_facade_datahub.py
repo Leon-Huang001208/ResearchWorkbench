@@ -607,7 +607,7 @@ def test_configured_scope_needs_fresh_explicit_authorization(gateway):
 def test_configured_catalog_reuses_account_readiness_without_fetch(gateway):
     env = gateway
     token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
-    assert len(mcp(env, token)["tools"]) == 9
+    assert len(mcp(env, token)["tools"]) == 18
     catalog = content(mcp(env, token, "rwb_datahub_catalog"))
     sources = {item["id"] for item in catalog["sources"]}
     assert "ext_worldbank" in sources
@@ -660,3 +660,101 @@ def test_configured_query_rejects_missing_credential_and_auto_source(gateway):
         assert denied.get("isError") is True
         assert "configured_source_unavailable" in denied["content"][0]["text"]
     assert env.state.calls == []
+
+
+def test_business_kline_uses_original_query_status_and_gangtise_binding(gateway, monkeypatch):
+    env = gateway
+    token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    from app.research_web.datahub import catalog
+
+    monkeypatch.setattr(catalog, "_dependency_status", lambda *_: (False, "fixture_unavailable"))
+    monkeypatch.setattr(
+        env.service.datahub.connections,
+        "statuses",
+        lambda: {"ext_finance_mcp": {"secret_configured": True}},
+    )
+    monkeypatch.setattr(
+        env.service.datahub.connections,
+        "read_source_secret",
+        lambda source: "fixture-finance-token",
+    )
+    calls = []
+
+    def provider(request):
+        if request.method == "GET":
+            return httpx.Response(405)
+        body = json.loads(request.content)
+        if body["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        result = {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {},
+            "serverInfo": {"name": "fixture", "version": "1"},
+        }
+        if body["method"] == "tools/list":
+            result = {
+                "tools": [
+                    {"name": "gangtise_query", "inputSchema": {"type": "object", "properties": {}}}
+                ]
+            }
+        if body["method"] == "tools/call":
+            calls.append(body["params"])
+            result = {
+                "isError": False,
+                "content": [],
+                "structuredContent": {
+                    "ok": True,
+                    "data": {
+                        "code": "000000",
+                        "status": True,
+                        "data": {
+                            "total": 1,
+                            "fieldList": [
+                                "securityCode",
+                                "tradeDate",
+                                "open",
+                                "high",
+                                "low",
+                                "close",
+                                "volume",
+                                "amount",
+                            ],
+                            "list": [["600519.SH", "2026-01-05", 10, 12, 9, 11, 100, 1100]],
+                        },
+                    },
+                },
+            }
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": body["id"], "result": result})
+
+    env.service.datahub.transport = httpx.MockTransport(provider)
+    value = content(
+        mcp(
+            env,
+            token,
+            "get_stock_kline",
+            request_id="business-kline-1",
+            asset="600519.SH",
+            start_date="2026-01-05",
+            end_date="2026-01-05",
+        )
+    )
+    result = completed(env, token, value["id"])
+    assert result["status"] == "completed"
+    assert result["result"]["manifest"]["provider"] == "ext_finance_mcp"
+    assert result["data_success"] is True
+    assert result["result"]["items"][0]["turnover"] == 1100
+    assert calls[0]["name"] == "gangtise_query"
+    assert calls[0]["arguments"]["operation"] == "查询A股日K线"
+    again = content(
+        mcp(
+            env,
+            token,
+            "get_stock_kline",
+            request_id="business-kline-1",
+            asset="600519.SH",
+            start_date="2026-01-05",
+            end_date="2026-01-05",
+        )
+    )
+    assert again["id"] == value["id"]
+    assert len(calls) == 1

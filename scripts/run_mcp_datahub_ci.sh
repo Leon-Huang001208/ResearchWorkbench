@@ -17,6 +17,9 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
   tests/research_web/test_datahub_cjpy.py \
   tests/research_web/test_datahub_execution_health.py \
   tests/research_web/test_datahub_finance_mcp.py \
+  tests/research_web/test_datahub_planning.py \
+  tests/research_web/test_finance_market_contract.py \
+  tests/research_web/test_mcp_task_contracts.py \
   tests/research_web/test_datahub_financial_time_contract.py \
   tests/research_web/test_datahub_kapsarc.py \
   tests/research_web/test_datahub_numeric_sources.py \

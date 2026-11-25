@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核 OpenAPI 参数说明词汇表接入，README 无需改动。",
-  "reason": "本次只在 create_app 上补充仅写 OpenAPI 的参数说明，不改变请求解析、响应、路由入口、运行命令或安装步骤；README 已指向接口合同。"
+  "disposition": "updated",
+  "summary": "README 增加 DataHub 业务工具入口。",
+  "reason": "新增9个业务MCP工具与岗底斯原始日线binding，链接范围、字段及源码/部署边界；原安装命令和依赖不变。"
 }

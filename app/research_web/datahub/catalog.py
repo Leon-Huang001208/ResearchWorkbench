@@ -923,6 +923,34 @@ def build_catalog(
     sources.extend(external_sources)
     bindings.extend(external_bindings)
     by_source.update({source["id"]: source for source in external_sources})
+    bindings.append(
+        ProviderBinding(
+            capability_id="market_bars",
+            source_id="ext_finance_mcp",
+            datasets=["gangtise_raw_daily"],
+            priority=10,
+            implemented=True,
+            markets=["沪深A股"],
+            assets=["股票"],
+            coverage="岗底斯原始日线；日频不复权、单证券、最多367自然日，单位经有限跨源样本核验；非PIT。",
+            semantics={
+                "gangtise_raw_daily": DatasetSemantics(
+                    frequencies=["daily"],
+                    adjustments=["none"],
+                    historical_point_in_time=False,
+                    currency="CNY",
+                    units={
+                        "open": "currency_per_share",
+                        "high": "currency_per_share",
+                        "low": "currency_per_share",
+                        "close": "currency_per_share",
+                        "volume": "share",
+                        "turnover": "currency",
+                    },
+                )
+            },
+        ).model_dump(mode="json")
+    )
     capabilities = []
     for capability_spec in CAPABILITY_SPECS:
         cid, name, category, description, parameters, fields, markets, assets = capability_spec

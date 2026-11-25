@@ -499,7 +499,7 @@ class ResearchWarehouse:
             not profile
             or not profile["enabled"]
             or query.capability != "market_bars"
-            or source not in {"akshare", "baostock", "wind"}
+            or source not in {"akshare", "baostock", "wind", "ext_finance_mcp"}
             or query.parameters.get("asset_type") != "stock"
             or query.parameters.get("adjustment") != "none"
             or query.parameters.get("frequency") not in {"daily", "1d", "day"}
@@ -560,7 +560,15 @@ class ResearchWarehouse:
                     or document.get("format") != "rwb-provider-original-v1"
                     or document.get("provider") != source
                     or document.get("upstream")
-                    not in {"sina", "eastmoney", "akshare", "baostock", "wind", "tinysoft"}
+                    not in {
+                        "sina",
+                        "eastmoney",
+                        "akshare",
+                        "baostock",
+                        "wind",
+                        "tinysoft",
+                        "gangtise",
+                    }
                     or not isinstance(document.get("payloads"), list)
                     or not document["payloads"]
                 ):
@@ -587,7 +595,15 @@ class ResearchWarehouse:
                     if any(actual.get(key) != value for key, value in expected.items()):
                         raise MarketStoreError("warehouse_units_unverified")
             upstream = result.metadata.get("upstream_id", source)
-            if upstream not in {"sina", "eastmoney", "akshare", "baostock", "wind", "tinysoft"}:
+            if upstream not in {
+                "sina",
+                "eastmoney",
+                "akshare",
+                "baostock",
+                "wind",
+                "tinysoft",
+                "gangtise",
+            }:
                 raise MarketStoreError("warehouse_upstream_unknown")
             previous_rows = {
                 fact.business_date: fact for fact in previous.facts if fact.metric == "row"
@@ -762,6 +778,7 @@ class ResearchWarehouse:
                 "baostock": "http://www.baostock.com/",
                 "wind": "https://www.wind.com.cn/",
                 "tinysoft": "https://www.tinysoft.com.cn/",
+                "ext_finance_mcp": "https://www.huaanifd.com/finance-data/mcp",
             }[source],
             render=lambda batch: [fact.value for fact in batch.facts if fact.metric == "row"],
             field_metadata=FIELDS,

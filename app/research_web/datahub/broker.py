@@ -222,7 +222,7 @@ def resolve(
         if (
             reason is None
             and query.required_semantics is not None
-            and source_id not in {"wind", "akshare", "baostock"}
+            and source_id not in {"wind", "akshare", "baostock", "ext_finance_mcp"}
         ):
             reason = "price_units_unverified"
             log.info(
@@ -235,7 +235,7 @@ def resolve(
             # a canonical merge proof exists, runtime failover is raw daily stock
             # data only; historical adjusted blocks use the warehouse contract.
             reviewed_raw_bars = (
-                source_id in {"wind", "akshare", "baostock"}
+                source_id in {"wind", "akshare", "baostock", "ext_finance_mcp"}
                 and query.capability == "market_bars"
                 and query.parameters.get("asset_type") == "stock"
                 and query.parameters.get("adjustment") == "none"
@@ -243,6 +243,15 @@ def resolve(
             )
             if not reviewed_raw_bars:
                 reason = "data_not_equivalent"
+        if reason is None and source_id == "ext_finance_mcp":
+            from .providers_finance_market import validate_supported_query as validate_finance_query
+
+            try:
+                validate_finance_query(query)
+            except ProviderError as exc:
+                reason = unsupported_code = str(exc)
+                unsupported_source = source_id
+                log.info("datahub_finance_market_rejected", code=reason)
         if reason is None and source_id in {"akshare", "baostock"}:
             try:
                 validator = (
@@ -415,6 +424,8 @@ def resolve(
             if query.capability == "financials"
             else query.model_copy(update={"source": "wind"})
         )
+    elif selected == "ext_finance_mcp" and query.capability == "market_bars":
+        legacy = query.model_copy(update={"source": selected})
     elif selected == "mysql" and query.capability in {"database_schema", "table_query"}:
         legacy = query.model_copy(update={"source": "mysql"})
     else:
