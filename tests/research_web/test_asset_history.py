@@ -156,6 +156,46 @@ async def settle(ws):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["auto", "wind"])
+async def test_chart_raw_history_job_reuses_mcp_kline_contract(tmp_path, monkeypatch, source):
+    from app.research_web import asset_history_jobs
+    from app.research_web.datahub.contracts import stock_kline_query
+    from app.research_web.mcp_facade.task_contracts import business_query
+
+    queries = []
+
+    def shared(*args, **kwargs):
+        query = stock_kline_query(*args, **kwargs)
+        queries.append(query)
+        return query
+
+    monkeypatch.setattr(asset_history_jobs, "stock_kline_query", shared)
+    ws, hub, oid = workspace(tmp_path)
+    try:
+        await ws.history_jobs.create(
+            oid,
+            HistoryJobRequest(scope="recent", adjustment="none", source=source),
+            "shared-chart-history",
+        )
+        await settle(ws)
+        assert queries
+        for query in queries:
+            _, expected = business_query(
+                "get_stock_kline",
+                {
+                    "request_id": "shared-chart",
+                    "asset": query.parameters["asset"],
+                    "start_date": query.parameters["start_date"],
+                    "end_date": query.parameters["end_date"],
+                },
+            )
+            assert query == expected.model_copy(update={"source": source, "refresh": True})
+            assert query in hub.calls
+    finally:
+        await ws.close()
+
+
+@pytest.mark.asyncio
 async def test_explicit_new_quote_cutoff_builds_new_version_without_rewriting_old_request(tmp_path):
     ws, hub, oid = workspace(tmp_path)
     first = await ws.history_jobs.create(

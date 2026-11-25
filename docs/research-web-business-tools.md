@@ -41,6 +41,11 @@ Broker、仓库规划、Provider 和冻结结果保持同一执行路径；页�
 新合同不会让单位尚未满足规范 raw 的来源自动通过；显式来源不支持时按原质量门失败。
 本地测试使用合成数据、真实 DataHub/Broker/快照，未证明真实供应商或生产部署。
 
+主图的 history-jobs 继续原任务/分段/缓存/复权及取消链；其中已固定
+cn_stock_daily_cny_share_v1 的历史 raw 行情分段也共用 stock_kline_query，
+保留任务冻结的来源与 refresh=True。天软原生/复权输入、交易日历/因子请求、
+含当日的既有任务分段仍沿原合同，不被截至昨日的业务工具限制覆盖。
+
 ```json
 {"request_id":"kline-example-1","asset":"600519.SH","start_date":"2026-11-10","end_date":"2026-11-13"}
 ```
