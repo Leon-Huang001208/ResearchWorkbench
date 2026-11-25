@@ -278,7 +278,6 @@ jobs:
               'tests/research_web/fixtures/pack-owned-source-v1/manifest.json',
               'tests/research_web/source_capture_fixture.py',
           }
-          # Existing Mac-only manual journey fixtures are not executed by this Linux CI.
           manual_fixtures = {
               'tests/e2e/research_web_packs_backend.py',
               'tests/e2e/research_web_packs_real_backend.mjs',
@@ -301,12 +300,13 @@ jobs:
           }
           release = bool(release_core.intersection(files)) and all(name in release_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           upgrade_core = {"research_workbench_entrypoint/resident/model_provider_upgrade.py", "research_workbench_entrypoint/resident/gateway_upgrade.py"}
-          upgrade_paths = upgrade_core | {
-              "tests/research_web/test_model_provider_upgrade.py", "tests/research_web/test_gateway_upgrade.py",
-              "app/research_web/ui/server/session.mjs", "app/research_web/ui/server/profile.css", "app/research_web/ui/progress-data.json",
-              "tests/javascript/research_web_multiuser_session.test.mjs", "tests/javascript/research_web_mcp_login.test.mjs",
-              "docs/architecture/research-web/readme-review.json", ".github/workflows/research-web-checks.yml", ".github/workflows/research-web-bootstrap.yml", "tests/javascript/actions_quota_governance.test.mjs",
-          }
+          upgrade_paths = upgrade_core | set("""
+          scripts/git_safety.mjs tests/javascript/git_safety.test.mjs tests/javascript/backup_snapshot_capacity.test.mjs AGENTS.md
+          tests/research_web/test_model_provider_upgrade.py tests/research_web/test_gateway_upgrade.py
+          app/research_web/ui/server/session.mjs app/research_web/ui/server/profile.css app/research_web/ui/progress-data.json
+          tests/javascript/research_web_multiuser_session.test.mjs tests/javascript/research_web_mcp_login.test.mjs
+          docs/architecture/research-web/readme-review.json .github/workflows/research-web-checks.yml .github/workflows/research-web-bootstrap.yml tests/javascript/actions_quota_governance.test.mjs
+          """.split())
           reviewed_upgrade = bool(upgrade_core.intersection(files)) and all(name in upgrade_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           fingpt_core = {"app/research_web/discovery/fed.py", "app/research_web/discovery/tracking.py", "app/research_web/qa_tools.py", "app/research_web/qa_worker/prompts.mjs", "tests/research_web/test_alphadesk_qa.py", "tests/research_web/test_discovery_tracking.py"}
           fingpt_paths = {

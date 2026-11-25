@@ -12,6 +12,20 @@ import * as deliveryController from '../../scripts/vendor/leon-engineering/itera
 
 const gitPath = '/usr/bin/git';
 
+test('backup root is explicit and absolute on delivery and backup commands', () => {
+  const backupRoot = '/Volumes/WorkDisk/Data/RWB/git-safety';
+  for (const args of [
+    ['delivery', '--task-id', 'task', '--prepare'], ['backup'], ['backup-audit'],
+    ['backup-migrate', '--apply'], ['backup-prune'], ['configure']
+  ]) {
+    assert.equal(parseCli([...args, '--project', '/repo', '--backup-root', backupRoot]).options.backupRoot, backupRoot);
+  }
+  for (const backupRoot of ['relative/path', '/', '/Volumes/WorkDisk', '/Volumes/WorkDisk/']) {
+    assert.throws(() => parseCli(['backup', '--project', '/repo', '--backup-root', backupRoot]), {code:'CLI_OPTION_INVALID'});
+  }
+  assert.throws(() => parseCli(['check', '--project', '/repo', '--backup-root', backupRoot]), {code:'CLI_OPTION_INVALID'});
+});
+
 test('legacy recovery CLI requires an exact apply token and separates the two operations', () => {
   const projectRoot = '/absolute/rwb', backupDirectory = '/absolute/backup';
   const lock = ['backup-lock-recover', '--project', projectRoot, '--recovery-backup', backupDirectory,

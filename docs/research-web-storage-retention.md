@@ -15,6 +15,10 @@
 
 ## 每批测试的临时根
 
+Mac mini Git安全备份通过正式`git_safety.mjs --backup-root`选择
+`/Volumes/WorkDisk/Data/RWB/git-safety`，卷身份要求和后续命令见[交付流程](AGENT_WORKFLOW.md#中断备份锁与历史工作树身份)。
+原内盘恢复点不因新位置自动迁移或删除。跨盘复制继续核对真实源字节，最终由既有v2存储去重。
+
 每个任务同一时间只运行一批 pytest；批次结束后按真实结果、根身份和占用情况回收，再继续下一批。日常使用 `run`，它亲自启动 pytest 并把实际退出码、冻结的最多20个用例和结果写在根外，不依赖手工填写“通过”。默认exact模式核对当前Git HEAD与干净工作树，并固定子进程cwd；示例中的`TASK`和候选SHA必须替换为本任务真实值。未提交的红绿循环显式加`--mode wip`：回执的`exactCheckout=false`，不能当最终候选测试。命令只用于已有Python的离线测试，不安装包、不启动模型或Docker：
 
 ```bash
