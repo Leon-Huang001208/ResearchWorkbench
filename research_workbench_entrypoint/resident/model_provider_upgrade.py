@@ -3167,10 +3167,13 @@ class Operations:
                     self.verify(name.endswith("previous"))
                     break
                 except MaintenanceBusy:
-                    if self.state.get("mode") != REVIEWED_MODE or time.monotonic() >= deadline:
+                    remaining = deadline - time.monotonic()
+                    if self.state.get("mode") != REVIEWED_MODE or remaining <= 0:
                         raise
                     log.info("reviewed_upgrade_waiting_for_started_host_idle action=%s", name)
-                    time.sleep(0.5)
+                    time.sleep(min(0.5, remaining))
+                    if time.monotonic() >= deadline:
+                        raise
         else:
             raise UpdateBlocked("model_upgrade_action_unknown")
 

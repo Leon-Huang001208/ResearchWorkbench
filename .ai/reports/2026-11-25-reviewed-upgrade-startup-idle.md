@@ -20,5 +20,9 @@ RED：新增两个启动暂态回归在原实现均因MaintenanceBusy失败。GR
 用例，实际7项通过但证据数量不一致；保留行政失败原件并按真实失败结果回收临时根，
 随后明确列出7个完整node重跑通过，未改写原exitCode或PASS。
 
+独立审查指出睡眠可能跨越deadline后仍启动核验，已修复剩余时间与唤醒后期限检查；
+新增跨期限回归后8项定点通过，原真实Operations部署/失败恢复8项通过。
+Ruff、Black、isort、架构与文档完整性、Python结构索引检查通过。
+
 Web lock/runtime/安装入口不变；仍需原三CI及同候选Mac干净安装证明兼容。
 真实重部署另证；Windows/Linux原生NOT_RUN，不调用供应商、模型或安装新依赖。

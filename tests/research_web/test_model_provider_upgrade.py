@@ -1448,6 +1448,25 @@ def test_reviewed_final_verification_does_not_retry_integrity_failure(monkeypatc
         ops.action("verify_target", ops.state)
 
 
+def test_reviewed_final_verification_never_starts_retry_after_deadline(monkeypatch):
+    ops = object.__new__(upgrade.Operations)
+    ops.state = {"mode": upgrade.REVIEWED_MODE}
+    calls, sleeps = [], []
+
+    def verify(previous):
+        calls.append(previous)
+        raise MaintenanceBusy("research_active_or_unknown")
+
+    clock = iter([0, 29.8, 30.3])
+    monkeypatch.setattr(ops, "verify", verify)
+    monkeypatch.setattr(upgrade.time, "monotonic", lambda: next(clock))
+    monkeypatch.setattr(upgrade.time, "sleep", sleeps.append)
+    with pytest.raises(MaintenanceBusy):
+        ops.action("verify_target", ops.state)
+    assert calls == [False]
+    assert sleeps == pytest.approx([0.2])
+
+
 def test_real_birth_fence_reservations_are_not_native_owners(tmp_path):
     server = tmp_path / "server"
     server.mkdir(mode=0o700)
