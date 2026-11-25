@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "保留主线文档中心主题与阅读布局；资产观察共用K线合同不需要新增README入口。",
-  "reason": "最新master已包含文档中心和主题修复；本次只将stock/daily/none历史区块及主图规范raw分段接入原DataHub合同，现有README资产观察和业务工具入口仍准确，不改安装、权限或部署承诺。"
+  "summary": "复核设计资料接入及PyTorch参考阅读布局，根README无需更改。",
+  "reason": "仍从原文档中心进入；目录与写作规范在docs/README及文档合同说明，业务工具候选未因此激活，安装和业务执行保持。"
 }

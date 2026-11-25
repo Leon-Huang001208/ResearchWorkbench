@@ -1,5 +1,7 @@
 ## 先分清三种角色
 
+要查看七个业务域、`get_stock_kline`、`get_stock_quote` 等候选工具及完整输入设计，见[DataHub 工具与技能层设计](../../../outputs/research-web-architecture/design-weknora-datahub.html#41-工具面)。设计目标、源码候选与当前可用接口分别标注，不将待实现工具列作已上线能力。
+
 | 角色 | 作用 | 阅读路径 |
 | --- | --- | --- |
 | RWB 入站 MCP | 外部客户端调用 RWB 的获准能力。 | 从本页与 MCP 使用指南开始。 |
@@ -25,6 +27,66 @@ rwb.read 仅能读取明确批准的 public/synthetic 冻结材料。额外的�
 读取行默认 100、最多 500；文本最多 12000 字符。字节上限也会限制返回，不能把截断或缺页解释为完整结果。
 材料列表中的标识叫 object_id；传给 dataset_id 或 file_id 时，使用对应材料的该值，不能按显示名称自行拼造。
 工具返回的额外结构以实际响应为准，不在本页生成未登记的业务样例。
+
+## `rwb_dataset_read`
+
+```python
+rwb_dataset_read(context_id, dataset_id, offset=0, limit=100, view="rows") -> dict
+```
+
+读取一个已获准数据集的冻结行或 manifest。读取前校验原件哈希，不重新向供应商取数。
+
+### 参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| context_id | UUID 字符串 | 必填 | 当前授权返回的上下文标识。 |
+| dataset_id | UUID 字符串 | 必填 | 数据集列表中该条材料的 object_id。 |
+| offset | integer，≥0 | 0 | rows 视图跳过的记录数。 |
+| limit | integer，1–500 | 100 | rows 视图本页最多返回的记录数。 |
+| view | rows / manifest | rows | rows 返回分页数据；manifest 返回冻结清单。 |
+
+### 返回值
+
+返回字典。rows 视图包含以下字段；这张表描述已知返回字段，不排除额外元数据。
+
+| 字段 | 类型 | 含义 |
+| --- | --- | --- |
+| items | array | 本页记录。字段结构取决于所读取的数据集。 |
+| offset、limit | integer | 本次分页起点与上限。 |
+| total | integer | 冻结行文件中的总记录数。 |
+| partial | boolean | offset 大于0或本页未覆盖全部冻结行时为 true。 |
+| manifest | object | 对应的冻结 manifest。 |
+| manifest_sha256、rows_sha256 | string | 完整 manifest 与冻结行文件的校验值。 |
+| fragment_sha256 | string | 本页记录片段的校验值。 |
+| fragment_encoding | string | 固定为 utf8_json_compact。 |
+
+partial 不能简单当成“还有下一页”：只要 offset 大于0，即使已到最后一页，它仍可能为 true。
+
+### 示例
+
+这是 MCP 工具调用对象；先将占位符替换为本次授权和材料列表实际返回的 UUID。
+
+```json
+{
+  "name": "rwb_dataset_read",
+  "arguments": {
+    "context_id": "<本次授权的 context_id>",
+    "dataset_id": "<材料的 object_id>",
+    "offset": 0,
+    "limit": 10,
+    "view": "rows"
+  }
+}
+```
+
+预期得到最多10条冻结记录和上述分页/校验元数据。空页应结合 offset、total 判断；它不证明上游没有数据。
+
+### 错误与限制
+
+需要 rwb.read 及该上下文/材料的批准权限。格式、枚举和分页范围不合法时，工具输入校验会拒绝请求。
+原件发生变化或不可校验时读取失败，例如 frozen_rows_changed、frozen_rows_invalid；不返回未经验证的替代数据。
+响应还受字节上限约束。完整授权步骤见[MCP使用指南](../../../outputs/research-web-architecture/guide-mcp.html)，字段业务含义见[数据参考](../../../outputs/research-web-architecture/reference-data.html)。
 
 ## 有额外授权时的 DataHub 工具
 
