@@ -3,6 +3,7 @@
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"在原DataHub contracts内抽取历史不复权日线构造函数供资产与MCP复用，仍由原query/Broker/仓库/Provider执行，无新节点或存储。","diagrams":[]} -->
 <!-- architecture-review {"group":"inbound-mcp-readonly","structure":"unchanged","reason":"MCP仍沿原scope/grant/账号Host提交与status读取，只复用已存在语义的请求构造，不改授权、工具参数、端点或运行拓扑。","diagrams":[]} -->
 <!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"资产观察沿原API和history区块状态读取，仅在截至昨日stock/daily/none分支复用DataHub合同；现有刷新、来源、图表、canonical历史任务及分时链继续原拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"沿原mcp_datahub_only分支扩展确切桥接文件集，新增三源锚点和范围正反例，保留全部DataHub/MCP回归并增加完整三资产模块，作业runner依赖权限和时限不变。","diagrams":[]} -->
 
 平台：macOS Mac mini；功能开发。基线 d8be7c41（PR338合并）。
 
@@ -29,6 +30,10 @@
 - 本轮只交付源码与PR，未计划或执行常驻切换；文档中心可先交付文档源码，不能将本任务写作已部署能力。
 - 主图控制器实际通过history-jobs加载K线，因此补上该路径已带规范raw语义且截至昨日的行情分段，共用同一构造函数。任务调度、缓存/因子、刷新和排空保持原实现；新增auto/wind两项跨工具合同一致性用例。此增量后最终验证另行记录，不冒充此前185项已覆盖新代码。
 - 主图增量后82项完整历史任务回归通过，五批临时根全部即时回收；独立复核无发现。Ruff、Black、isort、文档同步及diff空白检查通过。
+- 主线文档#340/#342前移后仅合并文档与复核记录，业务代码未重写。首次/中间候选的Mac和Constraints通过保留原SHA；未完成的旧Checks因新候选替代取消，未记PASS。
+- 实际检查发现本次contracts/task_contracts/asset_workspace桥接没有命中MCP定点lane；在原分支添加三文件同时命中的锚点及确切允许集，原DataHub/MCP列表追加完整资产三模块。未知文件/缺锚点/混入main或前端仍全量，三个必要CI保持。
+- CI范围正反例与原runner实际shell分支检查通过，相关Node共230项通过。初次扩白名单使内联run超过21000字符，本地检查发现后将同一确切集合等价写为split集合缩短文本，未新增文件匹配或删除检查；最终长度门、文档同步均通过。
+- CI增量独立复核无发现，原白名单集合未删除，三锚点同时满足；最终run块20953字符。三个必需CI仍在同候选上验证，旧取消结果不复用为PASS。
 - 真实供应商、模型、浏览器业务操作、常驻更新、其他平台产品验收均未执行；不把合成原件测试称为厂商实取。
 
 Product-Progress: not-required — 本轮复用后端既有业务合同，未增加页面入口或更改图表交互，常驻产品未更新。

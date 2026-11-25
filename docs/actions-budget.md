@@ -1,5 +1,12 @@
 # GitHub Actions 免费额度治理
 
+资产观察共享K线合同沿既有mcp_datahub_only检查：同时命中DataHub contracts、MCP task_contracts
+和asset_workspace三项实际源变化，其他改动均须落在明确允许集（含history_jobs及三份资产回归）。
+混入main.py、前端控制器、未知Provider或缺任一锚点继续全量；文档/脚本单改不获得该分支。
+原DataHub/MCP全模块检查额外加入完整asset_loading/workspace/history模块；保留JS、Constraints
+和macos-15安装CI，不新增作业、依赖、权限或时限。修正依据是本次已知桥接差异落入全仓分支，
+旧候选多次基线前移而取消时仍在全仓Python步骤，不能将取消记为PASS。
+
 文档中心改造仍复用 gateway_documentation_only：新静态生成脚本、两份 JSON 契约/导航清单、
 固定阅读页名及文档中心合同测试属于该闭包，Python 执行阅读器/网关/文档中心测试，
 JS 保留架构与范围治理；混入业务实现或未知文件继续完整路径。不新增依赖、作业或时限。
