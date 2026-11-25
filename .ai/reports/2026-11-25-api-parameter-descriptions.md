@@ -29,7 +29,13 @@
 - `pytest tests/research_web/test_workbench_operations.py tests/research_web/test_documentation.py`：
   36 passed。
 - `node --test tests/javascript/actions_quota_governance.test.mjs`：38 passed。
+- 与架构生成物合同合并执行：200 passed。
 - `ruff check` 通过；新文件的 `ruff format --check` 通过，`main.py` 原有格式差异保持。
+
+只读 Python 评审核对源码 `75131f724fc4f767ce76c408ba1ef8af59683b6d`，无 P1/P2 问题。
+评审另将禁用包装的完整 schema 与剥除新增说明后的 schema 比较，完全一致；重点核对
+`before` 运行 ID、带时区 `as_of`、分页起点、CN/US/HK 事件市场与 OAuth 参数语义。
+架构首页/Atlas 的源码阅读链接同步固定到该真实提交，包含新增词汇表与回归测试。
 
 ## CI 范围
 

@@ -26,7 +26,7 @@ Python 命令放在 `scripts/run_gateway_documentation_ci.sh`；GitHub 的 `run:
 接口响应 schema 与参数说明复用同一选择步骤使用 `api_doc_only`：真实差异命中
 `schemas_responses.py` 或 `api_parameter_docs.py`，其余文件仅限 workbench／asset 路由、
 `main.py` 单点接线、对应 Python 合同（含 `test_api.py`）、04 架构说明、架构映射、README
-复核回执、生成的 Python 文件索引、架构首页、本 workflow、范围测试和
+复核回执、生成的 Python 文件索引、架构首页及 Atlas、本 workflow、范围测试和
 `scripts/run_api_documentation_ci.sh`。`main.py` 只有同时命中 `api_parameter_docs.py`
 才进入该范围。命中后运行参数/响应文档合同、`test_api.py` 中的 schema/字段校验与同源用例、workbench 操作、
 asset loading／directory、文档路由及对应 JS 合同，跳过编辑引擎安装；混合或未知文件仍走

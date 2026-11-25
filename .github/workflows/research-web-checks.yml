@@ -366,7 +366,7 @@ jobs:
               for name in files
           )
           api_doc_core = {"app/research_web/schemas_responses.py", "app/research_web/api_parameter_docs.py"}
-          api_doc_paths = api_doc_core | {"app/research_web/workbench.py", "app/research_web/asset_routes.py", "app/research_web/main.py", "tests/research_web/test_workbench_operations.py", "tests/research_web/test_asset_loading.py", "tests/research_web/test_asset_directory.py", "tests/research_web/test_api_parameter_docs.py", "docs/architecture/research-web/architecture-map.json", "docs/architecture/research-web/readme-review.json", "docs/generated/py_file_index.md", "outputs/research-web-architecture/index.html", "scripts/run_api_documentation_ci.sh", ".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
+          api_doc_paths = api_doc_core | {"app/research_web/workbench.py", "app/research_web/asset_routes.py", "app/research_web/main.py", "tests/research_web/test_workbench_operations.py", "tests/research_web/test_asset_loading.py", "tests/research_web/test_asset_directory.py", "tests/research_web/test_api_parameter_docs.py", "docs/architecture/research-web/architecture-map.json", "docs/architecture/research-web/readme-review.json", "docs/generated/py_file_index.md", "outputs/research-web-architecture/index.html", "outputs/research-web-architecture/api-atlas.html", "scripts/run_api_documentation_ci.sh", ".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
           api_documentation = bool(api_doc_core.intersection(files)) and all(
               name in api_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
               for name in files

@@ -941,7 +941,7 @@ test('API documentation scope stays exact and runs only its owner contracts', t 
     'docs/architecture/research-web/04-api.md',
     'docs/architecture/research-web/architecture-map.json',
     'docs/architecture/research-web/readme-review.json', 'docs/generated/py_file_index.md',
-    'outputs/research-web-architecture/index.html', 'scripts/run_api_documentation_ci.sh',
+    'outputs/research-web-architecture/index.html', 'outputs/research-web-architecture/api-atlas.html', 'scripts/run_api_documentation_ci.sh',
     '.github/workflows/research-web-checks.yml', 'tests/javascript/actions_quota_governance.test.mjs',
     '.ai/reports/2026-11-24-api-response-schemas.md'];
   for (const [files, base, expected] of [[tool, 'a'.repeat(40), true],

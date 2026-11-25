@@ -143,7 +143,7 @@ spawn 紧前还须拒绝式复核，可能执行后的漂移保持 unknown 且�
 接口响应 schema 与参数说明沿同一选择步骤使用 `api_doc_only`：真实差异必须命中
 `app/research_web/schemas_responses.py` 或 `app/research_web/api_parameter_docs.py`，
 其余文件仅限 workbench／asset 路由、`main.py` 的单点接线、对应 Python 合同（含
-`test_api.py`）、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页、
+`test_api.py` 相关用例）、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页及 Atlas、
 本 workflow、范围测试和 `scripts/run_api_documentation_ci.sh`。命中后 Python 运行参数/响应
 文档合同、`test_api.py` 中的 schema/字段校验与同源用例、workbench 操作、asset loading／directory 和文档路由，JS 只跑
 workbench、asset loading 与额度治理，并跳过编辑引擎安装；混入其他产品源码、其他测试或未知
