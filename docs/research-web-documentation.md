@@ -1,5 +1,18 @@
 # Research Web 文档门禁与安全入口
 
+## 文档中心
+
+使用者首页按快速开始、使用指南、参考手册、架构与设计、安装运维排错分组。
+导航与页元信息在 `docs/manual/navigation.json`，正文在 `docs/manual/pages/`；
+OpenAPI 契约快照在 `docs/manual/api-reference.json`，18 个分域页与单页兼容手册同源生成。
+`build_research_web_api_atlas.mjs` 继续拥有静态输出，调用标准库渲染器生成共用阅读骨架与
+内联搜索索引，不放宽 CSP 的 connect-src。新增 HTML 名称必须同步固定阅读器和白名单合同。
+旧架构首页完整保留为 architecture.html，原 index 的架构章节/模块锚点转到对应位置。
+原 API Manual 操作锚点、Atlas、图页继续可达；新正文不混入内部运行回执。
+
+数据接口由并行窗口维护。文档只接收已确认版本的 schema、字段口径与验证样例，候选能力不能
+作为上线能力；交接边界和迁移映射见 [迁移清单](manual/migration.md)。
+
 API Manual 通过固定白名单 `api-manual.html` 发布，架构首页和文档底部导航均提供入口。
 该静态手册包含 460 个操作、457 个业务参数说明与 7 个响应结构，来源绑定上一轮已审源码。
 沿用登录鉴权、文档导航 Cookie 与隔离 CSP；搜索在本页运行，不读取业务数据。

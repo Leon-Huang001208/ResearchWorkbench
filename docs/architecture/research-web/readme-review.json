@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "保留主线文档返回导航，并增加DataHub业务工具README入口。",
-  "reason": "文档返回首页沿主线安全合同与原鉴权；本候选另增加9个业务工具与岗底斯原始日线的合同链接，明确源码/部署边界，安装命令不变。"
+  "disposition": "unchanged",
+  "summary": "复核文档中心并保留最新主线 DataHub/MCP README，根 README 本轮无需改动。",
+  "reason": "保留主线业务工具说明；本任务沿既有文档入口提供分层阅读，安装和业务语义保持，用户与工程文档入口在 docs/README.md 维护。"
 }
