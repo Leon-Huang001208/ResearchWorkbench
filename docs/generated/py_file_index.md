@@ -26509,6 +26509,51 @@ Functions:
 - `main`
 
 
+## `scripts/documentation_center.py`
+
+Module docstring:
+> Render the curated documentation center without browser-side network access.
+
+Imports:
+- `__future__`
+- `documentation_markdown`
+- `html`
+- `json`
+- `pathlib`
+- `re`
+- `sys`
+
+Functions:
+- `plain`
+- `read`
+- `build`
+
+
+## `scripts/documentation_ci_scope.py`
+
+Module docstring:
+> The closed static-document slice shared by the existing Web CI selector.
+
+Functions:
+- `documentation_paths`
+
+
+## `scripts/documentation_markdown.py`
+
+Module docstring:
+> Minimal, dependency-free Markdown -> HTML for the API manual sample.
+
+Imports:
+- `__future__`
+- `html`
+- `re`
+
+Functions:
+- `inline`
+- `slug`
+- `render`
+
+
 ## `scripts/e2e_phase2_facts_store.py`
 
 Module docstring:

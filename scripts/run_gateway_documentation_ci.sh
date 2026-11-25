@@ -9,4 +9,5 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
   -- \
   tests/research_web/test_multiuser_gateway.py \
   tests/research_web/test_documentation.py \
+  tests/research_web/test_documentation_center.py \
   --confcutdir=tests/research_web -q

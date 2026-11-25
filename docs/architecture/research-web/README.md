@@ -1,5 +1,9 @@
 # Research Workbench Research Web 当前架构
 
+2026-11-25 文档中心源码阅读检查点为 `5faef0d924cf0b7f5d03cc0a0ceffeeefa9a6a2c`：
+用户入口已按教程/指南/参考/设计/运维组织，旧图册在 architecture.html 保留。
+本文件继续作为工程架构材料；使用者先进入文档中心。源码、部署和阅读验收分别记录。
+
 2026-11-25 参数手册的源码阅读检查点为 `75131f724fc4f767ce76c408ba1ef8af59683b6d`：
 OpenAPI 已补齐业务 path/query/header 的说明，详见[参数词汇表](04-api.md#参数说明词汇表2026-11-25)。
 首页与 API Atlas 的源码链接固定到该提交，包含新增词汇表及回归测试；部署状态由常驻升级另行记录。

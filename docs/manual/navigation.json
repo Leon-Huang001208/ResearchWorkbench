@@ -1,0 +1,20 @@
+{
+  "version": "2026.11",
+  "source_revision": "5faef0d924cf0b7f5d03cc0a0ceffeeefa9a6a2c",
+  "groups": ["快速开始", "使用指南", "参考手册", "架构与设计", "安装、运维与排错"],
+  "pages": [
+    {"slug":"getting-started","title":"第一次使用 RWB","group":"快速开始","summary":"访问、基本概念，以及完成第一个任务的路径。"},
+    {"slug":"glossary","title":"基本概念与术语","group":"快速开始","summary":"分清数据能力、来源、快照、技能和 MCP 工具。"},
+    {"slug":"guide-data","title":"查看数据目录并选择来源","group":"使用指南","summary":"判断来源是否可用，核对权限、依赖和数据口径。"},
+    {"slug":"guide-skills","title":"选择并使用一个研究技能","group":"使用指南","summary":"先检查技能版本与依赖，再明确研究任务和交付物。"},
+    {"slug":"guide-mcp","title":"从 MCP 客户端读取获准资料","group":"使用指南","summary":"完成连接、授权、工具发现与一次安全的只读调用。"},
+    {"slug":"reference-api","title":"API 参考手册","group":"参考手册","summary":"按业务域查 Method、路径、参数、默认值及已登记响应。"},
+    {"slug":"reference-data","title":"数据目录与字段口径","group":"参考手册","summary":"解释来源状态、绑定、单位、时点和缺失语义。"},
+    {"slug":"reference-skills","title":"Skill 参考","group":"参考手册","summary":"输入、依赖、版本、输出及开发接口的查阅入口。"},
+    {"slug":"reference-mcp","title":"MCP 工具参考","group":"参考手册","summary":"工具签名、权限、返回边界与读取/取数效果。"},
+    {"slug":"architecture-guide","title":"架构与设计导航","group":"架构与设计","summary":"理解组件职责、权限、证据、执行流程与源码位置。"},
+    {"slug":"operations-guide","title":"安装与配置","group":"安装、运维与排错","summary":"使用现有安装器，配置来源和客户端，查看系统状态。"},
+    {"slug":"troubleshooting","title":"常见问题与错误处理","group":"安装、运维与排错","summary":"登录、文档访问、来源不可用、异步查询与空结果。"},
+    {"slug":"documentation-version","title":"文档范围与更新说明","group":"安装、运维与排错","summary":"辨别已发布功能、契约样例与开发中的接口。"}
+  ]
+}

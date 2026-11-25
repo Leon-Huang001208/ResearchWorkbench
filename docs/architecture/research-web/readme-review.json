@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "资产观察历史日K与MCP共用内部合同，现有业务工具README入口仍准确。",
-  "reason": "只将已覆盖的stock/daily/none历史区块接入现有业务合同，README已有资产观察和业务工具链接；没有新增安装、工具参数、产品入口或部署承诺，无须修改总览。"
+  "summary": "保留主线文档中心导航；资产观察共用K线合同不需要新增README入口。",
+  "reason": "最新master已包含任务导向文档中心和18域API入口；本次只将stock/daily/none历史区块接入原DataHub合同，复核现有资产观察和业务工具说明仍准确，不改安装、路由权限或部署承诺。"
 }
