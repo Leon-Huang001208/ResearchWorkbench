@@ -21,6 +21,17 @@ def test_api_atlas_is_a_fixed_read_only_document(docs):
     assert "Research Web API Atlas" in response.text
 
 
+def test_api_manual_is_a_fixed_isolated_document(docs):
+    client, root = docs
+    (root / "api-manual.html").write_text('<body><a href="index.html">文档首页</a><h1>RWB API Manual</h1></body>')
+    response = client.get("/api/research/documentation/api-manual.html")
+    assert response.status_code == 200
+    assert "RWB API Manual" in response.text
+    assert 'href="index.html"' in response.text
+    assert "sandbox allow-scripts;" in response.headers["content-security-policy"]
+    assert "allow-same-origin" not in response.headers["content-security-policy"]
+
+
 def test_inbound_mcp_diagram_is_fixed_and_unknown_neighbors_remain_rejected(docs):
     client, root = docs
     (root / "15-inbound-mcp.html").write_text("<h1>Private read-only MCP</h1>", encoding="utf-8")
@@ -42,7 +53,7 @@ def test_registered_product_overview_has_safe_return_navigation(docs):
     response = client.get("/api/research/documentation/00-system-overview.html")
     assert response.status_code == 200
     assert 'href="index.html"' in response.text
-    assert 'href="index.html#modules"' in response.text
+    assert 'href="architecture.html#modules"' in response.text
     assert "allow-same-origin" not in response.headers["content-security-policy"]
     assert "access-control-allow-origin" not in response.headers
 

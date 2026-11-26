@@ -26,10 +26,13 @@ from core.observability import get_logger
 from ..ai_news_routes import router as ai_news_router
 from ..ai_news_service import create_ai_news_service
 from ..aihot_routes import router as aihot_router
+from ..documentation import DOCUMENT_NAMES
 from ..mcp_facade.config import MACHINE_PATHS
 from ..mcp_facade.config import enabled as mcp_feature_enabled
 from ..plugins import PluginError
 from .accounts import SESSION_TTL_SECONDS, AccountError, AccountStore
+from .fingpt import MACHINE as FINGPT_MACHINE
+from .fingpt import FinGPTConfig, FinGPTIdentity
 from .origin import validate_origin
 from .plugin_routes import configure as configure_plugins
 from .plugin_routes import router as plugin_router
@@ -38,6 +41,9 @@ from .runtime import RuntimeErrorSafe
 log = get_logger(__name__)
 UI = Path(__file__).resolve().parents[1] / "ui"
 COOKIE = "rwb_session"
+DOCUMENT_COOKIE = "rwb_documentation"
+DOCUMENT_PREFIX = "/api/research/documentation/"
+DOCUMENT_PATHS = frozenset(f"{DOCUMENT_PREFIX}{name}" for name in DOCUMENT_NAMES)
 KEY_HEADER = "X-RWB-Tenant-Gateway-Key"
 MAX_REQUEST_BYTES = 32 * 1024 * 1024
 AI_PREFIXES = ("/api/research/ai-news", "/api/research/aihot")
@@ -81,6 +87,36 @@ def page_matches(request: Request, user) -> bool:
     return not any(value is not None and value != user.id for value in values) and (
         request.method in {"GET", "HEAD"} or user.id in values
     )
+
+
+def documentation_navigation(request: Request) -> bool:
+    """Top-level navigation into the fixed, isolated documentation allowlist."""
+    return (
+        request.url.path in DOCUMENT_PATHS
+        and request.method in {"GET", "HEAD"}
+        and request.headers.get("sec-fetch-mode") == "navigate"
+        and request.headers.get("sec-fetch-dest") == "document"
+        and request.headers.get("sec-fetch-user") == "?1"
+    )
+
+
+def home_navigation(request: Request) -> bool:
+    return (
+        request.url.path == "/"
+        and request.method == "GET"
+        and request.headers.get("origin") is None
+        and request.headers.get("sec-fetch-mode") == "navigate"
+        and request.headers.get("sec-fetch-dest") == "document"
+        and request.headers.get("sec-fetch-user") == "?1"
+    )
+
+
+def _session_token(request: Request) -> str:
+    """The document cookie is only accepted for the fixed documentation allowlist."""
+    token = request.cookies.get(COOKIE, "")
+    if token or request.url.path not in DOCUMENT_PATHS:
+        return token
+    return request.cookies.get(DOCUMENT_COOKIE, "")
 
 
 class StrictBody(BaseModel):
@@ -150,18 +186,38 @@ def create_gateway(
     ai_news_factory=None,
     mcp_enabled: bool | None = None,
     weknora_oauth_origin: str | None = None,
+    fingpt_config: FinGPTConfig | None = None,
 ) -> FastAPI:
     """Build one gateway without starting tenant processes or reading model secrets."""
     origin = validate_origin(origin)
     authority = urlsplit(origin).netloc
     secure = origin.startswith("https:")
+    fingpt_config = fingpt_config or FinGPTConfig.configured(accounts.root)
+    if fingpt_config and (
+        fingpt_config.origin == origin
+        or (
+            urlsplit(fingpt_config.origin).hostname == urlsplit(origin).hostname
+            and not fingpt_config.cookie_isolated
+        )
+    ):
+        raise ValueError("fingpt_cookie_origin_conflict")
+    fingpt = FinGPTIdentity(accounts, pool, fingpt_config, origin) if fingpt_config else None
     facade = None
     if mcp_feature_enabled(mcp_enabled):
         from ..mcp_facade.config import validate_weknora_gateway
         from ..mcp_facade.server import Facade
 
         if weknora_oauth_origin is not None:
-            validate_weknora_gateway(origin, weknora_oauth_origin, urlsplit(origin).port or 443)
+            validate_weknora_gateway(
+                origin,
+                weknora_oauth_origin,
+                urlsplit(origin).port or 443,
+                cookie_isolated=bool(
+                    fingpt_config
+                    and fingpt_config.cookie_isolated
+                    and fingpt_config.origin == weknora_oauth_origin
+                ),
+            )
         facade = Facade(accounts, pool, origin, weknora_oauth_origin=weknora_oauth_origin)
     elif weknora_oauth_origin is not None:
         raise ValueError("weknora_oauth_requires_mcp")
@@ -198,6 +254,28 @@ def create_gateway(
     app = FastAPI(title="Research Workbench Private Server", lifespan=lifespan)
     app.state.accounts = accounts
     app.state.pool = pool
+    if fingpt is not None:
+
+        @app.get("/.well-known/openid-configuration")
+        async def fingpt_discovery():
+            return await fingpt.discovery()
+
+        @app.get("/api/server/fingpt/workspace")
+        async def fingpt_workspace(request: Request):
+            return await fingpt.workspace(request)
+
+        @app.get("/api/server/fingpt/authorize")
+        async def fingpt_authorize(request: Request):
+            return await fingpt.authorize(request)
+
+        @app.post("/api/server/fingpt/token")
+        async def fingpt_token(request: Request):
+            return await fingpt.token(request)
+
+        @app.get("/api/server/fingpt/userinfo")
+        async def fingpt_userinfo(request: Request):
+            return await fingpt.userinfo(request)
+
     if facade is not None:
         app.state.mcp_facade = facade
         app.router.routes.extend(facade.routes)
@@ -259,12 +337,23 @@ def create_gateway(
         if request.headers.get("host", "").lower() != authority:
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
-        machine = facade is not None and request.url.path in MACHINE_PATHS
+        machine = (facade is not None and request.url.path in MACHINE_PATHS) or (
+            fingpt is not None and request.url.path in FINGPT_MACHINE
+        )
         cross_site = request.headers.get("sec-fetch-site") == "cross-site"
         oauth_navigation = cross_site and _weknora_oauth_navigation(request, facade)
+        fingpt_navigation = fingpt is not None and fingpt.navigation(request)
+        document_navigation = cross_site and documentation_navigation(request)
+        home_entry = cross_site and home_navigation(request)
         if (
             (supplied_origin is not None and supplied_origin != origin)
-            or (cross_site and not oauth_navigation)
+            or (
+                cross_site
+                and not oauth_navigation
+                and not fingpt_navigation
+                and not document_navigation
+                and not home_entry
+            )
             or (not machine and request.method not in {"GET", "HEAD"} and supplied_origin != origin)
         ):
             return error("server_origin_denied", 403)
@@ -279,6 +368,16 @@ def create_gateway(
             return error("invalid_request", 400)
         if length < 0 or length > MAX_REQUEST_BYTES:
             return error("request_too_large", 413)
+        if home_entry:
+            log.info("multiuser_home_navigation")
+            return HTMLResponse(
+                '<!doctype html><title>返回 Research Web</title><script>location.replace("/")</script>',
+                headers={
+                    "Cache-Control": "no-store",
+                    "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+                    "Referrer-Policy": "no-referrer",
+                },
+            )
         public = request.url.path in {
             "/auth",
             "/api/server/login",
@@ -294,7 +393,7 @@ def create_gateway(
             user = (
                 None
                 if oauth_navigation
-                else await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
+                else await asyncio.to_thread(accounts.authenticate, _session_token(request))
             )
             request.state.user = user
             if user is None and not public:
@@ -352,9 +451,7 @@ def create_gateway(
                 # Starlette's cached request replays this bounded body to the route.
                 request._body = b"".join(parts)
                 if user is not None:
-                    fresh = await asyncio.to_thread(
-                        accounts.authenticate, request.cookies.get(COOKIE, "")
-                    )
+                    fresh = await asyncio.to_thread(accounts.authenticate, _session_token(request))
                     if fresh is None or fresh.id != user.id:
                         return error("login_required", 401)
                     request.state.user = fresh
@@ -371,9 +468,7 @@ def create_gateway(
             )
             if news:
                 # AI responses are bounded complete JSON/XML/image reads, not tenant SSE.
-                fresh = await asyncio.to_thread(
-                    accounts.authenticate, request.cookies.get(COOKIE, "")
-                )
+                fresh = await asyncio.to_thread(accounts.authenticate, _session_token(request))
                 if fresh is None or user is None or fresh.id != user.id:
                     return error("login_required", 401)
                 if news_admin and fresh.role != "admin":
@@ -395,7 +490,9 @@ def create_gateway(
         )
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; frame-ancestors 'none'",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"
+            + (" " + fingpt_config.origin if fingpt_config else "")
+            + "; object-src 'none'; frame-ancestors 'none'",
         )
         return response
 
@@ -433,11 +530,15 @@ def create_gateway(
         await asyncio.to_thread(accounts.logout, request.cookies.get(COOKIE, ""))
         response = JSONResponse({"ok": True})
         response.delete_cookie(COOKIE, path="/", secure=secure, httponly=True, samesite="strict")
+        response.delete_cookie(
+            DOCUMENT_COOKIE, path=DOCUMENT_PREFIX, secure=secure, httponly=True, samesite="lax"
+        )
         return response
 
     @app.get("/api/server/me")
     async def me(request: Request):
         return {
+            "fingpt_workspace": fingpt is not None,
             "user": {
                 **request.state.user.public(),
                 **({"mcp_readonly_enabled": True} if facade is not None else {}),
@@ -600,7 +701,7 @@ def create_gateway(
         ):
             log.warning("multiuser_report_owner_denied", user_id=user.id)
             return error("primary_administrator_required", 403)
-        token = request.cookies.get(COOKIE, "")
+        token = _session_token(request)
         if not page_matches(request, user):
             return error("account_changed", 401)
         try:
@@ -655,6 +756,44 @@ def create_gateway(
             if ticket is not None:
                 await pool.request_finished(user.id, ticket)
             return error("runtime_redirect_denied", 502)
+
+        if request.url.path in DOCUMENT_PATHS:
+            # Sandboxed documents need a path-scoped cookie: a Strict session is not
+            # sent when the opaque sandbox navigates to the next reviewed document.
+            # The same revocable token is reused, so logout and account disablement
+            # revoke both cookies; the document cookie never unlocks another route.
+            token = _session_token(request)
+            stream = response
+
+            async def document_content():
+                try:
+                    iterator = (
+                        stream.aiter_bytes() if stream.is_stream_consumed else stream.aiter_raw()
+                    )
+                    async for chunk in iterator:
+                        yield chunk
+                except httpx.HTTPError as exc:
+                    log.warning("multiuser_stream_failed", error_type=type(exc).__name__)
+                finally:
+                    await stream.aclose()
+
+            rendered = StreamingResponse(
+                document_content(),
+                status_code=response.status_code,
+                headers={
+                    k: v for k, v in response.headers.items() if k.lower() in RESPONSE_HEADERS
+                },
+            )
+            rendered.set_cookie(
+                DOCUMENT_COOKIE,
+                token,
+                max_age=SESSION_TTL_SECONDS,
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+                path=DOCUMENT_PREFIX,
+            )
+            return rendered
 
         async def content():
             pending = None

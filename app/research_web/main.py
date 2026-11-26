@@ -27,6 +27,7 @@ from research_workbench_entrypoint.resident.admission import MaintenanceBusy, ad
 from .ai_news_routes import router as ai_news_router
 from .ai_news_service import create_ai_news_service
 from .aihot_routes import router as aihot_router
+from .api_parameter_docs import install_openapi_parameter_docs
 from .asset_research import router as asset_research_router
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
@@ -372,6 +373,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 await active.close()
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
+    install_openapi_parameter_docs(app)
 
     @app.get("/api/research/release")
     async def release_identity():

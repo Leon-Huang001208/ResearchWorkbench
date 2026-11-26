@@ -14,6 +14,7 @@ from core.observability import get_logger
 from ..datahub.contracts import BusinessQuery
 from ..multiuser.runtime import RuntimeErrorSafe
 from .config import MATERIAL_BYTES
+from .models import CONFIGURED_DATA_SCOPE
 from .read_policy import HEADER, VERSION
 
 log = get_logger(__name__)
@@ -290,16 +291,86 @@ class DataHubBackend(FrozenBackend):
         log.info("mcp_public_data_query_submitted", source=source)
         return result
 
+    async def configured_catalog(self, record):
+        if CONFIGURED_DATA_SCOPE not in record.scopes:
+            raise ReadError("access_denied")
+        backend = await self._backend(record.user_id)
+        catalog = await self._request(backend, "GET", "/api/research/data/catalog")
+        sources = [
+            item
+            for item in catalog["sources"]
+            if item.get("readiness", {}).get("callable") and item["readiness"].get("allowed")
+        ]
+        ids = {item["id"] for item in sources}
+        bindings = [
+            item
+            for item in catalog["bindings"]
+            if item["source_id"] in ids and item.get("implemented")
+        ]
+        capabilities = {item["capability_id"] for item in bindings}
+        return {
+            "sources": [
+                {key: item[key] for key in ("id", "name", "fee", "limitations", "readiness")}
+                for item in sources
+            ],
+            "bindings": bindings,
+            "capabilities": [
+                item for item in catalog["capabilities"] if item["id"] in capabilities
+            ],
+        }
+
+    async def configured_query(self, record, request_id, query):
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,64}", request_id):
+            raise ValueError("invalid_query_request_id")
+        query = BusinessQuery.model_validate(query)
+        catalog = await self.configured_catalog(record)
+        if not any(
+            item["source_id"] == query.source and item["capability_id"] == query.capability
+            for item in catalog["bindings"]
+        ):
+            raise ReadError("configured_source_unavailable")
+        query = query.model_copy(update={"allow_fallback": False})
+        return await self._submit_business_query(record, request_id, query)
+
+    async def task_query(self, record, tool_name, arguments):
+        """Reuse the account's original query job; the Host selects the source."""
+        if CONFIGURED_DATA_SCOPE not in record.scopes:
+            raise ReadError("access_denied")
+        from .task_contracts import business_query
+
+        request_id, query = business_query(tool_name, arguments)
+        return await self._submit_business_query(record, request_id, query)
+
+    async def _submit_business_query(self, record, request_id, query):
+        backend = await self._backend(record.user_id)
+        sid = await self._context(backend, record, create=True)
+        key = hashlib.sha256((record.grant_id + ":" + request_id).encode()).hexdigest()
+        result = await self._request(
+            backend,
+            "POST",
+            "/api/research/data/queries",
+            key=key,
+            body={"session_id": sid, "section": "market", "query": query.model_dump(mode="json")},
+        )
+        if result.get("session_id") != sid:
+            raise ReadError("data_context_mismatch")
+        log.info(
+            "mcp_configured_data_query_submitted", source=query.source, capability=query.capability
+        )
+        return result
+
     async def _owned_query(self, record, query_id):
         backend = await self._backend(record.user_id)
         sid = await self._context(backend, record)
         result = await self._request(
             backend, "GET", "/api/research/data/queries/" + canonical_id(query_id)
         )
-        if (
-            result.get("session_id") != sid
-            or result.get("source") not in PUBLIC_DATA_SOURCES
-            or result.get("capability") != "external_data"
+        if result.get("session_id") != sid or (
+            CONFIGURED_DATA_SCOPE not in record.scopes
+            and (
+                result.get("source") not in PUBLIC_DATA_SOURCES
+                or result.get("capability") != "external_data"
+            )
         ):
             raise ReadError("access_denied")
         return backend, result

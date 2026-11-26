@@ -1,5 +1,10 @@
 # 数据源清单
 
+2026-11-25：`ext_finance_mcp` 新增正式 `market_bars` binding（固定岗底斯日频不复权）。
+600519.SH 11-10～13 四行与 BaoStock OHLC/股数量一致、金额差异≤1元，total=4；
+这是有限样本的股/元口径证据，复权与 PIT 未核验，默认源顺序不变。
+源码与常驻部署分开，见[业务工具合同](research-web-business-tools.md)。
+
 Research Workbench 查数据时先看本页。**2026-11-22** 在 `92ae4ae` 基线上增补了 FRED／BLS 的本次观测；其他条目保留 2026-11-15 按 `0ca0f4c0` 实现与已有记录核对的范围。表中状态描述具体入口的接入和验证范围；当前账号是否能取、能取到哪天，以请求当时的权限、响应和覆盖为准。
 
 ## 怎么选源
@@ -51,6 +56,16 @@ FRED 转换还会删除缺失行和每条观察的 realtime 字段；BLS 转换�
 详见[本次实际试点](../.ai/reports/2026-11-23-openbb-provider-trial.md)。
 
 ## 文本数据
+
+### 金融数据 MCP（2026-11-23）
+
+`ext_finance_mcp` 通过固定 HTTPS Streamable HTTP 入口
+`https://www.huaanifd.com/finance-data/mcp` 连接八家金融厂商。
+本轮鉴权、五工具发现、八家目录通过；岗底斯 A 股 `600519.SH`、2026-11-16 至 19
+日 K 线实际取得 4 行。行情与投研文本按原工具分别查询，复用本账号客户端令牌。
+目录配置状态不代表各厂商权限和额度均通过；单位、复权、完整历史及 PIT 未认证。
+源码已接入 DataHub，生产启用与正式 WeKnora 调用另验。
+见[金融 MCP 合同](research-web-finance-mcp.md)。
 
 | 来源 / 入口 | 提供的数据 | 接入状态与范围 |
 | --- | --- | --- |

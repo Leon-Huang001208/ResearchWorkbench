@@ -228,6 +228,7 @@
       "sources": [
         "app/research_web/__init__.py",
         "app/research_web/main.py",
+        "app/research_web/api_parameter_docs.py",
         "app/research_web/service.py",
         "app/research_web/service_manager.py",
         "app/research_web/service_diagnostics.py",
@@ -274,6 +275,7 @@
       ],
       "tests": [
         "tests/research_web/test_api.py",
+        "tests/research_web/test_api_parameter_docs.py",
         "tests/research_web/test_protocol.py",
         "tests/research_web/test_runtime_launch.py",
         "tests/research_web/test_runtime_auth.py",
@@ -656,6 +658,7 @@
       "id": "workbench",
       "sources": [
         "app/research_web/workbench.py",
+        "app/research_web/schemas_responses.py",
         "app/research_web/asset_routes.py",
         "app/research_web/asset_workspace.py",
         "app/research_web/ui/asset-workspace.mjs",
@@ -813,7 +816,10 @@
       "sources": [
         "app/research_web/documentation.py",
         "scripts/check_research_architecture.mjs",
-        "scripts/build_research_web_api_atlas.mjs"
+        "scripts/build_research_web_api_atlas.mjs",
+        "scripts/build_documentation_center.mjs",
+        "scripts/documentation_center.py",
+        "scripts/documentation_markdown.py"
       ],
       "documents": [
         "docs/README.md",
@@ -885,6 +891,7 @@
     {
       "id": "verification-workflow",
       "sources": [
+        "scripts/documentation_ci_scope.py",
         "scripts/plan_verification.mjs",
         "scripts/validate_verification_receipt.mjs",
         "scripts/summarize_verification_delivery.mjs",
@@ -1054,7 +1061,8 @@
         "app/research_web/multiuser/",
         "app/research_web/tenant_policy.py",
         "research_workbench_entrypoint/server.py",
-        "research_workbench_entrypoint/knowledge_configuration.py"
+        "research_workbench_entrypoint/knowledge_configuration.py",
+        "app/research_web/fingpt_retirement.py"
       ],
       "documents": [
         "docs/research-web-ai-news.md",
@@ -6701,13 +6709,48 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/release",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/openid-configuration",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/.well-known/openid-configuration",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/fingpt/workspace",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/workspace",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/fingpt/authorize",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/authorize",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/fingpt/token",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/token",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/fingpt/userinfo",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/fingpt/userinfo",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "2db8e900249aaac8f19a69811a8e65bdfbdcd262"
+      "revision": "5faef0d924cf0b7f5d03cc0a0ceffeeefa9a6a2c"
     },
     "levels": [
       {

@@ -1,5 +1,14 @@
 # Research Web Native / Docker 安装与运行
 
+已审Native联合升级在新旧Host启动后的最终核验，遇活动/未知暂态最多等待30秒，
+仍须通过原完整健康、账号、模型与业务保全检查才能结束维护；到期不视为空闲。
+此修复只影响`apply-reviewed`的核验等待，不变更公开安装入口、依赖锁或固定DSH，
+详见[联合升级](research-web-gateway-upgrade.md#已审完整版本的联合升级)。
+
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
 Docker G2B 构建从完整提交封存当前固定 DSH、Hot 锁定依赖和格式源码，镜像中的 SQL 仅作兼容性识别，不自动迁移。管理员经 `rwb-docker release` 在独立 stage 验收后晋级同一镜像；维护、原实例五卷和密钥保全见[Docker 手册](research-web-docker.md#g2b-冻结制品与受管切换)。公开 Native/Windows 安装入口不变。
 
 附接 MCP 保全的当前前移只加强原 Native 联合操作员在 BirthFence／安装作用域内的配置与前版
@@ -1379,3 +1388,15 @@ Mac mini 本机可使用 RWB HTTPS `:9543` 与 WeKnora `http://127.0.0.1:18181` 
 显式切换 `service_only: true` 时，主账号仍使用原绑定的数据根，后端启动前持有原 supervisor 与 lifecycle 锁，
 验证旧安装和进程停止，复用已登记 Web 端口。其他账号目录及原鉴权保持。
 生产切换须独立验收实际登录、原目录、HTTPS OAuth、固定前版回滚及 DSH 停止。
+
+## FinGPT 原生工作台选配
+
+已有 WeKnora 部署沿原 nginx 和原镜像安装两个入口资产；RWB 私有账号根配置 `fingpt.json`，原 WeKnora OIDC 配置指向网关固定登录桥，真实用户由原绑定核对。无新增 Python/Node 包，`web.in`、`web.lock`、公开 setup 入口无需改动；同候选 Mac 安装需导入新模块并逐字节核对 `fingpt-workspace.mjs/.css`。Doctor 区分未配置、配置无效和未进行真实登录，操作步骤与删除边界见[完整工作台](research-web-fingpt-workspace.md)。
+
+主模块的原256 KiB健康读取上限保持。FinGPT路由去除重复规范化并共用入口判据，使产品脚本继续处于原限制内；产品实际字节、恰达上限及超限拒绝仍沿原健康边界回归检查。
+
+FinGPT 聊天退役按真实 `Store.files()` 的 `file_id -> 相对路径字符串` 读取，不使用不存在的对象shape。首次删除只在前进安装阶段执行；恢复旧代码时不会首次执行数据删除，已完成删除后的保全基线仍保持，不恢复旧聊天。
+
+FinGPT 显式切换时的旧聊天封存资源由既有 Store 清理只读目录；实际共享文件保持，安装依赖与公开安装入口不变。
+
+原联合升级的网关启动直接使用同一 `gateway_configuration`：前向发布 FinGPT 原生登录参数，回滚沿原配置，不改变安装依赖或公开入口。

@@ -11,7 +11,7 @@ from app.research_web.multiuser.accounts import AccountError
 from core.observability import get_logger
 
 from .authorization_store import AuthorizationStore
-from .models import DATA_SCOPE, WEKNORA_CLIENT_ID
+from .models import CONFIGURED_DATA_SCOPE, DATA_SCOPE, WEKNORA_CLIENT_ID
 
 log = get_logger(__name__)
 COOKIE = "rwb_session"
@@ -128,6 +128,13 @@ def create_browser_routes(store: AuthorizationStore) -> list[Route]:
                 if DATA_SCOPE in pending.scopes
                 else ""
             )
+            if CONFIGURED_DATA_SCOPE in pending.scopes:
+                execution += (
+                    "<p>本次还申请使用当前账号已配置、依赖就绪且允许调用的 DataHub 数据源。"
+                    "查询复用本账号的供应商凭据、权限与额度，可能消耗现有付费额度；凭据不返回给应用。"
+                    "查询结果保存为本账号快照，仅允许读取本次授权创建的上下文；"
+                    "不允许修改数据源配置、调用模型、执行脚本或访问其他账号。</p>"
+                )
             return HTMLResponse(
                 '<!doctype html><html lang="zh"><meta charset="utf-8"><title>RWB 授权</title>'
                 "<h1>授权 RWB 只读应用</h1><p>当前账号："

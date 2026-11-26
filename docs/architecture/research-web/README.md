@@ -1,5 +1,13 @@
 # Research Workbench Research Web 当前架构
 
+2026-11-25 文档中心源码阅读检查点为 `5faef0d924cf0b7f5d03cc0a0ceffeeefa9a6a2c`：
+用户入口已按教程/指南/参考/设计/运维组织，旧图册在 architecture.html 保留。
+本文件继续作为工程架构材料；使用者先进入文档中心。源码、部署和阅读验收分别记录。
+
+2026-11-25 参数手册的源码阅读检查点为 `75131f724fc4f767ce76c408ba1ef8af59683b6d`：
+OpenAPI 已补齐业务 path/query/header 的说明，详见[参数词汇表](04-api.md#参数说明词汇表2026-11-25)。
+首页与 API Atlas 的源码链接固定到该提交，包含新增词汇表及回归测试；部署状态由常驻升级另行记录。
+
 Fed RSS 在原 DataHub、Discovery 和 Automation 间交接真实变化选材，模块依赖见[图02](../../../outputs/research-web-architecture/02-module-dependencies.html)。来源元数据报告、同快照分页与定时去重见[发现合同](../../research-web-discovery.md)，本机和私网的 FinGPT 动态切换与完成后回滚见[升级合同](../../research-web-gateway-upgrade.md)。
 
 Docker G2B 发布合同见[Docker 手册](../../research-web-docker.md#g2b-冻结制品与受管切换)：冻结制品、同镜像 stage 验收与受管晋级/回退均复用既有管理器。当前源码整合不等于新的现场发布验收。G2B 索引读取本次真实源码检查点 `81dc264d22009858a05c22e3b32ded3e7ede6d23`；图04等既有专用来源和视觉记录仍保留各自原身份。

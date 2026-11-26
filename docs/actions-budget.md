@@ -1,5 +1,60 @@
 # GitHub Actions 免费额度治理
 
+资产观察共享K线合同沿既有mcp_datahub_only检查：同时命中DataHub contracts、MCP task_contracts
+和asset_workspace三项实际源变化，其他改动均须落在明确允许集（含history_jobs及三份资产回归）。
+混入main.py、前端控制器、未知Provider或缺任一锚点继续全量；文档/脚本单改不获得该分支。
+原DataHub/MCP全模块检查额外加入完整asset_loading/workspace/history模块；保留JS、Constraints
+和macos-15安装CI，不新增作业、依赖、权限或时限。修正依据是本次已知桥接差异落入全仓分支，
+旧候选多次基线前移而取消时仍在全仓Python步骤，不能将取消记为PASS。
+
+文档中心改造仍复用 gateway_documentation_only：新静态生成脚本、两份 JSON 契约/导航清单、
+固定阅读页名及文档中心合同测试属于该闭包，Python 执行阅读器/网关/文档中心测试，
+JS 保留架构与范围治理；混入业务实现或未知文件继续完整路径。不新增依赖、作业或时限。
+固定页面与生成器允许集抽到 `scripts/documentation_ci_scope.py`，避免既有范围选择步骤
+合并主线后超过 GitHub 单个 run 字符限制；范围仍为同一闭包。
+
+API Manual 上线沿用 gateway_documentation_only：文档阅读器与固定 HTML、首页生成器及其架构
+检查器/测试纳入对应闭包，Python 保留网关与文档合同，JS 增加架构合同。其他产品改动仍走完整范围。
+
+2026-11-25 DataHub 业务工具在既有 MCP/DataHub 检查脚本追加 planning、任务契约与
+金融行情归一化三个离线模块；复用原 runner/job/依赖与超时，预算增量90秒；补齐新模块的 mcp_datahub_only 精确允许集，额外覆盖仓库管理、MarketStore 与诊断合同。
+macOS Bootstrap 沿既有源码触发与干净安装验证，不新增平台 dispatch。
+
+私网网关架构文档导航修复沿原 Checks scope selector 新增 `gateway_documentation_only`：
+真实 base/head 差异命中 `app/research_web/multiuser/gateway.py`，且其余文件仅限对应两份
+Python 合同、04/05 架构说明、README 复核回执、生成的 Python 文件索引、本 workflow 和范围测试
+时，Python 只运行 `test_multiuser_gateway.py`／`test_documentation.py`，JS 只运行账号会话与
+额度治理两个模块，并跳过不相关的编辑引擎安装。混入其他产品源码、其他测试或未知文件仍走原
+完整路径；不新增 job、runner、依赖、权限、平台 dispatch 或时限。该范围的起因是全量 Web
+合同按既有记录超过 45 分钟上限被取消，不是用例失败；实际候选仍须取得自己的 CI 结果。
+Python 命令封装在 `scripts/run_gateway_documentation_ci.sh`：新增分支若内联会使
+`Run Research Web Python contracts` 的 `run: |` 解码超过 GitHub 21000 字符上限，
+故沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，workflow 内只保留一行调用。
+该脚本已列入允许清单；漏登记会让真实 diff 回退全量范围，前一次候选即因此重跑完整矩阵。
+
+接口响应 schema 与参数说明沿同一步骤使用 `api_doc_only`：真实差异必须命中
+`app/research_web/schemas_responses.py` 或 `app/research_web/api_parameter_docs.py`，
+其余文件仅限 workbench／asset 路由、`main.py` 的单点接线、对应 Python 合同（含
+`test_api.py` 相关用例）、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页及 Atlas、
+本 workflow、范围测试和 `scripts/run_api_documentation_ci.sh`（Markdown 文档与
+`.ai/reports/` 结构决定照常允许）。命中后 Python 运行参数/响应文档合同、`test_api.py` 中的 schema/字段校验与同源用例、
+workbench 操作、asset loading／directory 和文档路由，JS 只运行 workbench、asset loading
+与额度治理，并跳过不相关的编辑引擎安装；混入其他产品源码、其他测试或未知文件仍走原完整
+路径。`main.py` 进入允许清单的前提是同一差异命中 `api_parameter_docs.py`，且 `test_api.py`
+中的相关用例验证主应用接线。收窄原因同样是全量 Web 合同在 45 分钟作业上限被取消，不是用例失败；实际
+候选仍须取得自己的 CI 结果。不新增 job、runner、依赖、权限、平台 dispatch 或时限。
+
+金融 MCP 与 configured DataHub scope 的改动在原入站 MCP 路由登记确切文件，并把两个
+相关回归模块及路由合同加入原检查命令。原 Project Constraints、Research Web Checks 和 macOS
+Bootstrap 保持，不新增 job、runner、依赖、权限或派发其他平台验证；CI 不调用真实厂商。
+
+`45125955365` 的全量 Web Python 合同超过原 45 分钟作业上限而取消，证据暂存还观察到
+仍在增长的 worker 日志，不能记为测试通过。本批明确 MCP／DataHub 源文件及对应测试、CI
+和说明文件的真实差异，才选择 `mcp_datahub_only`；混入其他产品、未来未知文件或无法取得
+diff 时仍走原完整路径。`run_mcp_datahub_ci.sh` 使用原 pytest 分片及证据入口，选择全部
+DataHub Provider、MCP/OAuth、账号网关、协议、原 grant／存储和知识权限合同，共 42 个模块
+（本候选收集 1524 个 case）。不延长时限，不新增 job、依赖或 runner，原三项必要 CI 保持。
+
 Checks 的测试工具文件合并既有 `pyproject.toml` 的 `dev` 与 `requirements/research-test.in`
 非空、非注释声明，沿原 spec 正则验证并对相同声明去重；声明缺失、空或非法时停止安装。
 本次实际只补入早已声明的 `sqlalchemy>=2,<3`，供原 FinGPT legacy 单元模块导入使用，
@@ -672,3 +727,7 @@ PR245 repair3 仅将原同一步根包安装改为产品已有的普通 wheel --
 AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。未增加 runner、独立作业或产品 dispatch。
 
 2026-11-23 模型连接保存修复的 Checks 在完整 Web 矩阵45分钟上限被取消（45096068329），不能计为通过。原作业增加精确 model_profiles_only 范围：仅模型连接gate、服务商表单、对应测试、CI脚本及相关文档可命中；混入其他产品或差异未知仍全量。运行完整模型连接/凭据/加密凭据/AlphaDesk/协议模块和四项Host历史、未知受理及所有权反例，保留原Node全套并加范围治理回归；无关编辑引擎不运行。Project Constraints、同候选Mac安装及原job/runner/依赖/超时不变，不连接模型或业务数据。
+
+FinGPT 原生工作台分支保留身份/租户网关、WeKnora绑定/正式资料范围、MCP配置/HTTP/DataHub、三个新增组件、同次升级入口及真实会话列表接口的相关回归；未修改的Store/OAuth内核和无关市场/报告API复用已有通过结果，不再整库重跑。新出现的静态脚本体积边界加入原Checks相关支路，完整Node、固定编辑引擎、Constraints及同候选Mac干净安装仍保留；未知变更仍走完整范围，不新增job、runner或付费模型请求。
+
+既有 FinGPT 窄选器也接受原升级器与专属退役回归同时变更的修复组合；全部路径仍须在原精确名单，单独升级器或无关数据源混入不选。复用原三 CI、原 FinGPT 共享身份/HTTP/数据/升级回归，不新增作业或跳过 Mac 安装。

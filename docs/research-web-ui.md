@@ -1,5 +1,12 @@
 # Research Web 前端
 
+设置中的既有文档卡片改名为“文档中心”，链接地址保持原 index.html，
+从该页进入快速开始、指南、参考与设计；不修改数据来源设置、业务表单或权限流程。
+
+研发进展新增“WeKnora 复用 DataHub 已配置来源”待验证条目，只描述候选能力和未完成的
+CI／部署状态。现有数据源设置、权限确认和页面交互继续复用，见
+[金融 MCP](research-web-finance-mcp.md)。
+
 问答中打开长网页或档案时，执行器可用工具返回的位置继续读取，同一来源在引用列表中保留原身份。
 
 受管 Docker 发布维护期间，新写操作返回 `503 release_maintenance`；已接纳的研究继续完成，队列等待而不重复提交。没有新增发布按钮，普通 Native 界面不因未启用的 Docker release 合同改变。
@@ -863,3 +870,7 @@ FinGPT 的页面投影和研究发送检查由独立模块承接，保留 `app.m
 FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口。初始化其余目录时复用该结果，用户主动刷新仍读取当前状态。
 
 模型服务表单以 hidden input 提交固定协议身份，避免隐藏 select 的 option 被禁用导致 FormData 丢失 provider。API Key 仍由用户在设置页填写，提交后清空；未保存连接不会被标为可用，新增连接不自动切换当前 DeepSeek。
+
+## FinGPT 完整工作台
+
+显式配置原生工作台后，`#/fingpt` 与旧 `#/qa` 统一进入 WeKnora 完整应用；RWB 主导航保留，移除原 FinGPT 的重复会话栏和编辑器。独立入口在每次进入时走原生登录，壳局部重绘不拆卸工作台 iframe，避免打断执行流；Claw 与其他页面的渲染不变。账号映射、配置、原生 token 生命周期及删除边界见[工作台合同](research-web-fingpt-workspace.md)。

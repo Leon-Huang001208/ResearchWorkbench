@@ -252,6 +252,54 @@ async def test_observation_preserves_asset_type_and_wind_rejection(wind_workspac
 
 
 @pytest.mark.asyncio
+async def test_asset_and_mcp_raw_history_share_broker_and_frozen_rows(wind_workspace, monkeypatch):
+    from app.research_web.mcp_facade.task_contracts import business_query
+
+    service, sid, adapter = wind_workspace
+    values = {
+        "date": "2026-09-11",
+        "open": 1495,
+        "high": 1510,
+        "low": 1490,
+        "close": 1500,
+        "volume": 100,
+        "amount": 150000,
+    }
+    monkeypatch.setattr(
+        adapter,
+        "fetch_daily_quotes",
+        lambda **kwargs: adapter._frame("history", kwargs, values),
+    )
+    try:
+        item = await _observe_wind(service, sid, "history", source="auto", adjustment="none")
+        block = item["blocks"]["history"]
+        assert block["status"] == "complete", block
+        asset_manifest = service.datahub.detail(sid, block["dataset"]["dataset_id"])
+        _, query = business_query(
+            "get_stock_kline",
+            {
+                "request_id": "mcp-parity-history",
+                "asset": "600519.SH",
+                "start_date": "2026-09-01",
+                "end_date": "2026-09-11",
+            },
+        )
+        result = await service.datahub.query(sid, "mcp-parity-history", query)
+        mcp_manifest = service.datahub.detail(sid, result["dataset_id"])
+        assert asset_manifest["query"] == mcp_manifest["query"]
+        assert asset_manifest["query"]["required_semantics"] == "cn_stock_daily_cny_share_v1"
+        assert asset_manifest["provider"] == mcp_manifest["provider"] == "wind"
+        asset_rows = service.datahub.rows(sid, block["dataset"]["dataset_id"], 0, 100)
+        mcp_rows = service.datahub.rows(sid, result["dataset_id"], 0, 100)
+        assert asset_rows == mcp_rows
+        assert asset_rows["items"][0]["volume"] == 100
+        assert asset_rows["items"][0]["turnover"] == 150000
+    finally:
+        await service.asset_workspace.close()
+        await service.datahub.close()
+
+
+@pytest.mark.asyncio
 async def test_observation_refresh_is_independent_and_preserves_previous_snapshot(wind_workspace):
     service, sid, adapter = wind_workspace
     item = await _observe_wind(service, sid, "overview", sections=["overview", "history"])

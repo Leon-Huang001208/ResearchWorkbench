@@ -498,6 +498,157 @@ def test_stream_revocation_drops_late_chunks(server):
     assert "first" in response.text and "forbidden" not in response.text
 
 
+def test_document_cookie_is_path_scoped_and_does_not_open_other_routes(server):
+    browser, _, _, _, _ = server
+    assert login(browser).status_code == 200
+    page = browser.get("/api/research/documentation/15-inbound-mcp.html")
+    assert page.status_code == 200
+    cookies = [
+        value for value in page.headers.get_list("set-cookie") if "rwb_documentation=" in value
+    ]
+    assert len(cookies) == 1
+    cookie = cookies[0].lower()
+    assert "path=/api/research/documentation" in cookie
+    assert "samesite=lax" in cookie and "httponly" in cookie
+    # Once the Strict session is gone, the path-scoped cookie still serves documents
+    # but the browser never sends it to a business route.
+    browser.cookies.delete("rwb_session")
+    assert browser.get("/api/research/sessions").status_code == 401
+    assert browser.get("/api/server/me").status_code == 401
+    follow = browser.get(
+        "/api/research/documentation/01-deployment.html",
+        headers={
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-User": "?1",
+        },
+    )
+    assert follow.status_code == 200
+
+
+def test_sandbox_document_navigation_reaches_the_allowlisted_document(server):
+    browser, _, pool, _, _ = server
+    assert login(browser).status_code == 200
+    token = browser.cookies.get("rwb_session")
+    assert token
+    browser.cookies.clear()
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Cookie": f"rwb_documentation={token}",
+    }
+    response = browser.get("/api/research/documentation/01-deployment.html", headers=headers)
+    assert response.status_code == 200
+    # A different fixed document in the same click chain keeps working.
+    response = browser.get("/api/research/documentation/index.html", headers=headers)
+    assert response.status_code == 200
+    # Cross-site navigation outside the allowlist stays denied.
+    for path in ("/api/research/sessions", "/api/server/me", "/api/research/documentation/x.html"):
+        assert browser.get(path, headers=headers).status_code == 403
+    assert pool.users
+
+
+def test_document_return_home_reenters_the_normal_session_boundary(server):
+    browser, _, pool, _, _ = server
+    assert login(browser).status_code == 200
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+    }
+    response = browser.get("/", headers=headers)
+    assert response.status_code == 200
+    assert 'location.replace("/")' in response.text
+    assert "set-cookie" not in response.headers
+    assert response.headers["cache-control"] == "no-store"
+    assert "sandbox" not in response.headers["content-security-policy"]
+    assert browser.get("/").status_code == 200
+    browser.cookies.clear()
+    assert browser.get("/", headers=headers).status_code == 200
+    assert browser.get("/", follow_redirects=False).headers["location"] == "/auth"
+    assert not pool.users
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"Sec-Fetch-Mode": "cors"},
+        {"Sec-Fetch-Dest": "iframe"},
+        {"Sec-Fetch-User": "?0"},
+        {"Origin": "null"},
+    ],
+)
+def test_home_return_does_not_admit_embeds_or_script_fetches(server, override):
+    browser, _, _, _, _ = server
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        **override,
+    }
+    assert browser.get("/", headers=headers).status_code == 403
+    assert browser.get("/api/server/me", headers=headers).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"Sec-Fetch-Mode": "cors"},
+        {"Sec-Fetch-Dest": "iframe"},
+        {"Sec-Fetch-User": "?0"},
+        {"Sec-Fetch-User": None},
+    ],
+)
+def test_document_cookie_never_admits_non_navigation_fetches(server, override):
+    browser, _, _, _, _ = server
+    assert login(browser).status_code == 200
+    token = browser.cookies.get("rwb_session")
+    browser.cookies.clear()
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Cookie": f"rwb_documentation={token}",
+    }
+    headers.update(override)
+    response = browser.get(
+        "/api/research/documentation/01-deployment.html",
+        headers={k: v for k, v in headers.items() if v is not None},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "server_origin_denied"
+
+
+def test_logout_revokes_the_document_cookie(server):
+    browser, _, _, _, _ = server
+    assert login(browser).status_code == 200
+    token = browser.cookies.get("rwb_session")
+    assert token
+    response = browser.post(
+        "/api/server/logout",
+        headers={
+            "Origin": "http://localhost",
+            "X-RWB-Page-User": browser.headers["X-RWB-Page-User"],
+        },
+    )
+    assert response.status_code == 200
+    browser.cookies.clear()
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Cookie": f"rwb_documentation={token}",
+    }
+    assert browser.get("/api/research/documentation/index.html", headers=headers).status_code == 401
+
+
 def test_chunked_account_body_is_bounded_before_json_parsing(server):
     browser, _, pool, _, _ = server
 

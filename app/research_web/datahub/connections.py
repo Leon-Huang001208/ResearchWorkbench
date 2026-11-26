@@ -48,9 +48,11 @@ SUPPORTED_CONFIGURATION_SOURCES = frozenset(
         "ext_daole",
         "ext_tikhub",
         "ext_cicc",
+        "ext_finance_mcp",
     }
 )
 SINGLE_SECRET_FIELDS = {
+    "ext_finance_mcp": ("api_key", "api_key"),
     "ext_ths": ("api_key", "api_key"),
     "ext_daole": ("api_key", "api_key"),
     "ext_tikhub": ("api_key", "api_key"),

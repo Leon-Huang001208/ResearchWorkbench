@@ -1,5 +1,18 @@
 # Research Web DataHub
 
+资产观察的 stock/daily/none 历史区块（截至昨日）与 MCP get_stock_kline 共用
+`contracts.stock_kline_query`，携带同一规范原始日线语义进入原查询、Broker与冻结链。
+页面来源/refresh保留，不新增MCP回环；原复权、分时和canonical历史继续独立路径。
+详见[业务工具合同](research-web-business-tools.md#k-线与仓库规划)。
+
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
+金融数据 MCP 作为 `ext_finance_mcp` 接入原 `external_data` 能力，使用当前账号的一份
+客户端令牌，复用原查询、原件和快照。WeKnora 经新确认的 configured scope 查询当前
+callable／allowed 来源，旧 FRED/BLS 授权不自动扩权。见[金融 MCP 合同](research-web-finance-mcp.md)。
+
 知识工具的正式单轮分支仍只提交会话 query／hit_id，由 Host grant 派生资料范围并校验原生首轮，不允许模型把知识库、scope 或文档白名单写入工具参数。会话回执绑定资料原件与当前请求；这条资料链不绕过 DataHub 来源准入、供应商授权、金融快照或 PIT 门。见[单轮资料合同](research-web-weknora.md#host-批准范围的单轮研究)。
 
 `research_search_knowledge`／`research_read_knowledge` 在既有可信Host回调提供独立的知识命中投影；`knowledge:`引用由会话回执和原件／分块指纹核对，不把模型文本登记为来源。金融取数、DataHub快照和供应商权限继续沿原链，未知资料时点不获得PIT资格。见[资料合同](research-web-weknora.md)。
@@ -449,7 +462,7 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 ## 已整理外部数据源（2026-10-13）
 
 新能力 `external_data`（工具 `datahub_get_external_data`）把用户 2026-10-08 核对的外部来源清单固化为
-`app/research_web/datahub/external_sources.json`：41 个取数来源与 102 个 HTTP 入口，另列 10 个参考或未接通来源；
+`app/research_web/datahub/external_sources.json`：42 个取数来源，包括原 102 个 HTTP 入口及金融网关的 5 个 MCP 工具，另列 10 个参考或未接通来源；
 不复制业务项目代码，只保留来源、入口、方法与参数占位。调用先不传参数读取 `ext_registry` 总目录，再按返回的
 `source` 与 `dataset` 取数。`arguments_json` 只接受 `params`（填充目录占位符）、`query`（业务筛选）、`body`（POST 业务体）
 三个键；URL、凭据、路径、回调、SQL 等键在 Provider 边界直接拒绝。

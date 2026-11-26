@@ -188,7 +188,12 @@ def test_connections_summary_has_safe_catalog_sources_and_platform_sections(tmp_
     assert response.status_code == 200
     body = response.json()
     assert set(body) == {"groups", "sources", "platform", "migration"}
-    assert len(body["sources"]) == 65
+    assert len(body["sources"]) == 66
+    finance = next(item for item in body["sources"] if item["id"] == "ext_finance_mcp")
+    assert finance["configuration_supported"] is True
+    assert finance["configured"] is False
+    assert finance["secret_configured"] is False
+    assert finance["callable"] is False
     assert {item["id"] for item in body["sources"]} == {
         item["id"] for item in build_catalog(environ={})["sources"]
     }
@@ -283,7 +288,7 @@ def test_corrupt_single_source_profile_does_not_break_connection_catalog(tmp_pat
         response = client.get("/api/research/data/connections")
     assert response.status_code == 200
     sources = {item["id"]: item for item in response.json()["sources"]}
-    assert len(sources) == 65
+    assert len(sources) == 66
     assert sources["ifind"]["configured"] is False
     assert "configuration_read_failed" in sources["ifind"]["warnings"]
     assert sources["mysql"]["warnings"] == []

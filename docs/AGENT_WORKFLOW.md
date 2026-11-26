@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+DataHub业务工具的CI沿既有mcp_datahub_only精确路径闭包：新增规划、来源适配、仓库桥和任务schema对应
+脚本纳入原lane，补充仓库管理/MarketStore/诊断合同；混入未知Provider或main.py仍走全量。
+Constraints与同候选macOS Bootstrap独立验收，源码通过不等于WeKnora部署完成。
+
 附接 MCP 保全复核的当前前移仅修改原 Native 联合操作员。沿同一任务和 PR #284，
 在既有测试模块验证五个保全模式的 forward apply 与非完成后回滚的 `preparing` 恢复：
 真实持有 BirthFence SQLite EX、安装作用域及原 Operations 后，配置校验和前版健康／保全复核
@@ -128,6 +132,28 @@ spawn 紧前还须拒绝式复核，可能执行后的漂移保持 unknown 且�
 分钟K本轮为macOS功能开发：完整changed-set Router L4、独立Python/JS评审、原通用门/同候选Mac安装；Windows/Linux交对应真机。真实源18组合与包含除权日窗口、浏览器各模式/副图/页签分别取证。排空未知或活动不切换，源码完成不等于常驻上线。
 
 候选0e4ceeb2的Checks40262625759在40m上限取消：Python7109通过/72原skip/117subtests（2201.70s），另47通过（0.89s）；JS1199通过/3原skip（20.80s），但step因总时限取消，末尾固定编辑引擎检查NOT_RUN。完整日志18446774B保留原失败归属；只把原同一ubuntu-latest job有界延长40→45分钟（增加5分钟），不新增job/runner/依赖/跳过或删除用例，不改变permissions/concurrency。约132s依赖安装+约37m Python已耗尽旧预算；新增分钟合同本地亚秒，不把超时伪称功能通过。新候选重跑原三CI/Mac安装，不rerun旧run，CI不调用实际供应商或模型。
+
+私网网关架构文档导航修复复用同一 `Choose contract test scope` 步骤新增
+`gateway_documentation_only`：真实差异必须命中 `app/research_web/multiuser/gateway.py`，
+其余文件仅限两份相关 Python 合同、04／05 架构说明、README 复核回执、生成的 Python 文件索引、
+本 workflow 与范围测试。命中后 Python 只运行账号网关与文档路由两个模块，JS 只运行账号会话与
+额度治理；混入其他产品源码、其他测试或未知文件仍回退完整路径。Python 命令放在
+`scripts/run_gateway_documentation_ci.sh`，因为内联会使该步骤的 `run: |` 解码超过 GitHub
+21000 字符上限；沿既有 `run_fingpt_source_ci.sh` 的脚本化做法。该收窄起因是全量合同按既有
+记录超过 45 分钟作业上限被取消，不是用例失败；实际候选仍须取得自己的 CI 结果。
+脚本本身也在允许清单内；漏登记会让本任务 diff 回退全量，例如 `649cabf4` 候选即因漏登记而
+重跑完整矩阵（作业随后被取消），不能把该次取消当作测试通过。
+
+接口响应 schema 与参数说明沿同一选择步骤使用 `api_doc_only`：真实差异必须命中
+`app/research_web/schemas_responses.py` 或 `app/research_web/api_parameter_docs.py`，
+其余文件仅限 workbench／asset 路由、`main.py` 的单点接线、对应 Python 合同（含
+`test_api.py` 相关用例）、04 架构说明、架构映射、README 复核回执、生成的 Python 文件索引、架构首页及 Atlas、
+本 workflow、范围测试和 `scripts/run_api_documentation_ci.sh`。命中后 Python 运行参数/响应
+文档合同、`test_api.py` 中的 schema/字段校验与同源用例、workbench 操作、asset loading／directory 和文档路由，JS 只跑
+workbench、asset loading 与额度治理，并跳过编辑引擎安装；混入其他产品源码、其他测试或未知
+文件仍回退完整路径。`main.py` 只在同一差异命中 `api_parameter_docs.py` 时获准，并始终由
+上述相关用例验证主应用接线。原因同样是全量合同超过 45 分钟作业上限被取消，不是用例失败。
+脚本与允许清单必须同步登记。
 
 分时正式接入沿原Checks步骤登记分钟合同回归，完整changed-set Router/独评/原三CI/同候选Mac安装不减。真实分时使用账号隔离DataHub快照，分钟K仅核验样本不冒充实现；受控部署仍等待实际空闲/保全/恢复门，旧Wind未知不能由本功能源码绿替代。
 
@@ -354,6 +380,14 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 仅读CI使用GitHub只读API；其他common directory必须通过正式Git交付采用已审入口，不复制脚本。
 
 ### 中断备份锁与历史工作树身份
+
+Mac mini 新建Git安全恢复点使用正式CLI的`--backup-root /Volumes/WorkDisk/Data/RWB/git-safety`，
+放在`delivery`、`backup`或备份维护命令之后；同一任务后续操作沿用同一根，历史内盘恢复点
+继续按原路径读取。CLI在写入WorkDisk前核对APFS、挂载点及UUID
+`2BC466D2-FD62-4395-86AC-45CFF653BC51`；缺盘/身份不符即拒绝，不回落内盘。
+其他平台省略参数时沿用旧目录。源码、resident、凭据和账本仍保留原位置。
+跨文件系统不尝试APFS克隆，直接走原容量准入、完整hash与独立恢复校验；最终仍由原v2
+内容寻址存储去重。不得用改HOME或绕过CLI的包装器选择备份位置。
 
 真实进程仍在、退出证据不明或锁已被替换时保留锁。历史无 PID 的空备份锁仅接受任务原
 Git common directory 下记录中断的私有证据。由创建该锁的仓库操作，绑定当时的退出进程组、

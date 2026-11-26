@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeKnora 读取 DataHub：任务级技能层设计与实施计划</title>
+<style>
+:root{color-scheme:dark;--bg:#0f1115;--panel:#161a21;--line:#2a303a;--text:#e6e9ef;--muted:#9aa4b2;--accent:#7aa2f7}
+html[data-theme="light"]{color-scheme:light;--bg:#f7f8fa;--panel:#fff;--line:#dde1e7;--text:#1c2027;--muted:#5b636e;--accent:#2f6feb}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+.layout{display:grid;grid-template-columns:300px minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--panel);border-right:1px solid var(--line);padding:20px 16px 40px}
+.sidebar h1{font-size:15px;line-height:1.4;margin:0 0 4px;color:var(--text)}
+.sidebar .meta{font-size:12px;color:var(--muted);margin:0 0 16px}
+.search{width:100%;padding:7px 9px;margin-bottom:14px;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--text);font:inherit;font-size:13px}
+.toc{display:flex;flex-direction:column;gap:2px}
+.toc a{display:block;color:var(--muted);text-decoration:none;font-size:13px;padding:3px 8px;border-radius:5px;border-left:2px solid transparent}
+.toc a:hover{color:var(--text);background:var(--bg)}
+.toc a.active{color:var(--accent);border-left-color:var(--accent);background:var(--bg)}
+.toc-level-3{padding-left:22px}
+.theme{position:fixed;right:16px;bottom:16px;z-index:10;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 14px;cursor:pointer;font:inherit;font-size:13px}
+main{padding:40px clamp(20px,4vw,64px) 96px;max-width:1080px}
+h1,h2,h3,h4{line-height:1.35;margin:1.8em 0 .6em}
+h1{font-size:28px;margin-top:0}
+h2{font-size:22px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+h3{font-size:18px}
+h4{font-size:16px}
+p{margin:.7em 0}
+a{color:var(--accent)}
+code{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:13px;line-height:1.55}
+.table-wrap{overflow-x:auto;margin:1em 0}
+.doc-meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin:.6em 0 1.1em;font-size:13px}
+.doc-meta>div{display:flex;gap:6px}
+.doc-meta dt{color:var(--muted)}
+.doc-meta dd{margin:0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--panel);white-space:nowrap}
+blockquote{margin:1em 0;padding:.2em 1em;border-left:3px solid var(--accent);color:var(--muted)}
+ul,ol{padding-left:1.5em}
+@media (max-width:860px){.layout{grid-template-columns:1fr}.sidebar{position:relative;height:auto;max-height:none}main{padding-top:20px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+<h1>WeKnora 读取 DataHub：任务级技能层设计与实施计划</h1>
+<p class="meta">设计与实施计划 · 左侧固定目录</p>
+<input class="search" type="search" placeholder="筛选章节…" aria-label="筛选章节">
+<nav class="toc" aria-label="文档目录">
+<a class="toc-level-3" href="#s-2">本版落实表</a>
+<a class="toc-level-2" href="#s-3">1. 结论先行</a>
+<a class="toc-level-2" href="#s-4">2. 现状：已接入的底层接口</a>
+<a class="toc-level-3" href="#s-5">2.1 接入点</a>
+<a class="toc-level-3" href="#s-6">2.2 八家厂商目录（2026-11-24 实测）</a>
+<a class="toc-level-3" href="#s-7">2.3 历史接入完成度（2026-11-23～25）</a>
+<a class="toc-level-3" href="#s-8">2.4 已知问题</a>
+<a class="toc-level-2" href="#s-9">3. Capability 到厂商的映射（提议，待契约验证）</a>
+<a class="toc-level-2" href="#s-10">4. 技能层设计</a>
+<a class="toc-level-3" href="#s-11">4.1 工具面</a>
+<a class="toc-level-3" href="#s-22">4.1.1 固定 capability 是什么</a>
+<a class="toc-level-3" href="#s-23">4.1.2 命名约定</a>
+<a class="toc-level-3" href="#s-24">4.1.3 与 Wind / iFinD 的对照依据</a>
+<a class="toc-level-3" href="#s-25">4.2 行为约定</a>
+<a class="toc-level-3" href="#s-26">4.2.1 复权口径</a>
+<a class="toc-level-3" href="#s-27">4.3 可见性</a>
+<a class="toc-level-3" href="#s-28">4.4 错误码</a>
+<a class="toc-level-2" href="#s-29">5. 主流做法参照</a>
+<a class="toc-level-3" href="#s-30">5.1 证据范围与设计取舍</a>
+<a class="toc-level-3" href="#s-31">5.2 可复核参考</a>
+<a class="toc-level-2" href="#s-32">6. 实施阶段</a>
+<a class="toc-level-3" href="#s-33">Phase 0：设计对齐</a>
+<a class="toc-level-3" href="#s-34">Phase 1：首条 K 线链路</a>
+<a class="toc-level-3" href="#s-35">Phase 2：供应商契约与工具逐项扩展</a>
+<a class="toc-level-3" href="#s-36">Phase 3：WeKnora 工具验收与切换</a>
+<a class="toc-level-3" href="#s-37">Phase 4：复合行情 Skill</a>
+<a class="toc-level-2" href="#s-38">7. 验收与证据</a>
+<a class="toc-level-2" href="#s-39">8. 已定与待核实</a>
+<a class="toc-level-2" href="#s-40">9. 下一步</a>
+<a class="toc-level-2" href="#s-41">10. 契约样例：个股 K 线</a>
+<a class="toc-level-3" href="#s-42">10.1 设计原则</a>
+<a class="toc-level-3" href="#s-43">10.2 统一工具契约</a>
+<a class="toc-level-3" href="#s-44">10.3 已实现与已登记的数据源</a>
+<a class="toc-level-3" href="#s-45">10.4 来源策略与优先级</a>
+<a class="toc-level-3" href="#s-46">10.4.1 Wind 官方三层映射（参照）</a>
+<a class="toc-level-3" href="#s-47">10.5 字段与质量门</a>
+<a class="toc-level-3" href="#s-48">10.6 完整调用示例</a>
+<a class="toc-level-3" href="#s-49">10.7 维护流程</a>
+<a class="toc-level-3" href="#s-50">10.8 本节状态</a>
+<a class="toc-level-2" href="#s-51">11. 查询架构 v2与增量补齐设计</a>
+<a class="toc-level-3" href="#s-52">11.1 三个模块与共享契约</a>
+<a class="toc-level-3" href="#s-53">11.2 工具域与 Skill</a>
+<a class="toc-level-3" href="#s-54">11.3 候选与本地覆盖共同决定来源</a>
+<a class="toc-level-3" href="#s-55">11.4 覆盖、停牌与增量补齐</a>
+<a class="toc-level-3" href="#s-56">11.5 原始数据、复权与快照</a>
+<a class="toc-level-3" href="#s-57">11.6 输出与复用边界</a>
+<a class="toc-level-3" href="#s-58">11.7 一条链路的验收范围</a>
+<a class="toc-level-2" href="#s-59">12. 工具输入契约（12 个）</a>
+<a class="toc-level-3" href="#s-60">12.1 get_stock_kline</a>
+<a class="toc-level-3" href="#s-61">12.2 get_stock_quote</a>
+<a class="toc-level-3" href="#s-62">12.3 get_stock_financials</a>
+<a class="toc-level-3" href="#s-63">12.4 get_stock_activity</a>
+<a class="toc-level-3" href="#s-64">12.5 get_fund_detail</a>
+<a class="toc-level-3" href="#s-65">12.6 get_index_quote</a>
+<a class="toc-level-3" href="#s-66">12.7 search_news（条件启用）</a>
+<a class="toc-level-3" href="#s-67">12.8 search_announcements（条件启用）</a>
+<a class="toc-level-3" href="#s-68">12.9 get_economic_series</a>
+<a class="toc-level-3" href="#s-69">12.10 search_assets</a>
+<a class="toc-level-3" href="#s-70">12.11 get_trading_calendar</a>
+<a class="toc-level-3" href="#s-71">12.12 query_user_table（条件启用）</a>
+<a class="toc-level-2" href="#s-72">13. B实施设计 v2</a>
+<a class="toc-level-3" href="#s-73">13.1 当前实现与缺陷</a>
+<a class="toc-level-3" href="#s-74">13.2 B1 修正：使用交易日序列</a>
+<a class="toc-level-3" href="#s-75">13.3 B2 接入：先保留原有 Wind 行为</a>
+<a class="toc-level-3" href="#s-76">13.4 B3 查询服务：同源规划与窗口分段</a>
+<a class="toc-level-3" href="#s-77">13.5 B4 工具与供应商契约</a>
+<a class="toc-level-3" href="#s-78">13.6 B5 计划摘要与逐项扩展</a>
+<a class="toc-level-3" href="#s-79">13.7 必要验证</a>
+<a class="toc-level-3" href="#s-80">13.8 本轮交付边界</a>
+</nav>
+</aside>
+<main>
+<h1 id="s-1">WeKnora 读取 DataHub：任务级技能层设计与实施计划</h1>
+<dl class="doc-meta"><div><dt>Status</dt><dd>implementation-candidate（2026-11-25；9 个工具源码已注册，未部署）</dd></div><div><dt>Host</dt><dd>macOS arm64 Mac mini</dd></div><div><dt>Task</dt><dd><code>weknora-datahub-skill-layer-20261124</code></dd></div><div><dt>Baseline</dt><dd><code>63a24daa9c9fb86e0a2c5917cffb70bcc2ddfaeb</code></dd></div></dl>
+<p>本批源码实现状态见业务工具合同与 实现报告。下文保留12个候选的目标设计； 当前实现9个：K线仅daily/none、指数仅最新单个index且无date、证券检索仅A股且无limit；宏观起止日期必填；筹码/大宗不开放。 新闻/公告/MySQL按条件不注册；此前“任务工具尚未注册”等盘点属于实现前历史， 不得据此判断当前候选源码，更不能将候选源码当作常驻已部署。</p>
+<p>本文是设计与决策记录，不是已交付合同。厂商目录、能力矩阵和技能层方案的 状态以带日期的历史记录与本版落实表为准；未执行项保持 NOT_RUN。</p>
+<p>本版采用三个代码模块：业务工具、DataHub 查询服务、供应商适配器； 语义是共享契约，规划与路由是查询服务内的职责，不新增五套执行框架。 设计阶段只更新文档；2026-11-25 实现阶段已在独立工作树修正 B1 并新增业务工具，常驻服务未改。</p>
+<h3 id="s-2">本版落实表</h3>
+<p>“设计落实”表示本文已明确规则；不表示业务功能已交付。</p>
+<div class="table-wrap"><table><thead><tr><th>已确定事项</th><th>文档位置</th><th>设计状态</th><th>实现状态</th></tr></thead><tbody><tr><td>Wind 七域分类，扩展公共/数据库工具</td><td>4.1、12</td><td>已统一</td><td>9 个工具源码已注册；3 个候选条件未满足</td></tr>
+<tr><td>三模块；语义为契约，规划/路由在查询服务内</td><td>11</td><td>已统一</td><td>已复用原模块接入；未增加执行服务</td></tr>
+<tr><td>同源本地覆盖、换源整段重算、权限不绕过</td><td>10.4、11.3</td><td>已定义</td><td>v2 泛化未实施</td></tr>
+<tr><td>交易日合并、源窗口分段、区分停牌与缺失</td><td>11.4、13</td><td>已定义</td><td>B1 已修正接入，Wind 已分段；证明沿原存储</td></tr>
+<tr><td>原始价/量额加版本化因子，读时复权</td><td>4.2.1、11.5</td><td>已定义</td><td>仅已验证来源可用，统一视图未实现</td></tr>
+<tr><td>工具参数、共享提交/status/分页链</td><td>4.2、12</td><td>K 线主线已细化，其余受限合同见各项</td><td>新工具及映射未实现</td></tr>
+<tr><td>Finance MCP 岗底斯正式行情绑定与主源评估</td><td>3、10.3–10.4、13.5</td><td>条件已明确</td><td>已增加原始日线 binding；有限样本核验，旧顺序不变</td></tr>
+<tr><td>复合行情 Skill</td><td>6、11.2</td><td>角色与依赖已定义</td><td>未编写，WeKnora 加载方式未验收</td></tr>
+<tr><td>WeKnora 授权与工具目录</td><td>4.3</td><td>保留原权限，按实现进度切换目录</td><td>9 个工具来自历史同步；本轮未实调</td></tr></tbody></table></div>
+<p>本轮核对覆盖全部 13 章；文档一致性检查不替代代码、供应商或 WeKnora 验收。</p>
+<h2 id="s-3">1. 结论先行</h2>
+<ol><li>问题不是&quot;底层没接&quot;，而是&quot;接了但没有按任务契约化&quot;。已有金融聚合入口通过 <code>ext_finance_mcp</code> 接入 DataHub；目录列出八家，但逐服务发现与契约化仍为 PARTIAL。</li><li>缺的是 vendor 到 RWB capability 的数据契约：字段映射、单位、日期语义、 PIT、分页、错误码和质量门。模型选业务工具；服务端依据已验证契约选源。</li><li>不应把 100+ 个厂商原生工具暴露给模型。WeKnora 只应看到少量任务级工具； capability 与 source 的固定在 RWB 服务端，模型只填业务参数。</li><li>底层契约优先于复合 Skill。首先完成 <code>market_bars</code> 与 <code>get_stock_kline</code> 的完整链路， 再扩展 <code>financials</code> 和 <code>search_announcements</code>；不要求三者同时完成才开放首个工具。</li><li>复合技能（如 <code>market_overview</code>）在底层工具稳定后再做；v1 规划最多 12 个业务工具， 按逐项验收注册，其中新闻检索、公告和用户数据库工具按条件启用。</li></ol>
+<p>架构入口：系统总览、 Research Web 分层阅读、 开发地图、数据源清单。</p>
+<h2 id="s-4">2. 现状：已接入的底层接口</h2>
+<h3 id="s-5">2.1 接入点</h3>
+<div class="table-wrap"><table><thead><tr><th>项</th><th>现状</th></tr></thead><tbody><tr><td>DataHub 源 ID</td><td><code>ext_finance_mcp</code></td></tr>
+<tr><td>上游地址</td><td><code>https://www.huaanifd.com/finance-data/mcp</code></td></tr>
+<tr><td>传输</td><td>MCP Streamable HTTP，无状态</td></tr>
+<tr><td>鉴权</td><td><code>Authorization: Bearer &lt;FINANCE_MCP_TOKEN&gt;</code></td></tr>
+<tr><td>凭据存储</td><td>DataHub 本机 OS 凭据库，单一客户端令牌</td></tr>
+<tr><td>RWB 适配器</td><td><code>app/research_web/datahub/providers_finance_mcp.py</code></td></tr>
+<tr><td>RWB capability</td><td><code>external_data</code></td></tr>
+<tr><td>网关工具</td><td><code>finance_sources</code>、<code>finance_list_tools</code>、<code>finance_call</code>、<code>alpha_query</code>、<code>gangtise_query</code></td></tr></tbody></table></div>
+<p>厂商 Key 与 Windows 中转令牌由上游管理。RWB 不保存、不向模型或快照返回。</p>
+<h3 id="s-6">2.2 八家厂商目录（2026-11-24 实测）</h3>
+<p>2026-11-24 用本机凭据实调 <code>finance_sources</code> 与 <code>finance_list_tools</code>，得到下表的 工具与操作清单。<code>windows_worker</code> 是配置状态，不是取数成功。</p>
+<div class="table-wrap"><table><thead><tr><th>厂商</th><th>服务数</th><th>代表性数据</th><th>主要工具 / 操作</th></tr></thead><tbody><tr><td>Alpha 派</td><td>1</td><td>投研观点、问答、个股 Agent、研报、图片</td><td><code>recall</code>、<code>qa</code>、<code>stock_agent</code>、<code>stock_report</code>、<code>search_image</code></td></tr>
+<tr><td>岗底斯</td><td>1</td><td>A/港/美股日 K 与分钟 K、实时行情、复权因子、三大报表、主营构成、估值、前十大股东、盈利预测、公告/研报/纪要/调研/路演/论坛/策略会、行业指标、题材、知识库</td><td><code>查询A股日K线</code>、<code>A股利润表（单季度）</code>、<code>查询A股公告列表</code> 等 59 个操作</td></tr>
+<tr><td>DM</td><td>15</td><td>债券分析/市场/一级、境外债、公司、基金、期货、外汇、指数、股票、衍生品、票据、宏观、货币市场、工具</td><td><code>equity_bars_data</code>、<code>index_bars</code>、<code>fx_market_data_bars</code>、<code>options_bars</code>、<code>edb_code_info</code>、<code>edb_indicator_data</code>、<code>get_trade_dates</code>、<code>bond_price_calculate</code></td></tr>
+<tr><td>财汇</td><td>1</td><td>企业筛选/档案/股权/财务经营、股票发行、债券登记发行承销、PEVC、租赁、应收、银行授信、担保、信用评级、诉讼、监管、知识产权、招投标；债券、货币利率、LGFV、宏观区域；新闻研报、公告、法规；基金；股票；指数；国债</td><td><code>query_enterprise_financial_and_operating_data</code>、<code>query_stock_trading_and_capital_flow</code>、<code>query_announcements</code>、<code>query_fund_nav_and_return</code>、<code>query_index_profile_and_components</code> 等 42 个工具</td></tr>
+<tr><td>携宁知丘</td><td>1</td><td>行情信息、文档详情、财务报表、一致预期、目标价评级展望、股票图谱、产品图谱</td><td><code>get_financial_statement</code>、<code>get_consensus_forecast</code>、<code>get_targetprice_ratingoutlook</code>、<code>get_stock_graph</code></td></tr>
+<tr><td>进门财经</td><td>1</td><td>股票标准化资料、会议/路演资料</td><td><code>get_stock_details</code>（文档示例）</td></tr>
+<tr><td>通联 Datayes</td><td>35</td><td>股票/基金/债券/指数/港股/期货/期权/因子/宏观/公告/研报</td><td><code>stock_info_get_data</code>、<code>macro_get_data</code>、<code>list_stock_annos</code>、<code>get_report_full_text</code> 等，统一 <code>*_get_info</code> / <code>*_get_data</code></td></tr>
+<tr><td>同花顺 iFinD</td><td>7</td><td>股票 11 工具、基金 9、宏观 2、新闻 3、债券 5、全球股票 5、指数 3</td><td><code>get_stock_performance</code>、<code>get_stock_financials</code>、<code>get_fund_portfolio</code>、<code>get_edb_data</code>、<code>search_news</code>、<code>global_stock_quotes</code>、<code>sector_data</code></td></tr></tbody></table></div>
+<p>目录发现失败项：DM 的 <code>bond-analysis</code>、<code>bond-market</code>、<code>bond-primary</code>、<code>company</code>、 <code>fund</code>、<code>futures</code> 与进门财经在本次调用中超时；通联 <code>datayes-data</code> 返回空列表。 这些发现结果记为失败/空列表，不记为成功；尚未覆盖的功能保持 NOT_RUN。通联另按 2.4 排除。</p>
+<h3 id="s-7">2.3 历史接入完成度（2026-11-23～25）</h3>
+<div class="table-wrap"><table><thead><tr><th>层</th><th>状态</th><th>证据与说明</th></tr></thead><tbody><tr><td>传输与鉴权</td><td>PASS</td><td>实调 <code>finance_sources</code> 返回 8 家</td></tr>
+<tr><td>工具发现</td><td>PARTIAL</td><td>8 家主体已返回；DM 6 个服务、进门财经、通联 <code>datayes-data</code> 超时或空</td></tr>
+<tr><td>结构化投影</td><td>PARTIAL</td><td>仅岗底斯 <code>fieldList</code>/<code>list</code> 转为行对象；其余保留 <code>provider_payload</code></td></tr>
+<tr><td>字段与单位</td><td>NOT_RUN</td><td>多数厂商 <code>units_not_verified</code></td></tr>
+<tr><td>日期与 PIT</td><td>NOT_RUN</td><td><code>historical_pit_not_verified</code></td></tr>
+<tr><td>质量门</td><td>PARTIAL</td><td><code>quality_accepted</code> 仅对目录调用与岗底斯结构化行成立</td></tr>
+<tr><td>真实取数</td><td>PARTIAL</td><td>历史记录含岗底斯短区间与一年期、DM 一年期、iFinD 样例；后两者有延迟/非交易日行限制。本轮未重跑</td></tr>
+<tr><td>平台归属</td><td>PARTIAL</td><td><code>windows_worker</code> 是上游执行位置标注；Mac 请求已有部分成功记录，不等于厂商在 Mac 原生运行或八家全验收</td></tr>
+<tr><td>WeKnora 接入</td><td>历史确认</td><td>2026-11-25 08:46 同步记录为 9 个工具；本轮未重验 token，任务工具尚未注册</td></tr></tbody></table></div>
+<h3 id="s-8">2.4 已知问题</h3>
+<ol><li>多数工具使用自然语言入参，例如 iFinD <code>get_stock_performance({query:&quot;...&quot;})</code>。 RWB 必须用结构化参数拼出确定性 query，不能把模型原话直接透传。</li><li>通联两次调用均返回 <code>INSUFFICIENT_CREDITS</code>（实测 2026-11-24，600519 与 000001 各一次）。<strong>用户已决定 v1 排除通联</strong>，不进入任何路由候选；恢复条件是重新购买 额度，并通过一次真实 K 线取数验收。</li><li>不同厂商同一指标的口径、单位、复权和日期语义未对齐。</li><li>该 MCP 不提供 PIT 证明；正式回测和历史时点研究不能直接采用。</li><li>岗底斯操作名为中文，参数键为 camelCase；其他厂商用英文工具名和不同参数风格。 契约层必须逐厂商适配，不能假设同构。</li></ol>
+<h2 id="s-9">3. Capability 到厂商的映射（提议，待契约验证）</h2>
+<p>只覆盖 12 个候选业务工具实际需要的 capability，不做全量规范化。</p>
+<div class="table-wrap"><table><thead><tr><th>RWB capability</th><th>主源候选</th><th>备选</th><th>当前可调用源</th><th>结构化程度</th></tr></thead><tbody><tr><td><code>market_bars</code></td><td>岗底斯 <code>查询A股日K线</code></td><td>iFinD <code>get_stock_performance</code>、DM <code>equity_bars_data</code>、Wind、天软</td><td>天软、Wind、AKShare、BaoStock</td><td>高（岗底斯）/ 中</td></tr>
+<tr><td><code>market_snapshot</code></td><td>岗底斯 <code>查询个股实时行情</code></td><td>iFinD <code>stock_highfreq_quotes</code>、DM <code>equity_bars_data</code></td><td>天软、Wind、AKShare</td><td>高 / 中</td></tr>
+<tr><td><code>index_data</code></td><td>先核验指数单时点报价</td><td>岗底斯/DM/iFinD 的报价；历史 K 线另立契约</td><td>Wind（单日 quotes）</td><td>按数据形状分别验证</td></tr>
+<tr><td><code>trading_calendar</code></td><td>DM <code>get_trade_dates</code></td><td>天软、AKShare、BaoStock</td><td>天软、AKShare、BaoStock</td><td>高</td></tr>
+<tr><td><code>financials</code></td><td>岗底斯三大报表</td><td>携宁 <code>get_financial_statement</code>、iFinD <code>get_stock_financials</code>、财汇企业财务</td><td>天软、Wind、AKShare、BaoStock</td><td>高 / 中</td></tr>
+<tr><td><code>market_activity</code></td><td>岗底斯股东/估值/主营</td><td>财汇股权/质押/诉讼、iFinD</td><td>天软、Wind、AKShare</td><td>高 / 中</td></tr>
+<tr><td><code>fund_data</code></td><td>iFinD 基金工具</td><td>财汇基金工具、东方财富</td><td>东方财富</td><td>中</td></tr>
+<tr><td><code>search_assets</code></td><td>天软 <code>stock_list</code></td><td>iFinD <code>search_stocks</code>、<code>search_funds</code></td><td>天软、AKShare、BaoStock</td><td>高</td></tr>
+<tr><td><code>factor_macro</code></td><td>DM <code>edb_indicator_data</code></td><td>iFinD <code>get_edb_data</code>、财汇宏观</td><td>天软、AKShare；BEA Archive 为其他系列，不等于四个中国系列都支持</td><td>高 / 中</td></tr>
+<tr><td><code>search_news</code></td><td>iFinD <code>search_news</code></td><td>财汇新闻；trending/财联社最新流不等于关键词检索</td><td>财联社仅最新流，不满足本工具合同</td><td>待检索契约验证</td></tr>
+<tr><td><code>search_announcements</code></td><td>岗底斯 <code>查询A股公告列表</code></td><td>iFinD <code>search_notice</code>、财汇 <code>query_announcements</code></td><td><strong>无</strong>（需 P1 接入）</td><td>高</td></tr>
+<tr><td><code>table_query</code></td><td>用户 MySQL</td><td>无</td><td><strong>无</strong>（需配置）</td><td>高</td></tr></tbody></table></div>
+<p>不在 v1、但 catalog 已登记的能力：<code>search_research</code>、<code>search_web</code>、 <code>database_schema</code>、<code>external_data</code>。前三个无可用源；<code>external_data</code> 是已登记外部端点的通用入口，形态与业务工具不同。目标切换后 只保留于诊断通道；当前 raw 工具仍按原账号目录可见，不能把目标行为写成已上线。</p>
+<p>选源规则：RWB Broker 按 binding priority 选第一个 ready 源；不跨源拼接同一指标； 现行底层请求的 fallback 行为按原合同；v2 自动业务工具的替代来源策略见 10.4，尚未实施。</p>
+<h2 id="s-10">4. 技能层设计</h2>
+<h3 id="s-11">4.1 工具面</h3>
+<p>按 Wind 的七个业务域组织工具目录，不再使用“行情与交易 / 公司与基金 / 宏观与资讯”的混合分组。 域决定工具放在哪里；<code>get_*</code> / <code>search_*</code> 只是命名约定，不是 Wind 的域分类。 七域是目录分类，v1 继续使用一个 MCP 端点，不创建七套服务。</p>
+<div class="table-wrap"><table><thead><tr><th>业务域</th><th>中文</th><th>本版范围</th></tr></thead><tbody><tr><td><code>stock_data</code></td><td>股票数据</td><td>股票 K 线、快照、财务、交易与股东活动</td></tr>
+<tr><td><code>fund_data</code></td><td>基金数据</td><td>基金净值、档案、分红、披露持仓</td></tr>
+<tr><td><code>index_data</code></td><td>指数与板块数据</td><td>当前先提供指数单时点快照</td></tr>
+<tr><td><code>bond_data</code></td><td>债券数据</td><td>保留域，尚未定义可交付工具</td></tr>
+<tr><td><code>financial_docs</code></td><td>公告、新闻与研究文档</td><td>新闻检索、公司公告；均需契约验收后启用</td></tr>
+<tr><td><code>economic_data</code></td><td>宏观与行业数据</td><td>当前先提供四个中国宏观系列</td></tr>
+<tr><td><code>analytics_data</code></td><td>通用结构化取数</td><td>保留域，本版不开放自然语言通用取数兜底</td></tr></tbody></table></div>
+<p>本版仍为 12 个候选工具：金融业务域内 9 个、跨域公共工具 2 个、RWB 数据库扩展 1 个。 下表均是待实现的工具设计，不表示已出现在 WeKnora；不带 <code>rwb_</code> 前缀。 所有提交工具沿用 <code>request_id</code> 幂等合同。内部 capability 映射见 4.1.1，不作为业务域分类。</p>
+<h4 id="s-12">1. stock_data · 股票数据</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_stock_kline</code></td><td>单只沪深 A 股日 K：开高低收、真实成交量额；复权分源验收</td><td><code>asset</code>、<code>start_date</code>、<code>end_date</code>、<code>frequency=daily</code>、<code>adjustment=none</code></td><td>优先实现</td></tr>
+<tr><td><code>get_stock_quote</code></td><td>1–20 只 A 股最新行情快照：价格、涨跌幅、量额</td><td><code>assets</code>、<code>fields?</code></td><td>待实现</td></tr>
+<tr><td><code>get_stock_financials</code></td><td>单只 A 股财务摘要、利润表、盈利指标、现金流指标</td><td><code>asset</code>、<code>dataset</code>、<code>periods?</code></td><td>待实现</td></tr>
+<tr><td><code>get_stock_activity</code></td><td>个股资金流、融资融券、股东户数、前十名股东；大宗/筹码待后续</td><td><code>asset</code>、<code>dataset</code>、<code>start_date?</code>、<code>end_date?</code></td><td>待实现</td></tr></tbody></table></div>
+<h4 id="s-13">2. fund_data · 基金数据</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_fund_detail</code></td><td>基金净值、基本档案、分红或已披露持仓</td><td><code>code</code>、<code>dataset</code>、<code>start_date?</code>、<code>end_date?</code>、<code>year?</code>、<code>limit?</code></td><td>待实现</td></tr></tbody></table></div>
+<h4 id="s-14">3. index_data · 指数与板块数据</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_index_quote</code></td><td>指数单时点行情；不代表已支持指数历史 K 线或板块排名</td><td><code>index</code>（最新快照）</td><td>待实现</td></tr></tbody></table></div>
+<h4 id="s-15">4. bond_data · 债券数据</h4>
+<p>当前无已定义并验收的债券业务工具，不注册占位工具。供应商债券目录存在不等于 RWB 已支持。</p>
+<h4 id="s-16">5. financial_docs · 公告、新闻与研究文档</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>search_news</code></td><td>按关键词与日期检索财经新闻；最新 N 条过滤不满足本合同</td><td><code>query</code>、<code>limit?</code>、<code>start_date?</code>、<code>end_date?</code></td><td>条件启用</td></tr>
+<tr><td><code>search_announcements</code></td><td>按公司与日期查询公告，返回标题、披露时间与可核实链接</td><td><code>asset</code>、<code>query?</code>、<code>start_date?</code>、<code>end_date?</code></td><td>条件启用</td></tr></tbody></table></div>
+<h4 id="s-17">6. economic_data · 宏观与行业数据</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>get_economic_series</code></td><td>中国 CPI 当月同比、GDP 累计同比、制造业 PMI、M2 同比</td><td><code>series</code>、<code>start_date</code>、<code>end_date</code></td><td>待实现</td></tr></tbody></table></div>
+<h4 id="s-18">7. analytics_data · 通用结构化取数</h4>
+<p>保留分类但不注册通用取数工具；复杂行情请求继续拆成专项工具，不通过自然语言兜底绕过契约。</p>
+<h4 id="s-19">跨域公共工具（RWB 扩展，不是第八个金融域）</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>search_assets</code></td><td>按名称或代码查A股身份；当前基金/指数检索未开放</td><td><code>query</code>、<code>asset_type?</code>、<code>market?</code>、<code>limit?</code></td><td>待实现</td></tr>
+<tr><td><code>get_trading_calendar</code></td><td>查询市场开市与休市日期，为各金融域共用</td><td><code>market</code>、<code>start_date</code>、<code>end_date</code></td><td>待实现</td></tr></tbody></table></div>
+<h4 id="s-20">用户数据库工具（RWB 扩展）</h4>
+<div class="table-wrap"><table><thead><tr><th>工具</th><th>中文说明</th><th>业务输入</th><th>状态</th></tr></thead><tbody><tr><td><code>query_user_table</code></td><td>对已配置 MySQL 执行参数化只读单表查询</td><td><code>database</code>、<code>table</code>、<code>columns</code>、<code>filters?</code>、<code>order_by?</code>、<code>offset?</code>、<code>limit?</code></td><td>条件启用</td></tr></tbody></table></div>
+<p>数据库未配置时不注册 <code>query_user_table</code>；域目录和工具说明不改变实际权限。</p>
+<h4 id="s-21">条件启用与暂不规划的能力</h4>
+<p>下表区分接口未适配、账号未配置和暂不规划；出现在候选设计中不表示当前会注册。</p>
+<div class="table-wrap"><table><thead><tr><th>capability</th><th>缺什么</th></tr></thead><tbody><tr><td><code>search_announcements</code></td><td>无已实现绑定；岗底斯/iFinD 公告接口尚未接入 DataHub</td></tr>
+<tr><td><code>search_research</code></td><td>无已实现绑定；研报/纪要需要 Alpha 派或岗底斯先做结构化投影</td></tr>
+<tr><td><code>search_web</code></td><td>无已配置搜索供应商（Tavily/Bing 均 disabled）</td></tr>
+<tr><td><code>database_schema</code></td><td>本机未配置 MySQL</td></tr>
+<tr><td><code>table_query</code></td><td>同上</td></tr></tbody></table></div>
+<p><code>search_announcements</code> 仍列入 v1 工具面是<strong>有条件</strong>的：P1 期间若岗底斯公告 接口契约验证通过则启用，否则工具不注册，文档与 WeKnora 目录同步标注 <code>NOT_RUN</code>。新闻检索同样须满足 12 节合同；不把最新流当成已实现关键词检索。</p>
+<p>现有 4 + 3 个工具名保持不变，避免破坏 WeKnora 已同步目录与 tool approvals。</p>
+<h3 id="s-22">4.1.1 固定 capability 是什么</h3>
+<p><strong>capability 是业务工具内部固定的数据标识，不是新增执行层。模型调用这些业务工具时不填写它。</strong> 原 raw 工具仍接收显式 capability；它与本节业务工具的入参不同。</p>
+<div class="table-wrap"><table><thead><tr><th>对外工具</th><th>内部 capability</th></tr></thead><tbody><tr><td><code>get_stock_kline</code></td><td><code>market_bars</code></td></tr>
+<tr><td><code>get_stock_quote</code></td><td><code>market_snapshot</code></td></tr>
+<tr><td><code>get_stock_financials</code></td><td><code>financials</code></td></tr>
+<tr><td><code>get_stock_activity</code></td><td><code>market_activity</code></td></tr>
+<tr><td><code>get_fund_detail</code></td><td><code>fund_data</code></td></tr>
+<tr><td><code>get_index_quote</code></td><td><code>index_data</code></td></tr>
+<tr><td><code>search_news</code></td><td><code>search_news</code></td></tr>
+<tr><td><code>search_announcements</code></td><td><code>search_announcements</code></td></tr>
+<tr><td><code>get_economic_series</code></td><td><code>factor_macro</code></td></tr>
+<tr><td><code>search_assets</code></td><td><code>search_assets</code></td></tr>
+<tr><td><code>get_trading_calendar</code></td><td><code>trading_calendar</code></td></tr>
+<tr><td><code>query_user_table</code></td><td><code>table_query</code></td></tr></tbody></table></div>
+<p>同名不代表同层：<code>fund_data</code> 业务域包含基金工具，内部 <code>fund_data</code> 则是现有请求枚举。</p>
+<p>调用链是单向固定的：</p>
+<pre><code>模型选择工具           服务端固定映射             内部执行
+get_stock_kline   →   capability = market_bars   →   Broker 按 binding 选源</code></pre>
+<p>具体含义：</p>
+<div class="table-wrap"><table><thead><tr><th>问题</th><th>答案</th></tr></thead><tbody><tr><td>模型需要传 capability 吗</td><td>不需要，也不能传；工具名已经决定了 capability</td></tr>
+<tr><td>模型能改 capability 吗</td><td>不能；映射写死在服务端注册表里</td></tr>
+<tr><td>capability 用在哪</td><td>catalog 能力目录、broker 选源、binding 表、快照 manifest、测试断言</td></tr>
+<tr><td>改了工具名会影响 capability 吗</td><td>不会；两者独立，只改对外工具名</td></tr>
+<tr><td>为什么要两层</td><td>对外名字可读、可演进；内部 capability 稳定，历史快照和回归不受影响</td></tr></tbody></table></div>
+<p><strong><code>market_bars</code> 保留吗？保留。</strong> 它只是不再作为对外工具名：</p>
+<div class="table-wrap"><table><thead><tr><th>层</th><th>名称</th><th>是否对外</th></tr></thead><tbody><tr><td>工具名</td><td><code>get_stock_kline</code></td><td>是，模型看得到</td></tr>
+<tr><td>capability</td><td><code>market_bars</code></td><td>否，只在服务端与 manifest 中出现</td></tr></tbody></table></div>
+<p>保留历史快照里的 <code>capability: &quot;market_bars&quot;</code> 与现有枚举；注册业务工具仍需实现 服务端映射、查询服务接入和必要适配，不是只改工具名就能完成。</p>
+<p>一句话：<strong>工具名是给模型看的，capability 是给服务端用的。</strong></p>
+<h3 id="s-23">4.1.2 命名约定</h3>
+<p>参考 Wind 的业务域和明确工具名。资产工具在名称中体现资产类型，跨域工具例外； 这是可读性约定，不是单 MCP 端点强制要求。</p>
+<div class="table-wrap"><table><thead><tr><th>动作</th><th>模式</th><th>示例</th></tr></thead><tbody><tr><td>取确定性数据</td><td><code>get_&lt;资产&gt;_&lt;形状&gt;</code></td><td><code>get_stock_kline</code>、<code>get_stock_quote</code>、<code>get_stock_financials</code></td></tr>
+<tr><td>取目录/基础信息</td><td><code>get_&lt;对象&gt;_&lt;类型&gt;</code></td><td><code>get_fund_detail</code>、<code>get_economic_series</code>、<code>get_trading_calendar</code></td></tr>
+<tr><td>检索</td><td><code>search_&lt;对象&gt;</code></td><td><code>search_news</code></td></tr></tbody></table></div>
+<p>与内部 capability 的关系：</p>
+<ul>
+<li><strong>对外工具名</strong>可以改；<strong>内部 capability 名不变</strong>（<code>market_bars</code>、<code>market_snapshot</code>、</li>
+</ul>
+<p>  <code>financials</code>、<code>fund_data</code>、<code>factor_macro</code>、<code>search_news</code>、<code>trading_calendar</code>）。</p>
+<ul>
+<li>capability 名出现在 catalog、broker、binding、测试和快照 manifest 中；改名收益低、</li>
+</ul>
+<p>  回归面大，不在本批范围。</p>
+<ul>
+<li>工具名与 capability 的映射固定在服务端，模型不能传 capability。</li>
+</ul>
+<p>为什么 <code>market_bars</code> 不适合做工具名：</p>
+<ul>
+<li><code>market</code> 太泛，可以读成全市场、大盘或板块；</li>
+<li><code>bars</code> 是图表术语，中文语境说“K 线”；</li>
+<li>不含资产类型，股票、ETF、指数边界不清；</li>
+<li>与 <code>market_snapshot</code>、<code>index_data</code> 的差异从名字看不出来。</li>
+</ul>
+<p>接受 <code>get_stock_kline</code> 把“股票”写死的代价：v1 只支持 A 股，名字准确优先； 将来支持 ETF 时新增 <code>get_etf_kline</code>，而不是让模型猜 <code>asset_type</code>。</p>
+<h3 id="s-24">4.1.3 与 Wind / iFinD 的对照依据</h3>
+<p>12 个候选工具参考上游既有工具或服务，但不强求一对一等价：</p>
+<div class="table-wrap"><table><thead><tr><th>RWB 工具</th><th>Wind 官方对应</th><th>iFinD（经 finance MCP）对应</th><th>切分理由</th></tr></thead><tbody><tr><td><code>get_stock_kline</code></td><td><code>get_stock_kline</code></td><td><code>get_stock_performance</code></td><td>同属 K 线需求；Finance MCP 的 NL 参数必须适配，不能假设与原生 API 同构</td></tr>
+<tr><td><code>get_stock_quote</code></td><td><code>get_stock_price_indicators</code></td><td><code>stock_highfreq_quotes</code>（real_time）</td><td>同为单时点快照</td></tr>
+<tr><td><code>get_index_quote</code></td><td><code>get_index_price_indicators</code></td><td><code>index_data</code></td><td>指数与个股分开，避免 ETF/指数混用股票端点</td></tr>
+<tr><td><code>get_trading_calendar</code></td><td>本地 MCP Skill 未列独立工具，不代表原生 Wind API 无日历函数</td><td>无；DM 的 <code>get_trade_dates</code> 属另一厂商</td><td>缺口计算的前置依赖，必须独立</td></tr>
+<tr><td><code>get_stock_financials</code></td><td><code>get_stock_fundamentals</code></td><td><code>get_stock_financials</code></td><td>三表与指标同属财务域</td></tr>
+<tr><td><code>get_stock_activity</code></td><td><code>get_stock_equity_holders</code> + 事件类 NL 工具</td><td>股东/事件/资金流分散在多个服务</td><td>RWB 合并为一个「个股活动」入口，用 <code>dataset</code> 区分</td></tr>
+<tr><td><code>get_fund_detail</code></td><td><code>get_fund_info</code> + <code>get_fund_holdings</code> + <code>get_fund_performance</code></td><td>基金 9 个工具</td><td>同理合并，<code>dataset</code> 区分</td></tr>
+<tr><td><code>search_assets</code></td><td>无直接等价；<code>search_stocks/search_funds</code> 是条件筛选</td><td>原生 API 证券身份搜索更接近；聚合 MCP 另核</td><td>身份解析与条件选股分开</td></tr>
+<tr><td><code>get_economic_series</code></td><td><code>get_economic_data</code></td><td><code>get_edb_data</code></td><td>宏观 EDB 一一对应</td></tr>
+<tr><td><code>search_news</code></td><td><code>get_financial_news</code></td><td><code>search_news</code> / <code>search_trending_news</code></td><td>同属资讯检索</td></tr>
+<tr><td><code>search_announcements</code></td><td><code>get_company_announcements</code></td><td><code>search_notice</code></td><td>同属公告检索</td></tr>
+<tr><td><code>query_user_table</code></td><td>无（不在 Wind 范围）</td><td>无</td><td>RWB 特有的用户数据库只读入口</td></tr></tbody></table></div>
+<p>有意<strong>不照搬</strong> Wind 的地方：</p>
+<ol><li><strong>不拆 <code>get_stock_price_indicators</code></strong>。Wind 把它做成「<code>windcode</code> + <code>indexes</code> 白名单」， 需要维护一份中文指标表；RWB 用 <code>fields?</code> 收窄，字段集合由服务端契约控制， 避免模型接触 200+ 指标名。</li><li><strong>不保留 <code>analytics_data</code> 通用兜底</strong>。Wind 有自然语言兜底入口，但 RWB 的 12 个工具都是结构化参数；开放 NL 兜底会让「选源 + 选字段」重新回到模型手里， 与本设计目标相反。需要新数据形态时，按新增 capability 走一遍契约，不开口子。</li><li><strong>分类与部署独立</strong>。参考 Wind 七域组织工具说明；RWB v1 保留单 MCP 端点与原 OAuth。 没有证据证明 Wind 的域划分由账号网关决定，撤回此前推断。域是业务目录， 不是内部 capability，也不要求对应独立进程。</li><li><strong>合并 NL 域工具</strong>。Wind 的股东、事件等工具使用 NL 参数；RWB 先以明确的 <code>dataset</code> 枚举 覆盖已实现的子集。风险指标等未定义功能不因合并命名而自动获得支持。</li></ol>
+<p>CN 宏观的来源补充：iFinD <code>edb</code> 服务提供 <code>search_edb</code> + <code>get_edb_data</code> 两步式取数 （先找指标 ID、再取值）。RWB 的 <code>get_economic_series</code> 先用固定的四个系列 （<code>cn_cpi</code>/<code>cn_gdp</code>/<code>cn_pmi</code>/<code>cn_m2</code>）收敛范围，指标 ID 映射留在服务端； 将来扩到任意 EDB 指标时，再按 iFinD 的两步式增加 <code>search_economic_series</code>。</p>
+<h3 id="s-25">4.2 行为约定</h3>
+<ul>
+<li>业务工具固定映射到内部 <code>BusinessQuery</code>，模型不传 <code>capability</code> 或 <code>source</code>。</li>
+</ul>
+<p>  查询服务在既有账号权限内按第 11 节选源；对单个候选执行时绑定明确来源、 <code>allow_fallback=false</code>，由查询服务统一控制是否转下一候选。</p>
+<ul>
+<li>复用原提交结果，查询标识保留 <code>id</code>；调用 <code>rwb_datahub_status(query_id=返回的 id)</code>。</li>
+</ul>
+<p>  状态、source、dataset 等以原返回结构为准，不凭设计示例新增 query_id 别名。</p>
+<ul>
+<li>rows 由现有 <code>rwb_datahub_status</code> 分页读取，保留 manifest、SHA、单位、缺失和 <code>as_of</code>。</li>
+<li><code>asset</code> 业务参数仅接受规范代码。名称与裸代码先走 <code>search_assets</code>，由调用方选择唯一候选；</li>
+</ul>
+<p>  不声称所有供应商都能直接解析中文名。股票工具由服务端补 <code>asset_type=stock</code>。</p>
+<ul>
+<li><code>get_stock_financials</code> 的 <code>dataset</code> 映射：<code>summary</code> 不传 statements；<code>income_statement</code> 走 AKShare；</li>
+</ul>
+<p>  <code>profitability</code>/<code>cash_flow</code> 走 BaoStock，沿用既有语义过滤。</p>
+<ul>
+<li>美国宏观继续使用 <code>rwb_datahub_query</code>（FRED/BLS）；<code>get_economic_series</code> 只覆盖中国宏观。</li>
+</ul>
+<h3 id="s-26">4.2.1 复权口径</h3>
+<div class="table-wrap"><table><thead><tr><th>口径</th><th>中文</th><th>v2 定义</th></tr></thead><tbody><tr><td><code>none</code></td><td>不复权</td><td>当日真实成交价格；历史更正仍可能改变源返回值</td></tr>
+<tr><td><code>qfq</code></td><td>前复权</td><td>按明确的复权基准日缩放价格；基准变化可能改变历史价格水平</td></tr>
+<tr><td><code>hfq</code></td><td>后复权</td><td>按明确的起始基准缩放价格；因子修订仍可能改变历史值</td></tr></tbody></table></div>
+<p>RWB 统一契约：价格按所选口径输出，<code>volume</code> 和 <code>turnover</code> 保留真实成交量额。 这是 RWB 的产品约定，不是所有供应商的默认行为。RQData 明确存在调整成交量的 选项；供应商返回复权量时，需独立取原始量并验证，不能直接换字段名后声称等价。</p>
+<p>后续复权设计（当前业务工具不接受）：可选 <code>adjustment_base_date</code>：仅 <code>qfq</code> 可传，默认有效窗口末个已完成交易日。 <code>hfq</code> 使用该源经核验的起始/上市基准，manifest 写明；<code>none/hfq</code> 带该参数时拒绝， 不把自定义锚点静默称为标准后复权。显式基准日需为已完成交易日且不早于有效窗口结束日；不得晚于当前可获得因子的日期。 只表示复权锚点，不表示历史可知时点；<code>as_of</code> 仍专指 PIT。无能力支持该锚点的源 应退出候选，不能悄悄换成今天。manifest 记录基准日、因子来源与版本、公式版本。</p>
+<p>相同原始价、因子序列和模型下，前后复权仅相差常数，区间收益率相同；不能推广为 跨供应商、跨复权模型必然等价。固定快照及因子版本可复现 <code>qfq</code> 与 <code>hfq</code>， 不再声称“前复权不能冻结”或“后复权历史永不变化”。</p>
+<p>岗底斯 <code>adjustFactor</code> 的方向与模型仍待除权样本验证。普通历史查询没有 PIT 证明时， 不能作为历史时点已知数据；不因此禁止其用于当前历史走势展示。</p>
+<h3 id="s-27">4.3 可见性</h3>
+<p>以下为目标行为，当前两个 raw 工具仍在历史同步清单中。新业务工具通过真实调用验收后 再切换 WeKnora 的 raw 可见性；不先隐藏尚无替代入口的工具。</p>
+<ul>
+<li>WeKnora 的 <code>rwb_datahub_catalog</code> 与 <code>rwb_datahub_business_query</code> 保留代码，</li>
+</ul>
+<p>  但对 <code>rwb-weknora</code> 客户端隐藏并拒绝调用（列表与 <code>tools/call</code> 两处过滤）。</p>
+<ul>
+<li>RWB 浏览器 API 与运维仍可查 catalog，用于诊断。</li>
+<li>技能工具由 <code>rwb.data.configured</code> 控制；不新增 scope 名称。</li>
+</ul>
+<p><strong>工具总数变化（容易混淆，单独列出）：</strong></p>
+<div class="table-wrap"><table><thead><tr><th>阶段</th><th>冻结读取</th><th>FRED/BLS</th><th>raw 诊断</th><th>12 个任务工具</th><th>合计</th><th>实测</th></tr></thead><tbody><tr><td>重授权前</td><td>4</td><td>3</td><td>0（无 configured scope）</td><td>0</td><td><strong>7</strong></td><td>2026-11-23 确认</td></tr>
+<tr><td>重授权后（历史同步）</td><td>4</td><td>3</td><td>2（catalog + business_query）</td><td>0</td><td><strong>9</strong></td><td>2026-11-25 08:46 同步确认</td></tr>
+<tr><td>全部候选工具完成后</td><td>4</td><td>3</td><td>0（对 WeKnora 隐藏）</td><td>最多 12</td><td><strong>最多 19</strong></td><td>未实施；按条件实际注册</td></tr></tbody></table></div>
+<p>注意：<strong>重授权本身只增加 2 个 raw 工具，不会出现 12 个任务工具。</strong> 首个 K 线工具在 Phase 1 实现，其余候选在 Phase 2 逐项实现后才会出现； 届时再按本节把 raw 两个隐藏；实际数量由已通过契约验收的工具决定，不承诺固定 19 个。</p>
+<h3 id="s-28">4.4 错误码</h3>
+<p><code>skill_parameter_invalid</code>、<code>skill_asset_not_found</code>、<code>skill_asset_ambiguous</code>、 <code>skill_source_unavailable</code>（附 attempts）、<code>request_id_conflict</code>，以及既有 <code>data_not_equivalent</code>、<code>data_query_failed</code>。</p>
+<h2 id="s-29">5. 主流做法参照</h2>
+<h3 id="s-30">5.1 证据范围与设计取舍</h3>
+<p>本轮核对项目 Wind MCP Skill、已安装 iFinD API Skill 与下列官方文档。 公开接口能证明调用契约，不能证明厂商内部的采集、清洗、主备切换机制。 金融聚合 MCP 的封装限制也不能推导为原厂 API 限制。</p>
+<div class="table-wrap"><table><thead><tr><th>参照</th><th>公开设计</th><th>RWB 采用什么</th></tr></thead><tbody><tr><td>Wind MCP（项目本地 Skill 版本）</td><td>七业务域；行情结构化、领域 NL、文档检索并存</td><td>按金融域组织目录；对外工具名称明确；不照搬全部 NL 入参</td></tr>
+<tr><td>iFinD 原生 API 与 Skill</td><td>BD/DS/HQ/RQ/HF/EDB 等函数；证券、指标、参数字典；Skill 指导选择与核验</td><td>开发时查指标并固化契约；生产只执行已确认映射</td></tr>
+<tr><td>RQData</td><td>通用 <code>get_price</code>；单/多标的；显式复权、停牌选项</td><td>统一行情形状；明确停牌与成交量语义</td></tr>
+<tr><td>Tushare</td><td>基础接口与 SDK <code>pro_bar</code> 组合；复权锚点与 end_date 有关</td><td>业务工具可以组合数据与确定性计算，不必一对一包装供应商 API</td></tr>
+<tr><td>OpenBB</td><td>QueryParams/Data 模型；供应商 Fetcher 的参数翻译、取数、结果转换</td><td>公共契约与供应商适配分开，保留无法等价的差异</td></tr></tbody></table></div>
+<p>Wind 本地契约中 <code>get_stock_quote</code> 是分钟行情，快照用 <code>get_stock_price_indicators</code>； RWB 的 <code>get_stock_quote</code> 明确定义为最新快照，两者不是同名同义。 Wind <code>index_data.get_index_kline</code> 在其本地 Skill 中存在，但 RWB 当前接入的 Wind Excel <code>index_data</code> binding 只有单日快照；不可把后者限制写成 Wind 全产品限制。</p>
+<h3 id="s-31">5.2 可复核参考</h3>
+<ul>
+<li>Wind 本地 Skill 与</li>
+</ul>
+<p>  工具契约：本地版本，未在线刷新清单。</p>
+<ul>
+<li><a href="https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/quantapi-web/" rel="noreferrer">iFinD API</a> 与</li>
+</ul>
+<p>  <a href="https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/quantapi-web/ai-skill.html" rel="noreferrer">官方 Skill</a>。</p>
+<ul>
+<li><a href="https://www.ricequant.com/doc/rqdata/python/generic-api" rel="noreferrer">RQData 通用 API</a>。</li>
+<li><a href="https://tushare.pro/document/2?doc_id=109" rel="noreferrer">Tushare pro_bar</a>。</li>
+<li><a href="https://docs.openbb.co/odp/python/concepts/architecture" rel="noreferrer">OpenBB 架构</a> 与</li>
+</ul>
+<p>  <a href="https://docs.openbb.co/odp/python/developer/standardization" rel="noreferrer">标准化契约</a>。</p>
+<p>iFinD 原生 Skill 列有 <code>THS_ReportQuery</code> 公告列表与下载链接；第 12 节对 <code>search_notice</code> 文本片段的评价仅针对已测试的金融 MCP 封装路径。</p>
+<h2 id="s-32">6. 实施阶段</h2>
+<p>第 13 节定义具体代码步骤，本节定义交付批次，两者采用同一顺序。</p>
+<h3 id="s-33">Phase 0：设计对齐</h3>
+<p>本版完成七域、三模块、同源覆盖、复权与调用契约说明。B1 是未接入的原型， 有已知缺陷；文档通过不代表 B1 已修复。</p>
+<h3 id="s-34">Phase 1：首条 K 线链路</h3>
+<p>按 B1 修正 → B2 保持原行为接入 → B3 同源泛化与窗口分段 → B4 K 线工具映射 → B5 摘要的顺序，先以既有适用来源完成不复权 K 线。本批不要求财务、公告先完成。 复用原 OAuth、查询提交、status、分页、快照与仓库；不另造任务/状态服务。</p>
+<h3 id="s-35">Phase 2：供应商契约与工具逐项扩展</h3>
+<p>岗底斯正式 K 线 binding 完成单位、日期、分页、错误与缺口验证后再进入候选； 复权单独验收。随后逐项接财务、公告及其他候选工具，保持第 4.1 与第 12 节同步。 服务端共有逻辑复用 backend，不把 <code>configured_query()</code> 直接用于 auto：它当前要求显式来源。 不为每个阶段强制新增固定名称函数；实现选最小必要改动。</p>
+<h3 id="s-36">Phase 3：WeKnora 工具验收与切换</h3>
+<p>首个业务工具即可独立刷新 metadata、完成真实调用和分页读取验收，不等 12 个全齐。 configured scope 来自历史重授权；无权限变化时不重复要求授权。 业务工具覆盖目标场景并通过后，再按 4.3 切换 raw 工具的可见性。</p>
+<h3 id="s-37">Phase 4：复合行情 Skill</h3>
+<p>底层具备所需数据后实现“今日市场行情”工作流；先确认 WeKnora 的 Skill/Workflow 加载或调用入口。固定查询段落、数据时点和缺项说明，复用已交付工具。 缺少板块排名或市场宽度时显示覆盖不足，不用网页片段补造成实时市场统计。</p>
+<h2 id="s-38">7. 验收与证据</h2>
+<div class="table-wrap"><table><thead><tr><th>层级</th><th>判据</th></tr></thead><tbody><tr><td>契约 fixture</td><td>结构、单位、日期、缺失、错误码全部断言</td></tr>
+<tr><td>真实取数</td><td>正常交易日样本非空；休市/停牌样本以日历或证明解释空结果，记录来源与快照</td></tr>
+<tr><td>任务工具</td><td>执行完成且 data_success、所需字段、单位、覆盖/证明与分页分别满足合同</td></tr>
+<tr><td>WeKnora</td><td>本批业务工具可发现、可调用、可分页读取；raw 隐藏只在 4.3 切换阶段验收</td></tr>
+<tr><td>失败</td><td>稳定错误码与 attempts，不伪造 rows</td></tr></tbody></table></div>
+<p>历史实测证据目录：<code>/Volumes/WorkDisk/Data/RWB/acceptance-20261124-mcp-skills/</code>（本轮未复读或重跑）。 本轮只做文档检查，结果写入原任务报告，不冒充新的供应商实测证据。</p>
+<h2 id="s-39">8. 已定与待核实</h2>
+<p>已定：对外不加 <code>rwb_</code>；内部 <code>market_bars</code> 等枚举保持兼容；工具先做 K 线完整链路； 通联排除；同一序列不跨源拼接；文档按金融域组织，单 MCP 端点部署； 不新增语义服务、数据库或调度器。Skill 负责复合任务编排，数据工具负责执行。</p>
+<p>待核实：岗底斯原始 K 线完整字段与单位、复权模型与锚点、供应商窗口与调用限制； 财务/公告绑定的正式适配；新闻真正的关键词/日期检索；付费源在重复样本下的成功率与耗时。 不根据单次成功或付费身份宣称“最稳定”。</p>
+<p>尚未冻结的适配细节：除 K 线主线外，财务长表投影的 field 字典、基金各 dataset 的 分页覆盖、宏观源指标代码/发布时间、公告分页和原文取得方式仍需逐源契约验证。 第 12 节定义业务入口与约束，不把这些未核实字段当作完整可直接编码的供应商 schema。 这些缺项不阻塞首条不复权 K 线实现，但阻止相应工具注册为可用。</p>
+<h2 id="s-40">9. 下一步</h2>
+<p>按第 13 节先修正 B1 的交易日合并设计与差分验收，再以既有来源接通一条 <code>get_stock_kline</code> → 本地同源读取 → 同源补缺 → 原快照/状态读取的完整链路。 金融 MCP 岗底斯完成正式行情契约后进入候选，最后才调整默认来源顺序。 不把 12 个工具同时铺开作为第一条链路的前置条件。</p>
+<h2 id="s-41">10. 契约样例：个股 K 线</h2>
+<p>对外工具 <code>get_stock_kline</code>，固定 capability <code>market_bars</code>。</p>
+<h3 id="s-42">10.1 设计原则</h3>
+<p>用户的理解方向正确，但要区分三件事：</p>
+<ol><li><strong>工具写死</strong>：模型只看到一个稳定工具和一套稳定参数；capability 与 source 的参数不暴露给模型；工具名供模型选择。</li><li><strong>路由表写死</strong>：候选源和优先顺序由服务端固定维护，不是模型临时决定。</li><li><strong>源可维护</strong>：接口变更或不可用时改适配器和路由表，不改工具契约。</li></ol>
+<p>因此&quot;写死&quot;的是契约和路由，不是写死单一供应商。单源写死会在该供应商限流、 停服或权限变化时直接失去能力；RWB 现有设计是固定候选集 + 固定顺序 + 不跨源拼接。</p>
+<h3 id="s-43">10.2 统一工具契约</h3>
+<p>工具名：<code>get_stock_kline</code>（不带 <code>rwb_</code> 前缀）。 固定 capability：<code>market_bars</code>（不作为业务输入；结果溯源可显示）。</p>
+<p>输入：</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>request_id</code></td><td>string</td><td>是</td><td>幂等键，1–64 字符</td></tr>
+<tr><td><code>asset</code></td><td>string</td><td>是</td><td>必须为 <code>600519.SH</code> 等规范沪深 A 股代码，规则同 12 节</td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code></td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code>，不晚于今天</td></tr>
+<tr><td><code>frequency</code></td><td>literal</td><td>否</td><td>默认 <code>daily</code>，v1 仅日频</td></tr>
+<tr><td><code>adjustment</code></td><td>literal</td><td>否</td><td>当前仅 <code>none</code>，复权为后续设计</td></tr></tbody></table></div>
+<p>输出复用现有查询提交结构；以下仅为关键字段示意，不表示新增完整 DTO：</p>
+<pre><code>{
+  &quot;id&quot;: &quot;00000000-0000-4000-8000-000000000001&quot;,
+  &quot;session_id&quot;: &quot;00000000-0000-4000-8000-000000000002&quot;,
+  &quot;status&quot;: &quot;running&quot;
+}</code></pre>
+<p>调用 <code>rwb_datahub_status(query_id=返回的 id, offset=0, limit=100)</code>； 最终来源、数据集、计划摘要和质量状态从原查询/status 与 manifest 读取。</p>
+<p>行数据由 <code>rwb_datahub_status</code> 读取，每行固定字段：</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>单位</th><th>说明</th></tr></thead><tbody><tr><td><code>asset</code></td><td>—</td><td>规范代码 <code>600519.SH</code></td></tr>
+<tr><td><code>date</code></td><td>—</td><td>交易日 <code>YYYY-MM-DD</code></td></tr>
+<tr><td><code>open</code></td><td>元/股</td><td>按请求复权口径</td></tr>
+<tr><td><code>high</code></td><td>元/股</td><td>同上</td></tr>
+<tr><td><code>low</code></td><td>元/股</td><td>同上</td></tr>
+<tr><td><code>close</code></td><td>元/股</td><td>同上</td></tr>
+<tr><td><code>volume</code></td><td>股</td><td>不复权</td></tr>
+<tr><td><code>turnover</code></td><td>元</td><td>不复权</td></tr>
+<tr><td><code>turnover_rate_pct</code></td><td>%</td><td>源未提供时为 <code>null</code>；与金额字段 <code>turnover</code> 不同</td></tr></tbody></table></div>
+<p>manifest 必须带：<code>source</code>、<code>actual_range</code>、<code>as_of</code>、<code>adjustment</code>、 <code>units_identity</code>、<code>pagination_complete</code>、<code>missing</code>、<code>limitations</code>、 <code>rows_sha256</code>、<code>historical_point_in_time=false</code>。</p>
+<h3 id="s-44">10.3 已实现与已登记的数据源</h3>
+<p><code>market_bars</code> 工厂表登记 9 个候选，其中四个已有实现。 本节是代码与历史环境盘点，不证明这四个来源此刻在当前账号都已就绪。 依据 <code>app/research_web/datahub/catalog.py</code> 的 <code>IMPLEMENTED_BINDINGS</code> 与 各 Provider 校验逻辑：</p>
+<div class="table-wrap"><table><thead><tr><th>源</th><th>实现</th><th>频率</th><th>复权</th><th>时间跨度</th><th>身份范围</th><th>备注</th></tr></thead><tbody><tr><td><code>baostock</code></td><td>是</td><td><code>daily</code></td><td>仅 <code>none</code></td><td>≤1464 天</td><td>沪 <code>6</code>、深 <code>00/30</code></td><td>免费；单位已核</td></tr>
+<tr><td><code>akshare</code></td><td>是</td><td><code>daily</code>/<code>weekly</code>/<code>monthly</code></td><td><code>none</code>/<code>qfq</code>/<code>hfq</code></td><td>股票日线按起止日期请求；指数全段后裁剪</td><td>股票/指数/ETF</td><td>免费；日线优先新浪，失败降级东财（仅 <code>none</code>）</td></tr>
+<tr><td><code>wind</code></td><td>是</td><td><code>daily</code></td><td><code>none</code>/<code>qfq</code>/<code>hfq</code></td><td>≤60 自然日（含首尾）</td><td>沪 <code>6</code>、深 <code>00/30</code></td><td>本机 Excel；容量 1，18 秒 deadline</td></tr>
+<tr><td><code>tinysoft</code></td><td>是</td><td><code>daily</code> 等</td><td><code>none</code>/<code>qfq</code>/<code>hfq</code></td><td>无显式日历天上限；结果 &gt;5000 行失败</td><td>沪深北</td><td>CJPY 0.5.2；复权为产品策略，非厂商保证</td></tr></tbody></table></div>
+<p>已登记但当前不可用：<code>ifind</code>（disabled、未配置）、<code>tushare</code>（disabled）、 <code>yahoo</code>（disabled）、<code>chinastock</code>（disabled）、<code>local_cache</code>（disabled）。</p>
+<p>2026-11-25 候选源码已新增岗底斯 <code>market_bars/gangtise_raw_daily</code> 正式绑定； 原 external_data envelope 保留。当前仅日频不复权，单位经有限跨源样本核验；见业务工具合同。</p>
+<h3 id="s-45">10.4 来源策略与优先级</h3>
+<p>现行代码顺序仍是 <code>tinysoft → wind → ifind → akshare → baostock → ...</code>； v2 不在文档阶段变更现行默认源。付费金融 MCP 的原生数据必须先成为正式 <code>market_bars</code> binding，不能把 <code>external_data</code> 原样结果当作 K 线契约。</p>
+<div class="table-wrap"><table><thead><tr><th>请求</th><th>v2 候选策略（待实施）</th><th>限制</th></tr></thead><tbody><tr><td>已指定来源（脚本/API）</td><td>仅查该源的同口径本地数据并补齐</td><td><code>allow_fallback=false</code> 时不得换源</td></tr>
+<tr><td>自动来源，不复权</td><td>优先保留既有可用来源；岗底斯正式绑定验收后评估为主源，Wind/天软/免费源为候选</td><td>按声明优先级评估；不按缓存量临时改变业务优先级</td></tr>
+<tr><td>自动来源，前/后复权</td><td>只选择模型、锚点、原始量额都满足契约的来源</td><td>因子方向未核实的岗底斯不进入复权候选</td></tr>
+<tr><td>缺口超单次窗口</td><td>在同一来源内拆成供应商支持的小段</td><td>例如 Wind 的每段 ≤60 自然日；不以完整历史窗口直接淘汰</td></tr></tbody></table></div>
+<p>选择算法见 11.3：候选按优先级分别查同源覆盖，完整本地命中不要求启动供应商； 缺口请求才要求实时 readiness。来源因禁用、撤权而失去准入时，本地数据也不能越权使用。</p>
+<p>超时或临时不可用可按固定候选顺序换源；认证、额度错误不重试该源，只有明确允许 替代源的策略才继续。字段/单位/复权不等价的候选直接退出，不降级口径。 换源时重新计算新来源的整个窗口覆盖，丢弃本次结果中前一源的组合，禁止拼接。 尝试原因进入 <code>attempts</code>，不由模型临时挑选供应商。</p>
+<p>当前证据不足以排出跨供应商“稳定性冠军”；优先级变更应记录相同样本的成功率、 延迟与字段差异。付费资格表示访问权益，不是稳定性结论。</p>
+<h3 id="s-46">10.4.1 Wind 官方三层映射（参照）</h3>
+<p>Wind 官方 skill 把&quot;域 → 工具 → 参数&quot;三层全部写死，RWB 可照搬其结构， 但不能照搬&quot;单一数据源&quot;假设。</p>
+<div class="table-wrap"><table><thead><tr><th>层</th><th>Wind 官方</th><th>RWB 对应</th></tr></thead><tbody><tr><td>域</td><td>本地 Skill 的 7 个 <code>server_type</code></td><td>金融业务目录分组，共用 RWB 网关；不是 capability</td></tr>
+<tr><td>工具</td><td>每个域固定 tool 清单，如 <code>get_stock_kline</code></td><td>固定技能工具 <code>get_stock_kline</code>（capability <code>market_bars</code>）</td></tr>
+<tr><td>参数</td><td>结构化：<code>windcode</code> + <code>begin_date</code> + <code>end_date</code> + <code>period</code></td><td>结构化：<code>asset</code> + <code>start_date</code> + <code>end_date</code> + <code>frequency</code> + <code>adjustment</code></td></tr>
+<tr><td>白名单</td><td><code>tool-manifest.json</code> + <code>indicators.md</code> 本地先行校验</td><td>路由表 + 字段/单位表，同样在联网前失败</td></tr>
+<tr><td>数据源</td><td>隐含唯一</td><td>显式 4 个候选，按语义固定顺序</td></tr></tbody></table></div>
+<p>Wind 的 <code>get_stock_kline</code> 只支持单标的、日期格式 <code>yyyyMMdd</code>、多标的必须拆多次， 且明确禁止用 <code>analytics_data</code> 兜底行情。RWB 对应约束是：单标的、 <code>YYYY-MM-DD</code>、禁止用 <code>external_data</code> 兜底 <code>get_stock_kline</code>。</p>
+<h3 id="s-47">10.5 字段与质量门</h3>
+<div class="table-wrap"><table><thead><tr><th>源</th><th>已核单位</th><th>未核 / 限制</th></tr></thead><tbody><tr><td><code>baostock</code></td><td>open/high/low/close=元/股；volume=股；turnover=元</td><td>仅日线、仅不复权</td></tr>
+<tr><td><code>akshare</code></td><td>同上；东财成交量已由手换算为股</td><td>新浪换手率由比例 ×100；上游口径可能变化</td></tr>
+<tr><td><code>wind</code></td><td>当前投影 schema 声明 OHLC=CNY/股、volume=股、turnover=CNY</td><td>schema 声明不等于本轮上游实测；完整单位需按来源证据核验</td></tr>
+<tr><td><code>tinysoft</code></td><td>日线 vol=股、amount=元；OHLC 币种未声明</td><td>复权为产品策略，经验范围仅两只股票</td></tr></tbody></table></div>
+<p>质量门：</p>
+<ol><li>正常交易日应有真实行；休市或全停牌允许有证明的空结果。源分页完成与客户端已读完分别判断。</li><li>日期严格升序，无重复交易日。</li><li>请求范围内的交易日缺口写入 <code>missing</code>，不补点。</li><li><code>volume</code>、<code>turnover</code> 不得因复权被改写。</li><li>身份必须与请求一致；响应含错代码直接失败。</li><li>必需 OHLC/量额字段的单位未核验时不标质量通过；可选字段可为 null 并解释，不能只加 limitations 就放行。</li></ol>
+<h3 id="s-48">10.6 完整调用示例</h3>
+<p>用户问“贵州茅台 2026-11-10 到 11-16 的日 K，不复权”。本例是假设调用轨迹， 不填写价格，不冒充供应商实测。</p>
+<p>模型直接选择业务工具，或由行情 Skill 指导选择：</p>
+<pre><code>{
+  &quot;request_id&quot;: &quot;kline-600519-20261110-16&quot;,
+  &quot;asset&quot;: &quot;600519.SH&quot;,
+  &quot;start_date&quot;: &quot;2026-11-10&quot;,
+  &quot;end_date&quot;: &quot;2026-11-16&quot;,
+  &quot;frequency&quot;: &quot;daily&quot;,
+  &quot;adjustment&quot;: &quot;none&quot;
+}</code></pre>
+<p>工具补入内部 <code>asset_type=stock</code>、<code>capability=market_bars</code>，复用原账号、幂等提交和授权。 查询服务验证日期、代码与口径。假设权威日历给出 10、11、12、13、16 日五个交易日。</p>
+<ol><li>假设固定优先候选 Wind 的同口径仓库有 10～12 日，13、16 日缺失。</li><li>覆盖计算绑定账号、来源 Wind、配置摘要、证券、字段、单位和调整口径； AKShare 的缓存不能补这两个 Wind 缺口。</li><li>13、16 日在交易日序列中相邻，合并为 <code>2026-11-13..2026-11-16</code> 一个请求； 周末不填造 K 线。Wind 每段跨度限制再独立检查，本段合规。</li><li>Wind 适配器翻译到既有 Excel 数据路径：规范代码、起止日期、日频、不复权。 原始返回验证身份、OHLC、股/元单位、缺失与分页后写入同源仓库。</li><li>仓库重读完整窗口：有五条真实行则完成；有停牌证明则分别报告行数与证明日数。 不用“预期交易日数”冒充真实价格行数。</li><li>提交返回原查询 id，模型用现有 <code>rwb_datahub_status</code> 读取；分页未读完不能声称全量完成。</li></ol>
+<p>如果 Wind 实时取数失败且允许下一候选，则重新查下一源整个窗口。 假设 BaoStock 五日全命中，返回整段 BaoStock 数据；不能返回三天 Wind 加两天 BaoStock。 若所有候选均不完整且补齐失败，沿既有失败/部分结果合同报告缺口，不标完整成功。</p>
+<p>目标 manifest 增量摘要（示例，不是当前生产字段承诺）：</p>
+<pre><code>{
+  &quot;capability&quot;: &quot;market_bars&quot;,
+  &quot;source&quot;: &quot;wind&quot;,
+  &quot;plan&quot;: {
+    &quot;version&quot;: &quot;plan-v2&quot;,
+    &quot;expected_trading_days&quot;: 5,
+    &quot;covered_fact_days&quot;: 3,
+    &quot;covered_proof_days&quot;: 0,
+    &quot;missing_days&quot;: 2,
+    &quot;fetch_segments&quot;: [[&quot;2026-11-13&quot;, &quot;2026-11-16&quot;]]
+  },
+  &quot;adjustment&quot;: &quot;none&quot;,
+  &quot;historical_point_in_time&quot;: false
+}</code></pre>
+<p>原有快照身份、单位、SHA、缺失与来源配置记录保持；字段落点遵循现有 manifest 扩展方式，不在文档阶段改变外部 schema。</p>
+<h3 id="s-49">10.7 维护流程</h3>
+<p>供应商变更能在现有语义内兼容时，优先改以下四处并保持对外合同； 若数据定义本身变化，必须版本化更新合同，不能靠字段改名伪装兼容：</p>
+<ol><li><code>app/research_web/datahub/catalog.py</code> 的 binding 与语义表。</li><li>对应 <code>providers_&lt;source&gt;.py</code> 的请求构造、归一化和校验。</li><li>路由表（本文件第 10.4 节同步）。</li><li>fixture 与验收样本。</li></ol>
+<p>维护触发条件：依赖版本变化、厂商字段改名、单位变化、限流或权限变化、 <code>probe</code> 连续失败、真实 smoke 失败。</p>
+<p>不做的事：不为单次故障临时改模型可见参数；不在运行时让模型挑选 source； 不把失败源的行与其他源拼接；不把未核单位写成已知。</p>
+<h3 id="s-50">10.8 本节状态</h3>
+<p>对外契约与来源策略为 v2 设计；正式绑定和新工具未实现。 第 11 节是执行职责，第 13 节是实施顺序；此前 Wind 优先、失败必须运维换源的提议被本版替换。</p>
+<h2 id="s-51">11. 查询架构 v2与增量补齐设计</h2>
+<h3 id="s-52">11.1 三个模块与共享契约</h3>
+<pre><code>模型/脚本；复杂任务可先读 Skill
+    ↓
+业务工具：get_stock_kline / get_stock_quote / ...
+    ↓
+DataHub 查询服务：校验与准入 → 按候选查覆盖 → 选源 → 同源补缺 → 冻结结果
+    ↓                       ↕ 既有本地 MarketStore
+供应商适配器：翻译请求 → 调接口 → 归一化并校验</code></pre>
+<div class="table-wrap"><table><thead><tr><th>模块</th><th>复用位置</th><th>职责</th></tr></thead><tbody><tr><td>业务工具</td><td><code>mcp_facade/tools.py</code>、<code>backend.py</code></td><td>固定业务参数、映射内部请求、复用原提交和状态读取</td></tr>
+<tr><td>查询服务</td><td><code>datahub/__init__.py</code>、<code>broker.py</code>、<code>warehouse.py</code>、<code>planning.py</code></td><td>授权、候选、同源覆盖、缺口、窗口分段、执行与结果</td></tr>
+<tr><td>供应商适配</td><td><code>providers_*.py</code></td><td>源专属参数、字段、单位、分页与错误转换</td></tr></tbody></table></div>
+<p>语义是公共输入输出契约，不独立成服务。规划与路由保持可单测的函数职责， 不要求新增 <code>DatasetRequest</code>、<code>router.py</code>、独立进程或数据库。 <code>BusinessQuery</code>、<code>Result</code>、既有 catalog/binding 和 MarketStore 身份继续使用。 <code>market_bars</code> 只是内部注册标识，不是额外执行层。</p>
+<h3 id="s-53">11.2 工具域与 Skill</h3>
+<p>文档与工具目录按第 4.1 节的 Wind 七域组织；跨域公共工具、用户数据库另列为 RWB 扩展。 域目录不自动注册工具；v1 仍只做已定义且可验收的子集，债券和通用取数域暂不注册工具。 分类目录不要求拆成七个 MCP server，也不改变内部 capability 标识。</p>
+<p>简单 K 线请求直接调 <code>get_stock_kline</code>。复杂任务如“今日市场行情”，由 Skill 规定查询哪些指数、涨跌家数、成交额、行业表现与资讯，再调用已经存在的业务工具。 Skill 不能通过说明文字获得缺失数据能力；指数历史和市场宽度工具未实现时必须报告缺项。 WeKnora 能否加载文件型 Skill 仍需单独验证，不能把普通工具说明当作已安装 Skill。</p>
+<h3 id="s-54">11.3 候选与本地覆盖共同决定来源</h3>
+<ol><li>验证账号权限、请求证券、字段、频率、单位、复权及 PIT 约束。</li><li>获取已实现且满足口径的固定顺序候选。显式源请求保留该来源约束。</li><li>对当前候选，按其存储身份查覆盖；全覆盖则直接冻结本地结果，不调用供应商。</li><li>有缺口时检查该源实时就绪，按交易日合并缺口，再按该源调用上限分段。</li><li>只从该源补齐；验证、写仓、重读整个窗口，仍有未知缺口则不算完整。</li><li>当前源失败且策略允许替代时，对下一候选重新执行 3～5。 账号/授权范围拒绝属于整个请求错误，直接停止；不能以换源绕过。</li></ol>
+<p>“先查本地”表示不为已有事实重复调用网络，不表示先把所有供应商数据混成一张无来源表。 覆盖身份沿用账号/授权范围、来源与配置摘要、证券、数据类型、频率、单位/字段和语义摘要。 金融聚合入口的身份还必须区分上游 vendor/service；不能把 DM 与岗底斯都只记成 <code>ext_finance_mcp</code> 就认定同源。正式 binding 标识在适配时落实并写进来源元数据。 实时服务离线与授权失效不同：前者不必阻止合法本地读取，后者仍按原权限合同处理。</p>
+<h3 id="s-55">11.4 覆盖、停牌与增量补齐</h3>
+<p>覆盖检查使用权威日历和覆盖证明；不能从 max(date) 推定中间日期都完整。 <code>last_complete_date</code> 只能作为加速提示，不是跳过区间检查的依据。</p>
+<div class="table-wrap"><table><thead><tr><th>日期状态</th><th>处理</th></tr></thead><tbody><tr><td>正常已完成交易日且事实满足字段合同</td><td>算事实覆盖</td></tr>
+<tr><td>有来源可追溯的停牌、未上市证明</td><td>算证明覆盖，不填造 OHLC</td></tr>
+<tr><td>缺行且无证明</td><td>缺口</td></tr>
+<tr><td>今天未收盘</td><td>最终日 K 查询排除该未完成交易日并记录有效范围；盘中快照另走快照工具</td></tr>
+<tr><td>整个窗口均休市</td><td>日历已确认时返回空且无缺口；日历未知不能当作完整空结果</td></tr>
+<tr><td>历史值被供应商修订</td><td>显式 refresh 重取；普通缺口补齐不保证发现既有日期修订</td></tr></tbody></table></div>
+<p>真实 <code>CoverageProof</code> 字段为 <code>business_date / state / evidence_id / available_at</code>， state 为 <code>suspended / prelisting / nontrading / unknown</code>。不新增虚构的 <code>reason/source_digest</code> 字段；来源与授权身份位于现有存储上下文。<code>unknown</code> 不算覆盖。</p>
+<p>缺口按交易日序列合并：周五、周一都缺则是一段；中间有已覆盖交易日则分开。 超过现有 16 段阈值时保留现行折叠规则；折叠后仍按源窗口拆分， 返回重叠数据时沿既有一致性校验，不能绕过冲突处理。</p>
+<h3 id="s-56">11.5 原始数据、复权与快照</h3>
+<p>复权仓库目标为不复权价格及真实量额，加同来源的因子/公司行为数据； 不是宣称当前全部 provider 已能产出该存储形态。现有已存数据不迁移或删除。</p>
+<p>只对已验证为兼容乘法因子的来源使用下式，其他模型交给相应适配并单独验证：</p>
+<pre><code>qfq(t, base) = raw_price(t) × factor(t) / factor(base)
+hfq(t, origin) = raw_price(t) × factor(t) / factor(origin)</code></pre>
+<p>同时记录因子来源、版本、基准日、公式版本、原始价版本；raw 与因子不能随意跨源。 读取时生成复权视图；冻结查询结果仍可保存复权行作为证据，不当作无版本的仓库事实。 <code>as_of</code> 是历史可知时间，<code>adjustment_base_date</code> 是价格缩放锚点，二者严格区分。 PIT 查询继续走已验证的时点读取路径，v2 不把实时源当作历史可知数据。</p>
+<h3 id="s-57">11.6 输出与复用边界</h3>
+<p>沿既有查询幂等、任务状态、分页与冻结快照链。manifest 记录实际来源、有效区间、 单位、缺口、证明摘要、复权元数据及有界计划摘要。无需创建另一套取数作业和状态服务。 快照可用不等于 PIT 已验证；供应商调用成功也不等于完整字段和覆盖通过。</p>
+<p>查询服务、MCP 和脚本共用同一执行逻辑，避免将业务校验和缺口算法各复制一份。</p>
+<h3 id="s-58">11.7 一条链路的验收范围</h3>
+<p>首条链路为沪深 A 股日频不复权 K 线；复权能力分源验收后启用。 全命中零供应商调用；部分命中只补同源缺口；换源重新规划； 单段不超供应商限制；空窗口、停牌和失败不会被伪报为完整价格序列。 先通过这一条链路，再扩展财务、公告和其他工具。</p>
+<h2 id="s-59">12. 工具输入契约（12 个）</h2>
+<p>本节是逐个工具的目标参数合同；尚未生成或部署 schema。实现必须与模型、metadata、 测试和说明同步；K 线为首条主线，其他工具未覆盖的上游限制不得猜成已支持。</p>
+<p>统一约定，后文不再重复：</p>
+<ul>
+<li>所有工具都必填 <code>request_id</code>：<code>^[A-Za-z0-9_.:-]{1,64}$</code>，用作幂等键；</li>
+</ul>
+<p>  同键同参返回原查询，同键异参返回 <code>request_id_conflict</code>。</p>
+<ul>
+<li>日期一律 <code>YYYY-MM-DD</code>，不接受时间戳；<code>start_date &lt;= end_date</code>。行情日期不晚于今天；</li>
+</ul>
+<p>  交易日历可查询权威已发布的未来日历，未知日期不得猜测。</p>
+<ul>
+<li>股票工具只接受规范沪深 A 股代码，<code>BJ</code> 与 ETF 不走股票工具。</li>
+</ul>
+<p>  指数工具按指数身份校验，基金工具接受其六位基金代码；不能把股票限制套给其他域。</p>
+<ul>
+<li>工具不接收 <code>capability</code>、<code>source</code>、<code>allow_fallback</code>、URL、凭据、SQL。</li>
+<li>返回保留原提交结构中的 <code>id</code> 与 <code>session_id</code>；status 调用的入参名为 <code>query_id</code>，</li>
+</ul>
+<p>  其值来自返回的 id。最终字段与行数据由原 status/manifest 读取，不另造查询标识。</p>
+<h3 id="s-60">12.1 get_stock_kline</h3>
+<p>所属域：<code>stock_data</code>。</p>
+<p>单只 A 股日 K 历史。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>asset</code></td><td>string</td><td>是</td><td><code>^[0-9]{6}\.(SH|SZ)$</code>，前缀须与代码家族一致</td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code></td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code>，与 start 同日或之后</td></tr>
+<tr><td><code>frequency</code></td><td>literal</td><td>否</td><td>固定 <code>daily</code>；v1 不支持周/月/分钟</td></tr>
+<tr><td><code>adjustment</code></td><td>literal</td><td>否</td><td>当前仅 <code>none</code>（默认）</td></tr></tbody></table></div>
+<p>返回行字段：<code>asset</code>、<code>date</code>、<code>open</code>、<code>high</code>、<code>low</code>、<code>close</code>、<code>volume</code>、<code>turnover</code>、 <code>turnover_rate_pct</code>。</p>
+<p>约束：</p>
+<ul>
+<li>单标的；多标的必须拆多次调用。</li>
+<li>复权只作用于 OHLC，<code>volume</code>/<code>turnover</code> 永远原始值。</li>
+<li>Wind 的 60 日上限约束单次取数段，长窗口先查同源覆盖再拆缺口；</li>
+</ul>
+<p>  BaoStock 当前只支持 none。复权模型/基准日不满足时退出候选。</p>
+<p>错误码：<code>data_not_equivalent</code>（代码或复权不支持）、<code>workload_too_large</code>（超单源上限且 无可用源）、<code>invalid_date_range</code>。</p>
+<pre><code>{&quot;request_id&quot;:&quot;kline-600519-20261110-14&quot;,&quot;asset&quot;:&quot;600519.SH&quot;,
+ &quot;start_date&quot;:&quot;2026-11-10&quot;,&quot;end_date&quot;:&quot;2026-11-14&quot;,&quot;frequency&quot;:&quot;daily&quot;,&quot;adjustment&quot;:&quot;none&quot;}</code></pre>
+<h3 id="s-61">12.2 get_stock_quote</h3>
+<p>所属域：<code>stock_data</code>。</p>
+<p>1–20 只 A 股的最新行情快照。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>assets</code></td><td>string[]</td><td>是</td><td>1–20 个合规代码；不可重复</td></tr>
+<tr><td><code>fields</code></td><td>string[]</td><td>否</td><td>字段白名单，见下；省略返回默认集</td></tr></tbody></table></div>
+<p>默认字段集为 <code>price</code>；<code>asset</code> 与来源时间信息始终返回，不要求模型重复请求。 指定 fields 时严格检查候选源是否满足所需字段；Wind 当前快照投影并非每项都支持， 不能用价格数据伪造涨跌幅或实时量额。</p>
+<p>字段白名单（v1）：<code>price</code>、<code>change_pct</code>、<code>volume</code>、<code>turnover</code>、<code>pe_ttm</code>、<code>pb</code>、 <code>total_shares</code>。白名单外的字段返回 <code>unsupported_field</code>，不做静默忽略。</p>
+<p>返回行字段：<code>asset</code>、<code>as_of</code>、<code>price</code>、<code>change_pct</code>、<code>volume</code>、<code>turnover</code>， 其中只承诺请求字段；未请求字段可省略。<code>change_pct</code> 是百分数（1 表示 1%）， volume=股、turnover=元、total_shares=股、pe_ttm/pb=倍。 来源只给交易日期时如实返回日期精度，不能补成实时秒级时间；“最新”指该源最新可得， 若为收盘数据应明确标注。最新快照不使用历史 K 线覆盖作为时效证明。</p>
+<p>错误码：<code>invalid_asset</code>（超过 20 个或重复）、<code>unsupported_field</code>。</p>
+<pre><code>{&quot;request_id&quot;:&quot;quote-20261124&quot;,&quot;assets&quot;:[&quot;600519.SH&quot;,&quot;000001.SZ&quot;],
+ &quot;fields&quot;:[&quot;price&quot;,&quot;change_pct&quot;]}</code></pre>
+<h3 id="s-62">12.3 get_stock_financials</h3>
+<p>所属域：<code>stock_data</code>。</p>
+<p>单只 A 股财务数据。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>asset</code></td><td>string</td><td>是</td><td>沪深 A 股代码</td></tr>
+<tr><td><code>dataset</code></td><td>literal</td><td>是</td><td><code>summary</code> / <code>income_statement</code> / <code>profitability</code> / <code>cash_flow</code></td></tr>
+<tr><td><code>periods</code></td><td>string[] 或 int</td><td>否</td><td>报告期 <code>YYYY-MM-DD</code> 列表，或最近 N 期（1–100）</td></tr></tbody></table></div>
+<p>数据集与源的对应（内部路由用，不暴露给模型）：</p>
+<div class="table-wrap"><table><thead><tr><th>dataset</th><th>首选源</th><th>说明</th></tr></thead><tbody><tr><td><code>summary</code></td><td>天软 → Wind</td><td>通用财务摘要</td></tr>
+<tr><td><code>income_statement</code></td><td>AKShare</td><td>新浪披露利润表，不是利润率指标；最多 8 期</td></tr>
+<tr><td><code>profitability</code></td><td>BaoStock</td><td>仅一个明确季度末，2017 年起</td></tr>
+<tr><td><code>cash_flow</code></td><td>BaoStock</td><td>仅一个明确季度末的现金流比率，不能冒充完整现金流量表</td></tr></tbody></table></div>
+<p>返回实际来源的原生行和manifest.fields字典；利润表保留data[]，不声称已经统一成长表field/value。</p>
+<p>约束：单季与累计值必须分开返回，不得相加；<code>BaoStock</code> 的季度末快照不是 完整季度流量。<code>profitability/cash_flow</code> 必须显式传单个季度末列表； <code>income_statement</code> 只允许最多 8 期；不能把通用参数表中的 100 期上限当作所有 dataset 都支持。 summary 未传 periods 时按当前源最新可得报告期返回，并在元数据明确实际报告期。 岗底斯三大报表仍是待接契约，不改变此表现有路径。</p>
+<p>错误码：<code>data_not_equivalent</code>（dataset 与源不匹配）、<code>invalid_date_range</code>。</p>
+<pre><code>{&quot;request_id&quot;:&quot;fin-600519-2025&quot;,&quot;asset&quot;:&quot;600519.SH&quot;,
+ &quot;dataset&quot;:&quot;income_statement&quot;,&quot;periods&quot;:[&quot;2025-12-31&quot;]}</code></pre>
+<h3 id="s-63">12.4 get_stock_activity</h3>
+<p>所属域：<code>stock_data</code>。</p>
+<p>个股资金与交易事件。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>asset</code></td><td>string</td><td>是</td><td>沪深 A 股代码</td></tr>
+<tr><td><code>dataset</code></td><td>literal</td><td>是</td><td>见下表</td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>条件</td><td><code>margin_trading</code> 必填</td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>条件</td><td><code>margin_trading</code> 必填</td></tr></tbody></table></div>
+<p>当前业务工具数据集（不把不同股东语义合并）：</p>
+<div class="table-wrap"><table><thead><tr><th>dataset</th><th>说明</th><th>时间参数</th><th>跨度</th></tr></thead><tbody><tr><td><code>fund_flow</code></td><td>资金流</td><td>起止日期必填</td><td>起止相差&lt;60天</td></tr>
+<tr><td><code>margin_trading</code></td><td>融资融券</td><td>必填</td><td>&lt; 60 天</td></tr>
+<tr><td><code>holder_count</code></td><td>股东户数（Wind）</td><td>不允许日期</td><td>最新可得</td></tr>
+<tr><td><code>holder_data</code></td><td>前十名股东合计（天软）</td><td>不允许日期</td><td>最新报告期</td></tr>
+<tr><td><code>holder_details</code></td><td>前十名股东明细</td><td>不需要</td><td>取最新报告期</td></tr></tbody></table></div>
+<p>返回来源原生行与字段字典；holder_count是人数，holder_data是前十名合计，不是同一个指标。</p>
+<p>约束：</p>
+<ul>
+<li>天软只支持单标的；<code>holder_data</code> 要求前十名完整，否则 <code>top10_pct</code> 为 <code>null</code></li>
+</ul>
+<p>  并标 <code>partial_top10</code>。</p>
+<ul>
+<li><code>margin_trading</code> 跨度必须小于 60 天，否则 <code>workload_too_large</code>。</li>
+<li>不同源的资金流口径不同（主动买卖 vs 成交额拆分），manifest 必须记录 <code>source</code>，</li>
+</ul>
+<p>  禁止跨源拼接同一序列。</p>
+<pre><code>{&quot;request_id&quot;:&quot;act-600519-202611&quot;,&quot;asset&quot;:&quot;600519.SH&quot;,&quot;dataset&quot;:&quot;margin_trading&quot;,
+ &quot;start_date&quot;:&quot;2026-11-01&quot;,&quot;end_date&quot;:&quot;2026-11-20&quot;}</code></pre>
+<h3 id="s-64">12.5 get_fund_detail</h3>
+<p>所属域：<code>fund_data</code>。</p>
+<p>基金资料。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>code</code></td><td>string</td><td>是</td><td>6 位基金代码</td></tr>
+<tr><td><code>dataset</code></td><td>literal</td><td>是</td><td><code>nav</code> / <code>profile</code> / <code>distributions</code> / <code>holdings</code></td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>否</td><td>仅 <code>nav</code> 使用</td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>否</td><td>仅 <code>nav</code> 使用</td></tr>
+<tr><td><code>year</code></td><td>int</td><td>否</td><td>仅 <code>holdings</code> 使用，1990–当前年</td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>否</td><td>1–100，默认 30</td></tr></tbody></table></div>
+<p>返回来源各dataset的原生行与字段字典；净值、档案、分红、持仓不假设同一长表形状。</p>
+<p>约束：<code>holdings</code> 是「已披露持仓」，不是完整持仓；<code>nav</code> 的净值单位是元/份， 不得与累计净值相加。当前唯一源是东方财富。</p>
+<pre><code>{&quot;request_id&quot;:&quot;fund-000001-202611&quot;,&quot;code&quot;:&quot;000001&quot;,&quot;dataset&quot;:&quot;nav&quot;,
+ &quot;start_date&quot;:&quot;2026-11-01&quot;,&quot;end_date&quot;:&quot;2026-11-20&quot;,&quot;limit&quot;:30}</code></pre>
+<h3 id="s-65">12.6 get_index_quote</h3>
+<p>所属域：<code>index_data</code>。</p>
+<p>指数最新快照。当前不接受历史日期或区间K线。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>index</code></td><td>string</td><td>是</td><td>000/93开头.SH或399开头.SZ，如000300.SH；当前单个指数</td></tr></tbody></table></div>
+<p>返回行字段：<code>asset</code>、<code>as_of</code>、<code>name</code>、<code>price</code>、<code>change_pct</code>。</p>
+<p>约束：</p>
+<ul>
+<li>当前已实现的对应来源为 Wind Excel，不代表此刻 callable；未就绪时按本地覆盖/来源规则判断。</li>
+<li>需要指数历史走势时，本批不提供；不要用 <code>get_stock_kline</code> 冒充，</li>
+</ul>
+<p>  那会走股票端点并返回 <code>data_not_equivalent</code>。</p>
+<pre><code>{&quot;request_id&quot;:&quot;index-20261124&quot;,&quot;index&quot;:&quot;000300.SH&quot;}</code></pre>
+<h3 id="s-66">12.7 search_news（条件启用）</h3>
+<p>所属域：<code>financial_docs</code>。</p>
+<p>财经新闻关键词与日期检索；必须先接通真正支持该语义的上游才注册。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>query</code></td><td>string</td><td>是</td><td>1–128 字符</td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>否</td><td>1–100，默认 20；表示输出上限，不保证命中数量</td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>否</td><td><code>YYYY-MM-DD</code>，语义与上游检索能力核对</td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>否</td><td><code>YYYY-MM-DD</code></td></tr></tbody></table></div>
+<p>返回 <code>published_at / title / content / source_url / source</code>，并注明检索范围与覆盖限制。 当前财联社 binding 仅最新 N 条，不能用“先取最新再子串过滤”冒充历史检索。 本工具状态 NOT_RUN，候选 iFinD/财汇完成适配后启用。 若后续需要最新电报另定义 <code>get_latest_news</code>，不在本批悄悄增加第 13 个工具。</p>
+<pre><code>{&quot;request_id&quot;:&quot;news-fed-202611&quot;,&quot;query&quot;:&quot;美联储&quot;,&quot;limit&quot;:20,
+ &quot;start_date&quot;:&quot;2026-11-01&quot;,&quot;end_date&quot;:&quot;2026-11-20&quot;}</code></pre>
+<h3 id="s-67">12.8 search_announcements（条件启用）</h3>
+<p>所属域：<code>financial_docs</code>。</p>
+<p>公司公告检索。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>asset</code></td><td>string</td><td>是</td><td>沪深 A 股代码</td></tr>
+<tr><td><code>query</code></td><td>string</td><td>否</td><td>1–128 字符</td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>否</td><td><code>YYYY-MM-DD</code></td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>否</td><td><code>YYYY-MM-DD</code></td></tr></tbody></table></div>
+<p>返回行字段：<code>published_at</code>、<code>title</code>、<code>document_url</code>、<code>document_type</code>。</p>
+<p><strong>状态：本工具绑定未实施，验收 NOT_RUN。</strong> 此处仅指本工具的正式 DataHub binding； 不否认其他独立公告入口、既有事件标题索引或前述上游公告实测。 岗底斯 <code>查询A股公告列表</code> 与 iFinD <code>search_notice</code> 都需要先完成结构化投影和单位/ 字段核验。P1 验收通过后本工具才注册；否则不注册，WeKnora 目录里也不出现。</p>
+<p><strong>两个候选源的实测对比（2026-11-24，600519.SH，2026-10-01～11-14）：</strong></p>
+<div class="table-wrap"><table><thead><tr><th>维度</th><th>岗底斯 <code>查询A股公告列表</code></th><th>iFinD <code>search_notice</code></th></tr></thead><tbody><tr><td>返回形态</td><td>结构化列表，每行一个对象</td><td>语义检索片段（文本段落）</td></tr>
+<tr><td>实测规模</td><td><code>total: 167</code></td><td><code>size</code> 上限 20</td></tr>
+<tr><td>字段</td><td><code>announcementId</code>、<code>title</code>、<code>announcementDate</code>、<code>publishTime</code>、<code>securityCode</code>、<code>securityName</code>、<code>primaryCategory</code>（含二级分类）、<code>sourceName</code></td><td>段落文本，需自行解析</td></tr>
+<tr><td>分类</td><td>有（财务报告 / 公司治理 / 一般公告等两级）</td><td>无</td></tr>
+<tr><td>来源标注</td><td><code>sourceName: 上海证券交易所</code></td><td>未明确</td></tr>
+<tr><td>检索方式</td><td>按代码 + 日期区间精确查询</td><td>自然语言语义查询，<code>time_start</code>/<code>time_end</code>/<code>size</code> 必填</td></tr>
+<tr><td>是否需二次调用</td><td>是，取 PDF 需另调 <code>下载A股公告文件</code></td><td>否</td></tr></tbody></table></div>
+<p><strong>结论：<code>search_announcements</code> 接岗底斯。</strong> 契约要求的 <code>published_at</code>、<code>title</code>、 <code>document_type</code> 岗底斯直接给出；实测的 iFinD MCP <code>search_notice</code> 返回文本片段， 需额外解析且无分类。这不是对 iFinD 原生 API 公告能力的结论。 iFinD 的日期格式描述写成 <code>yyyyy-MM-dd</code>（五个 y），本身也需要另行验证。</p>
+<p>岗底斯的缺口是 <code>document_url</code>：列表接口未直接给出 PDF 链接，需二次调用 <code>下载A股公告文件</code>。可核实到该条公告的来源页才填写链接；否则返回 null 并标 <code>attachment_status=pending</code>，不得用交易所首页冒充该公告原文。</p>
+<h3 id="s-68">12.9 get_economic_series</h3>
+<p>所属域：<code>economic_data</code>。</p>
+<p>中国宏观时间序列。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>series</code></td><td>literal</td><td>是</td><td><code>cn_cpi</code> / <code>cn_gdp</code> / <code>cn_pmi</code> / <code>cn_m2</code></td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>是</td><td>明确的参考期过滤起点，不猜源默认窗口</td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>是</td><td>不晚于今天</td></tr></tbody></table></div>
+<p>返回宏观原生列与manifest字段字典；四个主要列分别NATIONAL_SAME/SUM_SAME/MAKE_INDEX/BASIC_CURRENCY_SAME。</p>
+<p>约束：</p>
+<ul>
+<li>四个系列口径分别是：CPI 当月同比、GDP 累计同比、PMI 制造业、M2 同比。</li>
+</ul>
+<p>  单位与口径固定，manifest 必须写明，不能只写「CPI」。</p>
+<ul>
+<li>不提供 <code>as_of</code>（历史时点）；请求带 <code>as_of</code> 返回 <code>data_not_equivalent</code>。</li>
+<li>美国宏观仍走 <code>rwb_datahub_query</code>（FRED/BLS），不在本工具范围。</li>
+</ul>
+<pre><code>{&quot;request_id&quot;:&quot;macro-cpi-2025&quot;,&quot;series&quot;:&quot;cn_cpi&quot;,
+ &quot;start_date&quot;:&quot;2025-01-01&quot;,&quot;end_date&quot;:&quot;2026-10-31&quot;}</code></pre>
+<h3 id="s-69">12.10 search_assets</h3>
+<p>所属域：<code>跨域公共</code>。</p>
+<p>按名称、简称或代码检索证券。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>query</code></td><td>string</td><td>是</td><td>1–128 字符；代码或名称</td></tr>
+<tr><td><code>asset_type</code></td><td>literal</td><td>否</td><td>当前固定stock，基金/指数检索未开放</td></tr>
+<tr><td><code>market</code></td><td>literal</td><td>否</td><td><code>CN</code>（默认）</td></tr></tbody></table></div>
+<p>返回来源提供的规范asset、名称及类型；以manifest.fields为准。</p>
+<p>约束：</p>
+<ul>
+<li>只做证券身份检索，不是条件选股。股票结果可调股票工具，基金/指数分别调对应域工具。</li>
+</ul>
+<p>  当前来源不支持某资产类型时返回不等价，不承诺所有类型都可检索。</p>
+<ul>
+<li>天软对纯中文检索返回 <code>data_not_equivalent</code>（只接受代码或字母数字），</li>
+</ul>
+<p>  此时路由落到 AKShare/BaoStock；中文名检索能力当前有限。</p>
+<ul>
+<li>结果可能为空，<code>empty</code> 不等于「该证券不存在」。</li>
+</ul>
+<pre><code>{&quot;request_id&quot;:&quot;find-maotai&quot;,&quot;query&quot;:&quot;600519&quot;}</code></pre>
+<h3 id="s-70">12.11 get_trading_calendar</h3>
+<p>所属域：<code>跨域公共</code>。</p>
+<p>交易日历。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>market</code></td><td>literal</td><td>是</td><td>固定 <code>CN</code></td></tr>
+<tr><td><code>start_date</code></td><td>string</td><td>是</td><td><code>YYYY-MM-DD</code></td></tr>
+<tr><td><code>end_date</code></td><td>string</td><td>是</td><td>跨度 ≤ 1464 天</td></tr></tbody></table></div>
+<p>返回行字段：<code>date</code>、<code>is_open</code>。</p>
+<p>约束：<code>is_open=false</code> 只是休市，不等于数据缺失；缺口计算必须区分这两者。</p>
+<p>错误码：<code>invalid_date_range</code>（跨度超限或倒序）。</p>
+<pre><code>{&quot;request_id&quot;:&quot;cal-202611&quot;,&quot;market&quot;:&quot;CN&quot;,
+ &quot;start_date&quot;:&quot;2026-11-01&quot;,&quot;end_date&quot;:&quot;2026-11-30&quot;}</code></pre>
+<h3 id="s-71">12.12 query_user_table（条件启用）</h3>
+<p>所属域：<code>用户数据库扩展</code>。</p>
+<p>对用户 MySQL 执行参数化只读单表查询。</p>
+<div class="table-wrap"><table><thead><tr><th>字段</th><th>类型</th><th>必填</th><th>约束</th></tr></thead><tbody><tr><td><code>database</code></td><td>string</td><td>是</td><td>必须精确来自 <code>information_schema</code></td></tr>
+<tr><td><code>table</code></td><td>string</td><td>是</td><td>同上</td></tr>
+<tr><td><code>columns</code></td><td>string[]</td><td>是</td><td>1–200 个，必须精确来自表结构</td></tr>
+<tr><td><code>filters</code></td><td>object[]</td><td>否</td><td>≤20 个；operator 限 <code>eq/ne/lt/lte/gt/gte/in/between/is_null/not_null</code></td></tr>
+<tr><td><code>order_by</code></td><td>object[]</td><td>否</td><td>≤5 个</td></tr>
+<tr><td><code>offset</code></td><td>int</td><td>否</td><td>0–100000，默认 0</td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>否</td><td>1–5000，默认 500</td></tr></tbody></table></div>
+<p>返回行字段：用户选择的列。</p>
+<p>约束：</p>
+<ul>
+<li>只允许单表 SELECT，禁止 JOIN、子查询、聚合、表达式、DDL/DML。</li>
+<li>每次执行前校验账号只读权限（<code>USAGE</code>/<code>SELECT</code>/<code>SHOW VIEW</code>）。</li>
+<li><strong>状态：NOT_RUN。</strong> 历史盘点未配置 MySQL，本轮未重验；未配置时本工具不注册。</li>
+</ul>
+<p>  <code>database_schema</code> 仅为内部能力，尚无本文定义的新 MCP 工具，不计入 12 个。</p>
+<ul>
+<li>filters 的每项为 <code>{column, operator, value?}</code>：列名精确来自结构；in 的 value 为数组、</li>
+</ul>
+<p>  between 为双元素数组；is_null/not_null 不带 value。其余操作值为与列兼容的标量。 order_by 每项为 <code>{column, direction}</code>，direction 只允许 asc/desc。所有值使用参数绑定。</p>
+<ul>
+<li>发现库表和列结构沿原 RWB 数据库设置/目录；WeKnora 尚无独立 schema 工具，</li>
+</ul>
+<p>  结构未经确认时不调用本工具，不让模型猜库表。</p>
+<h2 id="s-72">13. B实施设计 v2</h2>
+<p>本节以下为原实施设计；当前完成情况：B1交易日合并修复、B2仓库接入、 B3 Wind缺口分段、B4九个业务工具与岗底斯日线绑定、B5有界计划摘要已在候选源码实现。 既有同源仓库与权限路径复用；不声称实现了所有源的任意长窗口、因子视图或12个候选。 历史测试与后续候选验收分别见实现报告；原“尚未修改”描述是当时计划状态。</p>
+<h3 id="s-73">13.1 当前实现与缺陷</h3>
+<p>B1 文件已存在但未接入生产调用；历史记录为 planning 27 用例及 warehouse 6 用例通过。 本轮未重跑这些测试，不能将该记录视为 v2 完成证据。</p>
+<ul>
+<li><code>warehouse.py:missing_queries()</code> 按完整 expected_dates 序列合并缺口。</li>
+<li><code>planning.py:merge_days()</code> 按自然日相邻合并，周五与周一被拆为两段。</li>
+<li>本轮最小复现：缺口 2026-11-13、2026-11-16，旧实现一段，新实现两段。</li>
+</ul>
+<p>  撤回“原样提取、算法等价”的表述；现有单测不足以证明与旧实现等价。</p>
+<ul>
+<li><code>_can_plan_wind_gaps()</code> 还检查 Wind 原始跨度是否超限，决定能否延后完整窗口限制。</li>
+</ul>
+<p>  它是布尔策略判定，不能直接替换成一个返回 <code>Plan</code> 的调用。</p>
+<ul>
+<li><code>plan()</code> 的 proofs 目前只保留排序；排除停牌必须由明确的覆盖逻辑完成，</li>
+</ul>
+<p>  不能声称传入证明就自动消除了缺口。</p>
+<h3 id="s-74">13.2 B1 修正：使用交易日序列</h3>
+<p>目标纯函数签名（设计，尚未修改代码）：</p>
+<pre><code>def merge_gaps(expected_dates, missing_dates, *, max_segments=16):
+    # expected_dates 必须是已验证窗口内的有序交易日序列。
+    # 顺序扫描：缺口日期延长当前段；已覆盖交易日结束当前段。
+    # 16 段折叠沿用旧规则，随后由源专属分段函数约束跨度。
+    ...</code></pre>
+<p>日期去重、窗口边界、证明有效性由现有上下文与覆盖服务提供。 B1 修正保留既有计数接口；事实天数、证明天数的区分在接入时添加摘要， 不把旧 <code>covered_days</code> 未经核对直接改解释成“真实行数”。</p>
+<h3 id="s-75">13.3 B2 接入：先保留原有 Wind 行为</h3>
+<p>在现有 <code>warehouse.missing_queries()</code> 内复用修正后的纯函数，继续使用原 actor/scope/dataset/configuration_digest 计算缺口。暂不改变源顺序、授权、refresh、PIT、 Wind 延后跨度检查与 source 约束；避免一次改变算法和准入语义。</p>
+<p>旧算法与新函数做固定输入差分测试即可，不新增生产双跑开关。 暂留旧接口给调用方使用，避免直接替换 <code>_can_plan_wind_gaps()</code>。</p>
+<h3 id="s-76">13.4 B3 查询服务：同源规划与窗口分段</h3>
+<p>复用既有 broker 来源候选与权限校验，依次构建 source-bound 存储上下文。 显式 <code>source=akshare</code> 只命中 AKShare 对应仓库；auto 不能复用任意来源的覆盖集合。</p>
+<p>缺口合并后，按该源单次跨度/行数限制拆分。Wind 单次 ≤60 自然日， 长历史请求可以由本地覆盖加多个合规缺口请求完成；不得仅因整体窗口 &gt;60 天淘汰。 去掉 source 特例必须同时通过权限与来源隔离、调用上限测试，不能只删条件。 源专属校验留在原适配/准入逻辑，不复制到 MCP 工具。</p>
+<h3 id="s-77">13.5 B4 工具与供应商契约</h3>
+<p>先注册 <code>get_stock_kline</code> 并复用原提交/status 链，工具补入固定股票类型。 岗底斯经 <code>ext_finance_mcp</code> 接入正式行情 binding 前，逐项核对： OHLC、真实量额单位、日期、分页、频率、窗口上限、错误、复权因子模型与基准日。 不复权契约可先验收；复权未通过时不承诺支持 qfq/hfq。</p>
+<p>业务工具的 <code>adjustment_base_date</code> 当前不在 <code>CAPABILITY_PARAMETERS[market_bars]</code> 中； 启用时需同步扩展参数允许集、源支持校验、缓存/语义身份和 manifest。未完成前拒绝该参数， 不能绕过 BusinessQuery 校验。指数批量参数、证券搜索 limit 等工具输入与原请求不同的地方， 也需在查询服务显式翻译或本地裁剪，不能整包透传。</p>
+<p>此步骤可能需要局部修改供应商适配，撤回旧版“不改任何 provider”的绝对限制。 不新增依赖、迁移、常驻服务或处理凭据；付费实测按单独授权的范围执行。</p>
+<h3 id="s-78">13.6 B5 计划摘要与逐项扩展</h3>
+<p>在既有 manifest 扩展位置记录有界计划摘要，旧快照无字段仍能读取。 使用原查询 id、来源、授权和快照记录关联计划，不另造一套作业表。 只有 K 线端到端通过后再逐项接财务、公告等；不为阶段标签强拆五个 PR。</p>
+<h3 id="s-79">13.7 必要验证</h3>
+<div class="table-wrap"><table><thead><tr><th>场景</th><th>必须观察的结果</th></tr></thead><tbody><tr><td>周五与周一连续缺失</td><td>一段，与旧算法一致</td></tr>
+<tr><td>两个缺口之间有已覆盖交易日</td><td>两段</td></tr>
+<tr><td>碎片超 16 段</td><td>旧折叠规则，最终执行段仍满足源上限</td></tr>
+<tr><td>同源全覆盖、供应商离线但授权有效</td><td>0 次供应商调用</td></tr>
+<tr><td>显式源 A，只有 B 的本地缓存</td><td>不得命中 B</td></tr>
+<tr><td>A 部分覆盖后失败转 B</td><td>重算 B 整段覆盖；最终序列没有 A/B 混合</td></tr>
+<tr><td>长历史中有 &gt;60 日连续 Wind 缺口</td><td>切成多段，每段 ≤60 自然日</td></tr>
+<tr><td>停牌证明、未上市、休市空窗口</td><td>事实行、证明日、未知缺口分别计数</td></tr>
+<tr><td>今日未收盘</td><td>不当作已完成日 K；报告有效范围</td></tr>
+<tr><td>refresh / PIT / 配置摘要变化</td><td>保持原语义与授权检查</td></tr>
+<tr><td>复权锚点或模型不支持</td><td>拒绝不等价来源，不换口径</td></tr>
+<tr><td>WeKnora 发现与实际调用</td><td>只有已注册工具可用，不能以重新授权替代实现</td></tr></tbody></table></div>
+<h3 id="s-80">13.8 本轮交付边界</h3>
+<p>v2 本轮只更新本文、任务报告及生成 HTML；B1 缺陷仍待上述实现修正。 没有新增业务工具，没有变更默认来源，没有部署服务；历史实测不冒充本轮复验。</p>
+</main>
+</div>
+<button class="theme" type="button">切换主题</button>
+<script>
+(()=>{
+  const param=new URLSearchParams(location.search).get('theme');
+  if(param==='light'||param==='dark')document.documentElement.dataset.theme=param;
+  // ASCII ids (s-N) are resolved natively by the browser; no custom scroll is
+  // needed and native behaviour keeps the sticky sidebar in place.
+})();
+const themeButton=document.querySelector('.theme');
+themeButton.addEventListener('click',()=>{
+  const root=document.documentElement;
+  root.dataset.theme=root.dataset.theme==='dark'?'light':'dark';
+});
+const search=document.querySelector('.search');
+search.addEventListener('input',()=>{
+  const value=search.value.trim().toLowerCase();
+  document.querySelectorAll('.toc a').forEach(link=>{
+    link.hidden=value && !link.textContent.toLowerCase().includes(value);
+  });
+});
+const links=[...document.querySelectorAll('.toc a')];
+const targets=links.map(link=>document.getElementById(link.hash.slice(1))).filter(Boolean);
+const observer=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{
+    if(!entry.isIntersecting)return;
+    links.forEach(link=>link.classList.toggle('active',link.hash==='#'+entry.target.id));
+  });
+},{rootMargin:'0px 0px -70% 0px'});
+targets.forEach(target=>observer.observe(target));
+</script>
+</body>
+</html>

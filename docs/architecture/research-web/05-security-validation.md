@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+隔离文档返回首页时浏览器标记 cross-site，Strict 会话 Cookie 可能不随首跳发送。仅无 Origin 的
+GET / 用户点击顶层 document/navigation 可取得不含账号数据、不签发 Cookie 的同源重入页，
+固定执行 location.replace("/")；下一次首页请求仍走原会话鉴权，未登录则进入 /auth。
+iframe、脚本 fetch、API、写请求与显式 null/外站 Origin 均不因此放行。
+
 G2B 晋级绑定已验收制品、目标和前版，经原 Manager 身份与资源检查执行；维护只拒绝新工作，不强停已接纳研究。原凭据五卷不重建，Hot 状态尚无停写/回滚证明时不能据进程停止推断可晋级。
 
 ## 入站 MCP 的公开取数权限（2026-11-23）
@@ -293,6 +298,8 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 `finalized`。安全与验收边界见[周报生产合同](../../research-web-etf-weekly-production.md)。
 
 服务器模式仅在 macOS Native 显式启用，固定一个 Tailscale HTTPS origin/Host；回环 HTTP 仅供本机开发。Tailscale 网络准入和产品账号登录分别验证，无公网注册或 CORS。账号库用 scrypt 密码摘要、随机 Cookie 令牌的哈希和到期时间；密码不进入参数、日志或浏览器持久存储。HTTPS Cookie 为 HttpOnly/Secure/SameSite=Strict，12 小时过期；未知账号与错误密码同样失败，登录失败有界限速。停用、密码重置和退出登录即时撤销对应登录态；最后一个活动管理员受保护。
+
+固定架构文档在 opaque sandbox 中打开，浏览器不向跨文档跳转提供 Strict 会话 Cookie，因此网关在成功读取文档时另行签发同令牌、HttpOnly/Secure/SameSite=Lax、path 仅限 `/api/research/documentation/` 的 `rwb_documentation` Cookie。该 Cookie 只在文档白名单路径被接受，其他路由仍要求原 `rwb_session`；它不是新会话、不延长 12 小时有效期，退出登录与账号停用同样撤销。网关只放行固定文档名的顶层 GET/HEAD 导航，其他跨站请求仍返回 `server_origin_denied`。
 
 认证用户 UUID 由网关决定唯一 backend 和文件根，浏览器的 owner、目标地址、Cookie、Authorization、代理头或伪造内部密钥不能选择其他实例。研究提交所需的 `Idempotency-Key` 按原值透传到已认证用户的 backend；网关不生成缺失键，也不从键选择用户或扩大请求权限。逐实例私有令牌保护后端直连；DSH 的允许内部回调另验数据密钥，浏览器不能经网关访问 internal。下载、搜索、SSE、取消和审批复用该用户既有会话与文件校验；SSE 与流式下载在撤销后停止交付，换账号旧页由页面身份标记拒绝。代理请求体有界，同源响应使用 no-store；上游重定向拒绝。
 
@@ -985,3 +992,5 @@ WeKnora 固定回调、客户端、PKCE、issuer 与 resource 逐项核对。Cod
 WeKnora HTTPS 回调必须使用独立主机，跨站授权导航忽略已有 Cookie。原位主账号接管要求固定安装证明，并在原锁内确认 Native 与 Docker 静止。主 Web 子进程继承 POSIX 锁，覆盖网关先退出的场景。
 
 AlphaDesk Node 进程只收到本轮任务、模型流结果及获准工具响应。凭据由 Host 私有解析，资料和报告访问继续受账号与冻结来源检查约束。
+
+FinGPT 完整前端只接收固定 client 的短期一次性身份交换，真实 email 来自已验证的 WeKnora 账号绑定。RWB Cookie 不进入 WeKnora，上游仅能设置原生 OIDC nonce，完整应用仅允许精确 RWB 来源嵌入；同主机 MCP 例外只随显式已隔离配置启用，普通默认拒绝不变。旧聊天删除在原受管停止阶段、不建数据备份，共享数据和正式报告按真实引用保留；见[工作台合同](../../research-web-fingpt-workspace.md)。

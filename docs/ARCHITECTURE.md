@@ -1,5 +1,18 @@
 # Research Workbench 架构总览
 
+资产观察普通不复权历史日 K 与入站 MCP 共用 DataHub 的 stock_kline_query 请求合同，
+仍沿资产 API/原账号 Host → DataHub → Broker/仓库/Provider → 冻结快照；不新增服务或 MCP 回环。
+适用范围、原复权/分时兼容和验收边界见[业务工具合同](research-web-business-tools.md#k-线与仓库规划)。
+
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
+已配置来源的入站 MCP 在原账号 OAuth／Host／DataHub 链新增显式 scope，按当前账号目录的
+callable、allowed 和已实现绑定执行原 BusinessQuery。金融 MCP 为 DataHub 的固定上游
+Provider，复用 OS 凭据库、原查询记录及冻结快照；不将厂商密钥交给 WeKnora，不创建第二
+研究引擎或数据存储。来源与金融语义见[金融 MCP](research-web-finance-mcp.md)。
+
 Fed RSS 跟踪复用 DataHub 的 `ext_fed/news`、Discovery 冻结和原 Automation 调度，来源摘要经绑定附件进入 Host 已选的 FinGPT 执行链。RSS、原始发布时间和公告全文分别标识，未变化不调用模型；没有新增采集服务、调度器或数据库。
 
 附接 MCP 保全的 forward 切换与限定 preparing 恢复在原 BirthFence SQLite EX／安装作用域内，
@@ -470,3 +483,7 @@ macOS 私网网关可显式选择每账户 Web 单进程。WeKnora Runtime 是�
 ### 私网仅服务主账号
 
 常驻网关可以复用原主账号目录和 Web 端口，由旧生命周期锁保护唯一写入方。预登记 WeKnora HTTPS 回调使用独立主机。
+
+## FinGPT 原生工作台替换
+
+FinGPT 沿原多用户网关接入固定 WeKnora 完整前端，保留 RWB 导航和逐账号身份；固定单 client 的原生 OIDC/userinfo 桥不授予数据权限，DataHub 仍走原 MCP OAuth。既有 nginx 仅允许原生 nonce Cookie 并限制嵌入来源，不新增运行服务。旧聊天在原联合升级停止阶段按显式参数删除，数据和正式报告保留；见[工作台合同](research-web-fingpt-workspace.md)。

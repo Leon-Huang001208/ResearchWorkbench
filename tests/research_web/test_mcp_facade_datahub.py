@@ -115,7 +115,7 @@ def test_oauth_http_consent_names_public_provider_execution(tmp_path):
         Starlette(routes=create_oauth_routes(OAuthProvider(store))), base_url=ORIGIN
     ) as client:
         metadata = client.get("/.well-known/oauth-authorization-server").json()
-        assert metadata["scopes_supported"] == SCOPES
+        assert metadata["scopes_supported"] == [*SCOPES, "rwb.data.configured"]
         response = client.get(
             "/authorize",
             params={
@@ -442,7 +442,7 @@ def test_old_readonly_token_cannot_discover_or_execute_query_tools(gateway):
 def test_resource_metadata_advertises_optional_scope_without_requiring_it(gateway):
     env = gateway
     metadata = env.client.get("/.well-known/oauth-protected-resource/mcp").json()
-    assert metadata["scopes_supported"] == SCOPES
+    assert metadata["scopes_supported"] == [*SCOPES, "rwb.data.configured"]
     readonly = grant(env.store, env.user, ["rwb.read"]).access_token
     assert len(mcp(env, readonly)["tools"]) == 4
 
@@ -590,3 +590,175 @@ async def test_real_service_only_launcher_reaches_datahub_without_dsh(tmp_path):
             assert denied.status_code == 403
     finally:
         await pool.close()
+
+
+def test_configured_scope_needs_fresh_explicit_authorization(gateway):
+    env = gateway
+    pair = grant(env.store, env.user)
+    assert len(mcp(env, pair.access_token)["tools"]) == 7
+    denied = mcp(env, pair.access_token, "rwb_datahub_catalog")
+    assert denied.get("isError") is True
+    with pytest.raises(AccountError, match="invalid_scope"):
+        env.store.rotate_refresh(
+            pair.refresh_token, client_id="rwb-weknora", scopes=[*SCOPES, "rwb.data.configured"]
+        )
+
+
+def test_configured_catalog_reuses_account_readiness_without_fetch(gateway):
+    env = gateway
+    token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    assert len(mcp(env, token)["tools"]) == 18
+    catalog = content(mcp(env, token, "rwb_datahub_catalog"))
+    sources = {item["id"] for item in catalog["sources"]}
+    assert "ext_worldbank" in sources
+    assert "ext_finance_mcp" not in sources
+    assert all(
+        item["readiness"]["callable"] and item["readiness"]["allowed"]
+        for item in catalog["sources"]
+    )
+    assert env.state.calls == []
+
+
+def test_configured_query_accepts_existing_non_fred_binding(gateway):
+    env = gateway
+    token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    value = content(
+        mcp(
+            env,
+            token,
+            "rwb_datahub_business_query",
+            request_id="worldbank-catalog",
+            query={
+                "capability": "external_data",
+                "source": "ext_worldbank",
+                "parameters": {"dataset": "catalog", "limit": 5},
+            },
+        )
+    )
+    result = completed(env, token, value["id"])
+    assert result["source"] == "ext_worldbank"
+    assert result["data_success"] is True
+    assert result["result"]["items"]
+    assert env.state.calls == []
+
+
+def test_configured_query_rejects_missing_credential_and_auto_source(gateway):
+    env = gateway
+    token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    for source in ["ext_finance_mcp", "auto"]:
+        denied = mcp(
+            env,
+            token,
+            "rwb_datahub_business_query",
+            request_id="blocked-source",
+            query={
+                "capability": "external_data",
+                "source": source,
+                "parameters": {"dataset": "catalog"},
+            },
+        )
+        assert denied.get("isError") is True
+        assert "configured_source_unavailable" in denied["content"][0]["text"]
+    assert env.state.calls == []
+
+
+def test_business_kline_uses_original_query_status_and_gangtise_binding(gateway, monkeypatch):
+    env = gateway
+    token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    described = {item["name"]: item for item in mcp(env, token)["tools"]}
+    macro_schema = described["get_economic_series"]["inputSchema"]
+    assert {"start_date", "end_date"} <= set(macro_schema["required"])
+    assert "NATIONAL_SAME" in macro_schema["properties"]["series"]["description"]
+    from app.research_web.datahub import catalog
+
+    monkeypatch.setattr(catalog, "_dependency_status", lambda *_: (False, "fixture_unavailable"))
+    monkeypatch.setattr(
+        env.service.datahub.connections,
+        "statuses",
+        lambda: {"ext_finance_mcp": {"secret_configured": True}},
+    )
+    monkeypatch.setattr(
+        env.service.datahub.connections,
+        "read_source_secret",
+        lambda source: "fixture-finance-token",
+    )
+    calls = []
+
+    def provider(request):
+        if request.method == "GET":
+            return httpx.Response(405)
+        body = json.loads(request.content)
+        if body["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        result = {
+            "protocolVersion": "2025-11-25",
+            "capabilities": {},
+            "serverInfo": {"name": "fixture", "version": "1"},
+        }
+        if body["method"] == "tools/list":
+            result = {
+                "tools": [
+                    {"name": "gangtise_query", "inputSchema": {"type": "object", "properties": {}}}
+                ]
+            }
+        if body["method"] == "tools/call":
+            calls.append(body["params"])
+            result = {
+                "isError": False,
+                "content": [],
+                "structuredContent": {
+                    "ok": True,
+                    "data": {
+                        "code": "000000",
+                        "status": True,
+                        "data": {
+                            "total": 1,
+                            "fieldList": [
+                                "securityCode",
+                                "tradeDate",
+                                "open",
+                                "high",
+                                "low",
+                                "close",
+                                "volume",
+                                "amount",
+                            ],
+                            "list": [["600519.SH", "2026-01-05", 10, 12, 9, 11, 100, 1100]],
+                        },
+                    },
+                },
+            }
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": body["id"], "result": result})
+
+    env.service.datahub.transport = httpx.MockTransport(provider)
+    value = content(
+        mcp(
+            env,
+            token,
+            "get_stock_kline",
+            request_id="business-kline-1",
+            asset="600519.SH",
+            start_date="2026-01-05",
+            end_date="2026-01-05",
+        )
+    )
+    result = completed(env, token, value["id"])
+    assert result["status"] == "completed"
+    assert result["result"]["manifest"]["provider"] == "ext_finance_mcp"
+    assert result["data_success"] is True
+    assert result["result"]["items"][0]["turnover"] == 1100
+    assert calls[0]["name"] == "gangtise_query"
+    assert calls[0]["arguments"]["operation"] == "查询A股日K线"
+    again = content(
+        mcp(
+            env,
+            token,
+            "get_stock_kline",
+            request_id="business-kline-1",
+            asset="600519.SH",
+            start_date="2026-01-05",
+            end_date="2026-01-05",
+        )
+    )
+    assert again["id"] == value["id"]
+    assert len(calls) == 1

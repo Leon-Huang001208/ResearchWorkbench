@@ -29,3 +29,7 @@ Research Web 的 FinGPT 使用迁入的 AlphaDesk React 问答组件及 Node 研
 验收期间，未核价的 DataHub 新查询、发现预览与资料刷新冻结、以及尚未留存正文的公开网页读取在发出外部请求前拒绝。已有 DataHub 查询回执、冻结资料和已留存网页仍按原有权限和完整性校验读取。
 
 [前端迁移说明](../app/research_web/qa_frontend/README.md) · [执行器协议](../app/research_web/qa_worker/README.md) · [受管发布合同](research-web-gateway-upgrade.md)
+
+## 完整工作台替换后的数据上下文
+
+显式原生工作台配置启用时，FinGPT 浏览器入口改用[WeKnora 完整工作台](research-web-fingpt-workspace.md)，本文件保留旧执行合同。旧聊天退役判据不适用于 DataHub 保留的 `data_only` 上下文或原生 MCP 查询创建的 `mcp_data_grant_id` 上下文；二者继续支持原数据读取，但不展示为聊天、不新开模型回合。精确删除旧聊天不会删除正式报告及真实共享材料。

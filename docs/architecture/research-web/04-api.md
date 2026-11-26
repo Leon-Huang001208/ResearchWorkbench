@@ -1,5 +1,33 @@
 # Research Web 接口清单
 
+## 响应模型只用于文档（2026-11-24）
+
+`app/research_web/schemas_responses.py` 的模型通过
+`responses={200: {"model": ...}}`（或对应成功码）挂到路由，仅用于生成 OpenAPI；
+**不得**改用 `response_model`。原因：`response_model` 在运行时校验并丢弃未声明字段，
+会改变现有响应（部分处理函数保留旧客户端依赖的额外键）。文档模型一律
+`extra="allow"`，字段列表是已知子集，不宣称穷尽。
+
+当前已登记响应结构：`/data/queries`（POST/GET/详情/取消）与
+`/assets/observations`（POST/GET/详情）。其余 453 个操作仍未声明 2xx schema，
+在 OpenAPI 中保持 `未记载`，不用同类接口推断。
+
+回归：`tests/research_web/test_workbench_operations.py::test_desk_query_response_models_document_shape_without_filtering_runtime`
+同时断言 schema 已登记与响应仍为原始投影；`test_asset_loading.py` 覆盖资产侧运行时。
+
+## 参数说明词汇表（2026-11-25）
+
+`app/research_web/api_parameter_docs.py` 在 `create_app` 上安装一个只写 OpenAPI 的补充层：
+按 `location:name` 覆盖全部操作参数；同一名称在路由族中语义不同时，用路径前缀覆盖
+（例如 `did` 在数据集与档案、`code` 在证券与 OAuth、`state` 在业务状态与 OAuth）。
+它不参与请求解析或响应序列化，已有 `description` 不会被覆盖。
+
+当前覆盖 457 个业务参数用法（124 个不同的 location/name 组合），静态资源路径不列入手册。
+词汇表条目必须对应真实参数：
+`tests/research_web/test_api_parameter_docs.py` 在缺少说明、死条目或前缀覆盖不再匹配时失败；
+`test_api.py` 保留原接口合同。手册生成器直接读取 OpenAPI，因此同一份词汇表同时进入
+`/openapi.json` 与 API Manual。
+
 Fed RSS 预览入口为 `POST /api/research/discovery/registered-feeds/fed`，接收本人 `session_id`、可选已冻结 `dataset_id` 和 `horizon`；来源固定为 DataHub `ext_fed/news`。保存沿原 `/discovery/tracks`，手动运行使用 `POST /discovery/tracks/{id}/run`（`expected_version`、UUID `request_id`），历史使用 `GET /discovery/tracks/{id}/runs`。沿既有本人归属、宿主跟踪开关和明确用户动作校验，不开放通用 Automation 或任意 URL。
 
 `GET /api/research/release` 读取受管镜像内的不可变发布身份；普通运行返回 `managed:false`。维护控制只使用原容器内私有 Unix socket，不暴露外部写 API；新的受管写请求在维护中返回 `503 release_maintenance`。
@@ -323,7 +351,7 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 ## 可选服务器账号 API
 
-以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。
+以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。固定架构文档另用同令牌的 `rwb_documentation` Cookie，HttpOnly、Secure、SameSite=Lax、path 限于 `/api/research/documentation/`，使 opaque sandbox 的文档间导航可用；该 Cookie 不被其他路由接受，退出登录时一并删除。
 
 | 方法与路径 | 输入与权限 | 结果 |
 | --- | --- | --- |

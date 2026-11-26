@@ -40,7 +40,9 @@ def weknora_callback(origin: str) -> str:
     raise ValueError("weknora_oauth_origin_invalid")
 
 
-def validate_weknora_gateway(issuer: str, callback_origin: str, port: int) -> None:
+def validate_weknora_gateway(
+    issuer: str, callback_origin: str, port: int, *, cookie_isolated: bool = False
+) -> None:
     weknora_callback(callback_origin)
     if issuer == callback_origin:
         raise ValueError("weknora_oauth_origin_conflict")
@@ -51,7 +53,7 @@ def validate_weknora_gateway(issuer: str, callback_origin: str, port: int) -> No
         )
         if issuer != expected:
             raise ValueError("weknora_oauth_issuer_invalid")
-        if urlsplit(callback_origin).hostname == url.hostname:
+        if urlsplit(callback_origin).hostname == url.hostname and cookie_isolated is not True:
             raise ValueError("weknora_oauth_cookie_host_conflict")
     elif (
         port == 80 or issuer != f"http://127.0.0.1:{port}" or callback_origin.startswith("https://")
@@ -70,7 +72,12 @@ def resident_execution(config: dict, *, mcp_enabled: bool) -> tuple[bool, str | 
         if not isinstance(oauth_origin, str):
             raise ValueError("weknora_oauth_origin_invalid")
         try:
-            validate_weknora_gateway(config["origin"], oauth_origin, config["port"])
+            validate_weknora_gateway(
+                config["origin"],
+                oauth_origin,
+                config["port"],
+                cookie_isolated=config.get("weknora_cookie_isolated") is True,
+            )
         except (KeyError, ValueError, TypeError) as exc:
             raise ValueError("weknora_oauth_origin_invalid") from exc
     return service_only, oauth_origin

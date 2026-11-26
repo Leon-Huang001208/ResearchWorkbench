@@ -776,7 +776,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 23);
+  assert.equal(catalogs.length, 24);
   assert.ok(catalogs.some(([id]) => id === "research-web-inbound-mcp"));
   assert.ok(catalogs.some(([id]) => id === "research-web-asset-history-python"));
   assert.ok(catalogs.some(([id]) => id === "research-web-native-upgrade"));
@@ -1602,6 +1602,17 @@ test("AKShare plus asset UI escalates to the bounded L3 user path", () => {
 });
 
 test("DataHub routes use inbound MCP policy and unregistered boundaries remain L4 fallback", () => {
+  const inboundPaths = new Set([
+    "app/research_web/datahub/routes.py",
+    "app/research_web/datahub/connections.py",
+    "app/research_web/datahub/external_sources.json",
+    "app/research_web/datahub/external_sources.py",
+    "app/research_web/datahub/providers.py",
+    "app/research_web/datahub/providers_finance_mcp.py",
+    "tests/research_web/test_datahub_finance_mcp.py",
+    "tests/research_web/test_external_sources.py",
+    "tests/research_web/test_mcp_facade_datahub.py",
+  ]);
   const currentDataHubPythonFiles = fs.readdirSync(
     path.join(repositoryRoot, "app/research_web/datahub"),
     {withFileTypes: true},
@@ -1612,6 +1623,7 @@ test("DataHub routes use inbound MCP policy and unregistered boundaries remain L
   )).map(entry => `app/research_web/datahub/${entry.name}`).sort();
   const fallbackPaths = [...new Set([
     ...currentDataHubPythonFiles,
+    ...inboundPaths,
     "app/research_web/datahub/future_provider.py",
     "tests/research_web/test_datahub_wind.py",
   ])];
@@ -1624,7 +1636,7 @@ test("DataHub routes use inbound MCP policy and unregistered boundaries remain L
     const plan = success(run(repositoryRoot, [changedFile]));
     assert.equal(plan.risk, "full-delivery", changedFile);
     assert.equal(plan.requiredLevel, "L4", changedFile);
-    if (changedFile === "app/research_web/datahub/routes.py") {
+    if (inboundPaths.has(changedFile)) {
       assert.deepEqual(plan.changeSummary.ruleIds, ["research-web-inbound-mcp"]);
       assert.deepEqual(plan.reasons, [{
         path: changedFile,

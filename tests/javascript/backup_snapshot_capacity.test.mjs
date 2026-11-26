@@ -97,6 +97,26 @@ test('source hardlinks retain original stream compatibility and skip clone', () 
   assert.deepEqual(fs.readFileSync(path.join(f.directory, 'payload/file')), f.bytes);
 }));
 
+test('different destination device skips clone and preserves checked stream bytes', () => fixture(f => {
+  const original = fs.fstatSync;
+  try {
+    fs.fstatSync = (descriptor, options) => {
+      const value = original(descriptor, options);
+      return value.isDirectory() ? Object.assign(Object.create(Object.getPrototypeOf(value)), value, {dev: value.dev + (typeof value.dev === 'bigint' ? 1n : 1)}) : value;
+    };
+    const originalLstat = fs.lstatSync;
+    try {
+      fs.lstatSync = (filename, options) => {
+        const value = originalLstat(filename, options);
+        return String(filename) === path.join(f.directory, 'payload') ? Object.assign(Object.create(Object.getPrototypeOf(value)), value, {dev: value.dev + (typeof value.dev === 'bigint' ? 1n : 1)}) : value;
+      };
+      snapshot(f, {resolvePython: () => '/never/executed', clone: () => assert.fail('cross-device clone attempted')});
+    } finally {fs.lstatSync = originalLstat;}
+  } finally {fs.fstatSync = original;}
+  assert.deepEqual(fs.readFileSync(path.join(f.directory, 'payload/file')), f.bytes);
+  assert.equal(f.manifest.files[0].sha256, digest(f.bytes));
+}));
+
 test('source special mode retains original stream compatibility and is not cloned', () => fixture(f => {
   fs.chmodSync(f.source, 0o4640);
   snapshot(f, {resolvePython: () => '/never/executed', clone: () => {assert.fail('special mode attempted clone');}});

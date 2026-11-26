@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
+import {CENTER_DOCUMENT_NAMES} from '../../scripts/build_documentation_center.mjs';
 
 const checkerURL = new URL('../../scripts/check_research_architecture.mjs', import.meta.url);
 const atlasURL = new URL('../../scripts/build_research_web_api_atlas.mjs', import.meta.url);
@@ -49,6 +50,7 @@ function fixture(t) {
     return {id,source:spec,artifact,receipt,visualReceipt,evidence:[{subjects:['node','edge'],source,contains:'async def runtime'}]};
   });
   write(`${artifactRoot}/index.html`, ids.map(id=>`<a href="${id}.html">${id}</a>`).join(''));
+  write(`${artifactRoot}/api-manual.html`, '<h1>RWB API Manual</h1>');
   const visualReview='docs/architecture/research-web/visual-review.json';
   write(visualReview,{schemaVersion:1,diagrams:human});
   write(mapPath,{schemaVersion:1,canonicalEntry:'docs/architecture/research-web/README.md',reviewRecord:review,visualReview,artifactRoot,groups:[{id:'runtime',sources:[source],documents:[document],diagrams:ids,tests:['tests/check.py']}],diagrams,apis:[{method:'GET',path:'/api/research/runtime',declaredPath:'/api/research/runtime',prefix:'',source}]});
@@ -631,10 +633,12 @@ test('reading script filters source paths, reports empty state, handles opaque t
   const root={dataset:{}};const docEvents=new Map();
   const document={documentElement:root,getElementById(id){return controls[id]||entries.find(x=>x.id===id)|| (id===code.id?code:null);},querySelectorAll(selector){if(selector==='.reading-entry')return entries;if(selector==='main > section')return [section];return [];},addEventListener(type,handler){docEvents.set(type,handler);}};
   const windowEvents=new Map();const window={scrollY:0,scrollTo(){},addEventListener(type,handler){windowEvents.set(type,handler);}};
-  const media={matches:true,addEventListener(){}};const location={hash:''};
-  runInNewContext(script,{document,window,location,matchMedia:()=>media,console});
+  const media={matches:true,addEventListener(){}};const location={hash:'',search:'',href:'http://localhost/docs/index.html'};
+  const history={replaceState(_state,_title,url){location.href=url;}};
+  runInNewContext(script,{document,window,location,history,URL,URLSearchParams,matchMedia:()=>media,console});
   assert.equal(root.dataset.theme,'dark');
   controls['architecture-theme'].value='light';events.get('architecture-theme:change')();assert.equal(root.dataset.theme,'light');
+  assert.equal(new URL(location.href).searchParams.get('theme'),'light');
   controls['architecture-density'].value='compact';events.get('architecture-density:change')();assert.equal(root.dataset.density,'compact');
   controls['architecture-search'].value='MAIN.PY';events.get('architecture-search:input')();
   assert.equal(entries[0].hidden,true);assert.equal(entries[1].hidden,false);assert.equal(section.hidden,false);assert.match(controls['reading-status'].textContent,/1.*模块/);
@@ -703,7 +707,7 @@ test('generator rejects dangling output and log symlinks without writing outside
 test('fixed documentation names reject missing, extra and duplicate registered-view routes', async () => {
   const {checkDocumentNames}=await import(checkerURL);
   const sourceFor=names=>`DOCUMENT_NAMES = frozenset(f"{name}.html" for name in (${names.map(name=>JSON.stringify(name)).join(',')},))`;
-  const valid=['index','api-atlas','00-system-overview','01-deployment'];
+  const valid=['index','api-atlas','api-manual',...CENTER_DOCUMENT_NAMES,'00-system-overview','01-deployment'];
   assert.deepEqual(checkDocumentNames(sourceFor(valid),valid.slice(2)),[]);
   for(const names of [valid.slice(0,-1),[...valid,'private'],[...valid,'index']]) {
     assert.equal(checkDocumentNames(sourceFor(names),valid.slice(2))[0].code,'documentation_inventory');
@@ -881,9 +885,13 @@ test('API filters combine domain, method and search while counting duplicate dec
   const rows=[['GET','/frameworks','研究框架'],['GET','/frameworks','研究框架'],['POST','/frameworks','研究框架'],['GET','/runtime','Runtime']].map(([method,route,category])=>({dataset:{method,category,search:(method+' '+route+' main.py '+category).toLowerCase()},querySelector(){return {textContent:route};}}));
   const buttons=['','研究框架'].map(domain=>({dataset:{domain},classList:{toggle(){}},setAttribute(){},addEventListener(type,fn){events.set(domain+':'+type,fn);}}));
   const root={dataset:{}},media={matches:true,addEventListener(type,fn){events.set('media:'+type,fn);}};
-  const document={documentElement:root,getElementById(id){return controls[id];},querySelectorAll(selector){return selector==='[data-domain]'?buttons:rows;},addEventListener(type,fn){events.set('doc:'+type,fn);}};
-  runInNewContext(script,{document,matchMedia:()=>media,location:{search:'?category='+encodeURIComponent('研究框架')},URLSearchParams,console});
-  assert.equal(root.dataset.theme,'dark');assert.equal(controls['result-count'].textContent,'2 个唯一接口 / 3 条声明');
+  const document={documentElement:root,getElementById(id){return controls[id];},querySelectorAll(selector){return selector==='[data-domain]'?buttons:selector==='.endpoint'?rows:[];},addEventListener(type,fn){events.set('doc:'+type,fn);}};
+  const location={search:'?theme=light&category='+encodeURIComponent('研究框架'),href:'http://localhost/docs/api-atlas.html?theme=light&category='+encodeURIComponent('研究框架')+'#api-list'};
+  const history={replaceState(_state,_title,url){location.href=url;}};
+  runInNewContext(script,{document,matchMedia:()=>media,location,history,URL,URLSearchParams,console});
+  assert.equal(root.dataset.theme,'light');assert.equal(controls['result-count'].textContent,'2 个唯一接口 / 3 条声明');
+  controls.theme.value='dark';events.get('theme:change')();assert.equal(root.dataset.theme,'dark');
+  assert.equal(new URL(location.href).searchParams.get('category'),'研究框架');assert.equal(new URL(location.href).hash,'#api-list');
   controls.method.value='GET';events.get('method:change')();assert.equal(controls['result-count'].textContent,'1 个唯一接口 / 2 条声明');
   controls.search.value='MAIN.PY';events.get('search:input')();assert.equal(rows[0].hidden,false);assert.equal(rows[2].hidden,true);
   controls.search.value='absent';events.get('search:input')();assert.equal(controls.empty.hidden,false);

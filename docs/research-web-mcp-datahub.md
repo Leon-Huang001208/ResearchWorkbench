@@ -1,5 +1,24 @@
 # WeKnora 的 DataHub 入站工具
 
+get_stock_kline 的规范原始日线请求构造下沉至 DataHub contracts，供 MCP 与资产观察
+已覆盖的历史区块共用；MCP公共参数、原scope/grant、提交id和status读取保持不变。
+资产页面通过原资产API调用该内部合同，不借用外部应用令牌或跨账号MCP上下文。
+
+## 当前账号已配置数据源
+
+新授权 `rwb.data.configured` 必须同时包含 `rwb.read rwb.data.query`，仅供原已登记
+WeKnora 客户端。旧令牌不自动获得此权限，refresh 不能增权。
+同意页说明复用账号的厂商配置、权限及可能计费的原额度，不返回凭据。
+
+- `rwb_datahub_catalog` 返回当前账号 callable 且 allowed 的来源、已实现绑定和业务参数；不取源。
+- `rwb_datahub_business_query(request_id, query)` 接受原 `BusinessQuery`，要求明确指定目录中的
+  source/capability，复用现有查询入口，禁用该次跨源 fallback，不接受外部地址或凭据。
+- 返回查询继续使用原 status/cancel 和 grant 上下文，保留原件、快照及质量含义。
+
+未配置凭据、依赖缺失、停用或无权的来源不因 MCP 接入变为可调用；外部金融 MCP
+也走该账号的 DataHub Provider。scope 与工具目录按当前令牌过滤。
+以下 FRED/BLS 合同和旧授权保持原行为。
+
 本适配沿 RWB 原账号网关、OAuth、Host、DataHub 与 Provider 工作。它让外部研究宿主提交有界公开数据查询，RWB 保留来源选择、供应商调用、权限、缓存、快照、原件及金融质量语义；不把 DataKey、账号根、URL、SQL 或命令交给外部宿主。
 
 ## 权限与兼容

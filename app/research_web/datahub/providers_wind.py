@@ -25,6 +25,20 @@ from .providers import (
 )
 
 log = get_logger(__name__)
+SNAPSHOT_INPUT_FIELDS = frozenset(
+    {
+        "code",
+        "trade_date",
+        "close",
+        "turnover",
+        "pe_ttm",
+        "pb",
+        "pb_mrq",
+        "ps_ttm",
+        "pcf_ocf_ttm",
+        "total_shares",
+    }
+)
 _ASSET = re.compile(r"^[0-9]{6}\.(?:SH|SZ|BJ)$")
 _ADJUSTMENTS = {"none": 1, "backward": 2, "forward": 3, "hfq": 2, "qfq": 3}
 MAX_HISTORY_CALENDAR_DAYS = 60
@@ -589,18 +603,7 @@ def _invoke(query: BusinessQuery, adapter: Any) -> Any:
     if query.capability == "market_snapshot":
         assets = parameters.get("assets")
         fields = parameters.get("fields", [])
-        allowed_fields = {
-            "code",
-            "trade_date",
-            "close",
-            "turnover",
-            "pe_ttm",
-            "pb",
-            "pb_mrq",
-            "ps_ttm",
-            "pcf_ocf_ttm",
-            "total_shares",
-        }
+        allowed_fields = SNAPSHOT_INPUT_FIELDS
         if (
             parameters.get("asset_type") != "stock"
             or not isinstance(assets, list)

@@ -3044,6 +3044,24 @@ Functions:
 - `group_reports`
 
 
+## `app/research_web/api_parameter_docs.py`
+
+Module docstring:
+> Reviewed OpenAPI parameter descriptions.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `typing`
+
+Functions:
+- `parameter_description`
+  - Return the reviewed description for one OpenAPI parameter, if any.
+- `_enrich`
+- `install_openapi_parameter_docs`
+  - Attach the glossary to this app's lazily built OpenAPI schema.
+
+
 ## `app/research_web/asset_chip_inputs.py`
 
 Module docstring:
@@ -3296,6 +3314,7 @@ Imports:
 - `datetime`
 - `fastapi`
 - `pydantic`
+- `schemas_responses`
 - `typing`
 
 Classes:
@@ -3363,6 +3382,7 @@ Imports:
 - `copy`
 - `core.observability`
 - `datahub.contracts`
+- `datahub.providers`
 - `datetime`
 - `hashlib`
 - `json`
@@ -4436,6 +4456,8 @@ Functions:
 - `resolve_report_weekly`
   - Authorize the private Client API path without broadening public Wind tools.
 - `_integer`
+- `_wind_snapshot_query`
+  - Translate public price fields without confusing amount with turnover rate.
 - `_wind_financial_query`
   - Translate equivalent indicator naming without reducing requested periods.
 - `resolve`
@@ -4553,6 +4575,7 @@ Module docstring:
 
 Imports:
 - `adjustment_contract`
+- `core.observability`
 - `datetime`
 - `hashlib`
 - `json`
@@ -4574,6 +4597,10 @@ Classes:
   - Stable DSH-facing request; provider selection stays inside DataHub.
   - methods: safe_parameters, fingerprint
 - `InternalBusinessQuery`
+
+Functions:
+- `stock_kline_query`
+  - Shared completed raw daily-stock contract for asset pages and MCP tools.
 
 
 ## `app/research_web/datahub/external_sources.py`
@@ -4651,6 +4678,41 @@ Imports:
 Classes:
 - `MarketReader`
   - methods: __init__, _identity, _recheck, _metadata, indices
+
+
+## `app/research_web/datahub/planning.py`
+
+Module docstring:
+> Warehouse-first planning: decide what to read locally and what to fetch.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `market_store`
+
+Classes:
+- `Segment`
+  - Inclusive calendar-day range.
+  - methods: __post_init__, as_parameter_updates, as_manifest
+- `Plan`
+  - What the warehouse already covers and what still needs a supplier.
+  - methods: complete, manifest
+
+Functions:
+- `plannable`
+  - Whether a request may consult the warehouse before choosing a source.
+- `merge_days`
+  - Merge sorted business days into contiguous calendar-day segments.
+- `plan`
+  - Build a plan, or return ``None`` when this request is not plannable.
+- `merge_gaps`
+  - Merge adjacent trading days, preserving covered days as boundaries.
+- `plan_queries`
+  - Turn gap segments into source-bound queries, one per segment.
 
 
 ## `app/research_web/datahub/probes.py`
@@ -5100,6 +5162,49 @@ Functions:
 - `verify_quantapi_authorization`
   - Verify existing access via metadata, or exchange a refresh-only config.
 - `cicc_request`
+- `fetch`
+
+
+## `app/research_web/datahub/providers_finance_market.py`
+
+Module docstring:
+> Source-qualified Gangtise raw daily bars through the fixed finance gateway.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `providers`
+- `providers_finance_mcp`
+
+Functions:
+- `validate_supported_query`
+- `project`
+  - Reject truncation, mixed identities, duplicated dates and invalid OHLC.
+- `fetch_market`
+
+
+## `app/research_web/datahub/providers_finance_mcp.py`
+
+Module docstring:
+> Fixed finance MCP upstream using the account's existing credential store.
+
+Imports:
+- `asyncio`
+- `connections`
+- `core.observability`
+- `external_sources`
+- `httpx`
+- `json`
+- `mcp`
+- `mcp.client.streamable_http`
+- `providers`
+
+Functions:
+- `tool_payload`
+  - Keep the original structured object or JSON text, including vendor status.
+- `projection`
 - `fetch`
 
 
@@ -5819,6 +5924,7 @@ Imports:
 - `json`
 - `market_store`
 - `market_store.models`
+- `planning`
 - `providers`
 
 Classes:
@@ -7113,6 +7219,25 @@ Functions:
 - `canonical`
 - `now`
 - `fail`
+
+
+## `app/research_web/fingpt_retirement.py`
+
+Module docstring:
+> Delete old FinGPT chat data during the explicitly authorized stopped cutover.
+
+Imports:
+- `core.observability`
+- `dossiers.storage`
+- `json`
+- `pathlib`
+- `stat`
+- `store`
+- `uuid`
+
+Functions:
+- `_remove_exclusive`
+- `retire_fingpt_history`
 
 
 ## `app/research_web/frameworks/__init__.py`
@@ -8559,6 +8684,7 @@ Imports:
 - `ai_news_routes`
 - `ai_news_service`
 - `aihot_routes`
+- `api_parameter_docs`
 - `asset_research`
 - `asset_routes`
 - `asset_workspace`
@@ -8585,8 +8711,7 @@ Imports:
 - `fastapi.responses`
 - `fastapi.staticfiles`
 - `frameworks.base`
-- `frameworks.routes`
-- ... 44 more
+- ... 45 more
 
 Classes:
 - `NewSession`
@@ -9303,6 +9428,7 @@ Imports:
 - `hashlib`
 - `httpx`
 - `json`
+- `models`
 - `multiuser.runtime`
 - `re`
 - `read_policy`
@@ -9316,7 +9442,7 @@ Classes:
   - methods: __init__, _get, read
 - `DataHubBackend`
   - Opt-in public queries on an already-running account Host/DataHub.
-  - methods: _backend, _request, _context, query, _owned_query, status, cancel
+  - methods: _backend, _request, _context, query, configured_catalog, configured_query, task_query, _submit_business_query, _owned_query, status, cancel
 
 Functions:
 - `public_data_query`
@@ -9542,6 +9668,36 @@ Functions:
   - Use the SDK public middleware hook to narrow its default capabilities.
 
 
+## `app/research_web/mcp_facade/task_contracts.py`
+
+Module docstring:
+> Business tools translate fixed contracts, never caller-selected providers.
+
+Imports:
+- `core.observability`
+- `datahub.contracts`
+- `datahub.providers`
+- `datetime`
+- `pydantic`
+- `typing`
+
+Classes:
+- `TaskArguments`
+- `StockKline`
+- `StockQuote`
+- `StockFinancials`
+- `StockActivity`
+- `FundDetail`
+- `IndexQuote`
+- `EconomicSeries`
+- `SearchAssets`
+- `TradingCalendar`
+
+Functions:
+- `stock_identity`
+- `business_query`
+
+
 ## `app/research_web/mcp_facade/tools.py`
 
 Module docstring:
@@ -9551,6 +9707,7 @@ Imports:
 - `backend`
 - `config`
 - `core.observability`
+- `inspect`
 - `json`
 - `mcp.server.auth.middleware.auth_context`
 - `mcp.server.mcpserver.exceptions`
@@ -9558,6 +9715,7 @@ Imports:
 - `models`
 - `multiuser.accounts`
 - `pydantic`
+- `task_contracts`
 - `typing`
 
 Functions:
@@ -10595,6 +10753,56 @@ Functions:
 - `_account`
 
 
+## `app/research_web/multiuser/fingpt.py`
+
+Module docstring:
+> Single-client identity handoff to WeKnora's native OIDC/userinfo client.
+
+Imports:
+- `__future__`
+- `accounts`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `fingpt_config`
+- `hashlib`
+- `hmac`
+- `json`
+- `knowledge_backend.storage`
+- `secrets`
+- `urllib.parse`
+
+Classes:
+- `FinGPTIdentity`
+  - methods: __init__, digest, issue, resolve, exchange, navigation, discovery, workspace, authorize, token, userinfo
+
+Functions:
+- `account_root`
+  - Same attached-primary and private-account directories as the Host pool.
+- `bound_identity`
+
+
+## `app/research_web/multiuser/fingpt_config.py`
+
+Module docstring:
+> Stdlib-only FinGPT configuration; help/Doctor never import model settings.
+
+Imports:
+- `dataclasses`
+- `json`
+- `origin`
+- `os`
+- `pathlib`
+- `stat`
+
+Classes:
+- `FinGPTConfig`
+  - methods: __post_init__, configured, callback
+
+Functions:
+- `diagnostic`
+
+
 ## `app/research_web/multiuser/gateway.py`
 
 Module docstring:
@@ -10609,10 +10817,12 @@ Imports:
 - `asyncio`
 - `contextlib`
 - `core.observability`
+- `documentation`
 - `fastapi`
 - `fastapi.exceptions`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `fingpt`
 - `httpx`
 - `mcp_facade.config`
 - `origin`
@@ -10636,6 +10846,11 @@ Functions:
 - `ai_path`
 - `page_matches`
   - Keep an old tab from submitting to a newly logged-in account.
+- `documentation_navigation`
+  - Top-level navigation into the fixed, isolated documentation allowlist.
+- `home_navigation`
+- `_session_token`
+  - The document cookie is only accepted for the fixed documentation allowlist.
 - `_weknora_oauth_navigation`
   - Allow the validated OAuth navigation and its login redirect only.
 - `create_gateway`
@@ -13714,6 +13929,38 @@ Module docstring:
 > Frozen v2 normalized record schemas (unknown source authorship); format is not Host authority.
 
 
+## `app/research_web/schemas_responses.py`
+
+Module docstring:
+> Response models that document shape only.
+
+Imports:
+- `__future__`
+- `pydantic`
+- `typing`
+
+Classes:
+- `_Doc`
+  - Base for documentation-only models.
+- `DatasetCard`
+  - Frozen dataset projection returned once a query completes.
+- `DeskQueryRecord`
+  - Public projection of one desk query (``_public_query`` allowlist).
+- `DeskQueryList`
+  - ``GET /data/queries`` envelope.
+- `ErrorBody`
+  - Stable error envelope raised by ``StoreError``.
+- `ErrorEnvelope`
+- `BlockCard`
+  - One asset block inside an observation (``public_observation``).
+- `RequestParameters`
+  - The subset of the original request that survives to the public view.
+- `AssetObservation`
+  - Public projection of one asset observation.
+- `AssetObservationList`
+  - ``GET /assets/observations`` envelope.
+
+
 ## `app/research_web/service.py`
 
 Module docstring:
@@ -15151,6 +15398,7 @@ Imports:
 - `pathlib`
 - `pydantic`
 - `re`
+- `schemas_responses`
 - `store`
 - `time`
 - `typing`
@@ -26261,6 +26509,51 @@ Functions:
 - `main`
 
 
+## `scripts/documentation_center.py`
+
+Module docstring:
+> Render the curated documentation center without browser-side network access.
+
+Imports:
+- `__future__`
+- `documentation_markdown`
+- `html`
+- `json`
+- `pathlib`
+- `re`
+- `sys`
+
+Functions:
+- `plain`
+- `read`
+- `build`
+
+
+## `scripts/documentation_ci_scope.py`
+
+Module docstring:
+> The closed static-document slice shared by the existing Web CI selector.
+
+Functions:
+- `documentation_paths`
+
+
+## `scripts/documentation_markdown.py`
+
+Module docstring:
+> Minimal, dependency-free Markdown -> HTML for the API manual sample.
+
+Imports:
+- `__future__`
+- `html`
+- `re`
+
+Functions:
+- `inline`
+- `slug`
+- `render`
+
+
 ## `scripts/e2e_phase2_facts_store.py`
 
 Module docstring:
@@ -26319,6 +26612,15 @@ Functions:
   - 审计日志示例
 - `main`
   - 运行示例
+
+
+## `scripts/fingpt_workspace_ci.py`
+
+Module docstring:
+> Select only the FinGPT native-workspace change set; unknown files stay full.
+
+Functions:
+- `selected`
 
 
 ## `scripts/fix_event_dates.py`

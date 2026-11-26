@@ -1,5 +1,27 @@
 # Research Web 文档门禁与安全入口
 
+## 文档中心
+
+使用者首页按快速开始、使用指南、参考手册、架构与设计、安装运维排错分组。
+导航与页元信息在 `docs/manual/navigation.json`，正文在 `docs/manual/pages/`；
+OpenAPI 契约快照在 `docs/manual/api-reference.json`，18 个分域页与单页兼容手册同源生成。
+`build_research_web_api_atlas.mjs` 继续拥有静态输出，调用标准库渲染器生成共用阅读骨架与
+内联搜索索引，不放宽 CSP 的 connect-src。新增 HTML 名称必须同步固定阅读器和白名单合同。
+旧架构首页完整保留为 architecture.html，原 index 的架构章节/模块锚点转到对应位置。
+原 API Manual 操作锚点、Atlas、图页继续可达；新正文不混入内部运行回执。
+
+阅读页采用紧凑顶栏、左侧搜索及分组目录、中央正文、右侧本页目录；窄屏目录折叠。
+主题选择由文档 URL 的 `theme=auto|light|dark` 保留，站内文档链接和搜索结果继续携带该值，
+刷新与跨页不丢失。首屏绘制前应用主题；仅 auto 响应系统配色变化，显式浅/深色优先。
+隔离页面不使用 Cookie 或浏览器存储保存偏好，不放宽原 sandbox/CSP，也不向业务首页传递主题参数。
+
+数据接口由并行窗口维护。文档只接收已确认版本的 schema、字段口径与验证样例，候选能力不能
+作为上线能力；交接边界和迁移映射见 [迁移清单](manual/migration.md)。
+
+API Manual 通过固定白名单 `api-manual.html` 发布，架构首页和文档底部导航均提供入口。
+该静态手册包含 460 个操作、457 个业务参数说明与 7 个响应结构，来源绑定上一轮已审源码。
+沿用登录鉴权、文档导航 Cookie 与隔离 CSP；搜索在本页运行，不读取业务数据。
+
 API Atlas 为[策略验证](research-web-strategy-validation.md)单独归类上传、运行、历史和逐笔分页接口。
 
 ## WeKnora 模块文档（2026-11-06）

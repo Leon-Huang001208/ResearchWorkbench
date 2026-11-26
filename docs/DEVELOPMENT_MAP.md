@@ -1,5 +1,58 @@
 # Research Workbench Development Map
 
+`git_safety.mjs`正式CLI通过`--backup-root`把外盘恢复点目录传给原执行器，
+写WorkDisk前核对UUID/APFS/挂载点；跨设备跳过APFS克隆，仍由原容量准入和hash复制。
+原Constraints执行完整GitSafety/快照容量测试，Checks维护分支接受这些确切配套文件，
+未知或其他业务变动仍使用全量路径。安装及业务服务链不变。
+
+`datahub/contracts.py::stock_kline_query` 为 assets 普通 history 和
+`mcp_facade/task_contracts.py` 共用的 completed raw daily 请求构造与校验。
+`asset_workspace.py::_run_block` 仅在新合同覆盖的股票历史窗口接入，保留原来源与刷新；
+其他形态继续原路径。定点回归见 test_asset_loading、test_asset_workspace 与 test_mcp_task_contracts。
+
+主图 `asset_history_jobs.py::_query` 的规范 raw 历史分段也接该构造函数，
+其余任务输入沿原 BusinessQuery；回归在 test_asset_history。
+
+CI 的原 mcp_datahub_only 还接受 contracts/task_contracts/asset_workspace 三项同时变化的
+确切桥接集合，原脚本保留所有DataHub/MCP回归并加入完整三资产模块；未知或混入前端/main
+继续全量，规则与真实shell分支由actions_quota_governance测试核验。
+
+DataHub 业务工具复用原账号 Host 与查询/快照链；Wind 七域目录、岗底斯正式不复权行情绑定、
+仓库交易日缺口合并及财务字段边界见[业务工具合同](research-web-business-tools.md)。
+源码变化尚未更新常驻服务；安装依赖与原固定 DSH 保持不变。
+
+`mcp_facade/models.py`／`oauth_views.py` 管理新 `rwb.data.configured` 同意范围，
+`tools.py`／`backend.py` 将来源发现与业务查询接回原 DataHub。
+`datahub/providers_finance_mcp.py` 使用已锁定 MCP SDK 访问固定金融网关；连接字段由
+原 `connections.py`／外部来源目录登记。回归在 `test_mcp_facade_datahub.py` 和
+`test_datahub_finance_mcp.py`，合同见[金融 MCP](research-web-finance-mcp.md)。
+
+上述金融来源文件及两个回归模块沿原 `research-web-inbound-mcp` 精确匹配路由到
+L4/full-delivery；保留必要 CI，不把已知来源归入 unknown fallback，也不放宽其他来源匹配。
+
+CI 的精确 MCP／DataHub 差异选择仍在原 Checks 步骤；测试清单位于
+`scripts/run_mcp_datahub_ci.sh`，复用原分片和证据工具，不执行无关产品全矩阵。
+范围正反例及真正 shell 分支在 `actions_quota_governance.test.mjs`；未知混入仍走完整路径。
+
+私网网关架构文档导航修复复用同一选择步骤新增 `gateway_documentation_only`：真实差异必须
+命中 `app/research_web/multiuser/gateway.py`，其余文件仅限
+`test_multiuser_gateway.py`、`test_documentation.py`、04／05 架构说明、README 复核回执、
+生成的 Python 文件索引、本 workflow 与范围测试。命中后 Python 只跑这两个模块，JS 只跑账号
+会话与额度治理，跳过不相关的编辑引擎安装；混入其他产品源码、测试或未知文件仍走完整路径。
+收窄原因是全量合同按既有记录超过 45 分钟作业上限被取消，不是用例失败。
+Python 命令放在 `scripts/run_gateway_documentation_ci.sh`；GitHub 的 `run: |` 解码上限是
+21000 字符，内联会越界，因此沿既有 `run_fingpt_source_ci.sh` 的脚本化做法，分支只保留一行调用。
+该脚本本身也在允许清单里；新增或改名的配套脚本必须一并登记，否则选择器会回退全量。
+
+接口响应 schema 与参数说明复用同一选择步骤使用 `api_doc_only`：真实差异命中
+`schemas_responses.py` 或 `api_parameter_docs.py`，其余文件仅限 workbench／asset 路由、
+`main.py` 单点接线、对应 Python 合同（含 `test_api.py`）、04 架构说明、架构映射、README
+复核回执、生成的 Python 文件索引、架构首页及 Atlas、本 workflow、范围测试和
+`scripts/run_api_documentation_ci.sh`。`main.py` 只有同时命中 `api_parameter_docs.py`
+才进入该范围。命中后运行参数/响应文档合同、`test_api.py` 中的 schema/字段校验与同源用例、workbench 操作、
+asset loading／directory、文档路由及对应 JS 合同，跳过编辑引擎安装；混合或未知文件仍走
+完整路径。收窄原因是全量合同超过 45 分钟作业上限被取消，不是用例失败。
+
 Fed RSS 跟踪在 `discovery/fed.py` 复用 DataHub `ext_fed/news` 的原始快照，`discovery/service.py` 冻结来源，`discovery/tracking.py` 沿原 Automation 调度与历史处理变化、质量及通知；专用入口在 `discovery/routes.py`，没有新增调度服务。
 
 冻结 RSS 归档的来源元数据由 `research_quality_service.py` 在输入原件上下文中提取；报告 SDK 的 `research_report_plan.py` 经章节 `source_ids` 呈现绑定的元数据，`research_report.py::source_metadata_text` 与 Host 质量检查共用同一呈现规则，作者正文及财务观测继续沿原检查核对。
@@ -891,3 +944,7 @@ Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity
 ## 研究包与原件方法接续
 
 `scenarios/packs/` 是九包纯计算内核；`scenario_pack_inputs.py`、`scenario_pack_execution.py`、`scenario_method_sources.py` 沿现有 Host／DataHub／唯一 DSH 完成冻结、执行、质量复核与存档。入口继续由 `service.py`／`main.py` 调用，不新增运行服务。相关合同为 `test_pack_source_inputs.py`、`test_pack_execution_host.py`、`test_owned_method_execution.py` 与确定性内核测试；前移候选只复核受影响接口，复用未变的有效结果。
+
+## FinGPT 完整工作台
+
+身份桥在 `multiuser/fingpt.py`，壳接线在 `ui/fingpt-workspace.mjs`；WeKnora 原生事件和页面直接使用，Claw 不切内核。代理配置适配沿既有 `integrations/weknora/`，历史精确删除沿 `fingpt_retirement.py` 和原 `apply-reviewed` 停止阶段。新增三个 focused Python 模块、原账号/知识库/MCP及相关升级入口回归，未知混入变更仍走完整 CI；同候选 Mac 安装检查两项新静态资源，真实部署另验。详见[登录、Cookie与清理](research-web-fingpt-workspace.md)。
