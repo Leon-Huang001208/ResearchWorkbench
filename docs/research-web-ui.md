@@ -940,3 +940,5 @@ submit 监听器原有 434 行、26 个分支。七个表单批量抽离为两�
 `list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」这一规则。全仓曾有 6 处实现，其中两处用 `Math.max(0, indexOf(...))` 把未知值钉在 0，导致 `ArrowLeft` 时跳到末尾而非首个——这是真实的行为差异，合并时按各自原语义保留并用测试固定。
 
 `nextListIndex` 为纯函数，支持水平/垂直轴与「无选中项时从哪一端进入」。`capabilities.mjs`、`capability-workspace.mjs`、`mcp-marketplace.mjs` 已迁移；`app.mjs` 与 `asset-search.mjs` 的 4 处内联写法语义略有差异，留待逐处比对。
+
+2026-11-26 列表键盘导航收尾：`asset-search.mjs` 的垂直导航改用 `nextListIndex({axis:'vertical'})`；发现抽屉的 Tab 陷阱改用 `trapTabFocus`，与能力预览、MCP 对话框统一。project 编辑器对话框因使用更窄的可聚焦选择器（仅 input/button），保持原样以免改变可聚焦集合。
