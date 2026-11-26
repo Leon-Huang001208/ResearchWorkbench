@@ -942,3 +942,5 @@ submit 监听器原有 434 行、26 个分支。七个表单批量抽离为两�
 `nextListIndex` 为纯函数，支持水平/垂直轴与「无选中项时从哪一端进入」。`capabilities.mjs`、`capability-workspace.mjs`、`mcp-marketplace.mjs` 已迁移；`app.mjs` 与 `asset-search.mjs` 的 4 处内联写法语义略有差异，留待逐处比对。
 
 2026-11-26 列表键盘导航收尾：`asset-search.mjs` 的垂直导航改用 `nextListIndex({axis:'vertical'})`；发现抽屉的 Tab 陷阱改用 `trapTabFocus`，与能力预览、MCP 对话框统一。project 编辑器对话框因使用更窄的可聚焦选择器（仅 input/button），保持原样以免改变可聚焦集合。
+
+2026-11-26 紧急修复：`focus-trap.mjs` 与导入曾在合并顺序下缺失，导致 master 上 `trapTabFocus` 未定义。已补回模块、导入与测试；发现抽屉的 Tab 焦点陷阱恢复为与能力预览、MCP 对话框同一实现。
