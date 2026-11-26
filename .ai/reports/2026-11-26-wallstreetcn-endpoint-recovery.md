@@ -9,6 +9,8 @@
 
 Product-Progress: not-required — 本次只恢复外部端点解析与信封判定，未新增或改变任何用户可见页面、交互或产品说明。
 
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"Endpoint host and response-envelope parsing change only; DataHub provider topology,冻结快照、Broker 与账号链不因此变化。","diagrams":[]} -->
+
 ## 发现
 
 对 `docs/DATA_SOURCES.md` 已登记的四条华尔街见闻端点逐个实测：
