@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核设计资料接入及PyTorch参考阅读布局，根README无需更改。",
-  "reason": "仍从原文档中心进入；目录与写作规范在docs/README及文档合同说明，业务工具候选未因此激活，安装和业务执行保持。"
+  "summary": "复核设计资料接入及PyTorch参考阅读布局，根README无需更改；同时覆盖安装、Native常驻与文档入口。",
+  "reason": "仍从原文档中心进入；目录与写作规范在docs/README及文档合同说明，业务工具候选未因此激活。启动暂态等待和GitSafety外盘备份不新增产品入口，公开安装命令、锁定依赖、账号和运行拓扑保持。"
 }

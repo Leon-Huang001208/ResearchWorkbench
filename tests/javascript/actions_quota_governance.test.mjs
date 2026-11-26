@@ -335,6 +335,7 @@ test('reviewed upgrades select only their maintenance and account UI contracts',
     'tests/javascript/research_web_multiuser_session.test.mjs', 'tests/javascript/research_web_mcp_login.test.mjs',
     'app/research_web/ui/progress-data.json', 'docs/CHANGELOG.md', 'docs/architecture/research-web/readme-review.json',
     '.ai/reports/fix.md', '.github/workflows/research-web-checks.yml', '.github/workflows/research-web-bootstrap.yml',
+    'scripts/git_safety.mjs', 'tests/javascript/git_safety.test.mjs', 'tests/javascript/backup_snapshot_capacity.test.mjs', 'AGENTS.md',
     'tests/javascript/actions_quota_governance.test.mjs'];
   for (const [paths, base, gitFailure, expected] of [[files, 'a'.repeat(40), '', true],
     [[...files, 'app/research_web/workbench.py'], 'a'.repeat(40), '', false],

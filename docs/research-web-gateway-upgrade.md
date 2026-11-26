@@ -2,6 +2,11 @@
 
 ## 已审完整版本的联合升级
 
+`apply-reviewed` 在新旧 Host 启动后的最终核验中，遇到真实活动/未知状态时最多等待30秒，
+每0.5秒重新执行原完整核验。启动后台初始化尚未排空不能作为空闲；到期仍保留原
+`recovery_required` 和维护围栏。源码、配置、保全或健康完整性错误立即按原流程处理，
+不重试stop/install、不强停任务，不改变其他历史profile。该等待也覆盖本模式回滚后的核验。
+
 显式 `apply-reviewed` 将原 version 4 Host＋gateway 事务用于最新已审完整 master，不再为每个提交增加固定产品 profile：
 
 ```bash

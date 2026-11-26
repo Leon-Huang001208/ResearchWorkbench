@@ -532,7 +532,7 @@ export function snapshotRegularFile(sourceRoot, item, directory, relative, manif
     if (fs.lstatSync(target, {throwIfNoEntry: false})) fail('BACKUP_TARGET_EXISTS');
     let runtimeProfile = 'generic-strict';
     const onEvent = event => (context.onEvent ?? (() => {}))({phase: 'snapshot-clone', ...(event.event === 'backup_fd_clone' ? {runtimeProfile, executableScope: 'selected-executable-reference'} : {}), ...event});
-    const eligible = process.platform === 'darwin' && opened.nlink === 1 && opened.uid === process.getuid() && !(opened.mode & 0o7000) && BigInt(expectedSource.size) <= BigInt(Number.MAX_SAFE_INTEGER);
+    const eligible = process.platform === 'darwin' && opened.dev === pinnedDirectory.dev && opened.nlink === 1 && opened.uid === process.getuid() && !(opened.mode & 0o7000) && BigInt(expectedSource.size) <= BigInt(Number.MAX_SAFE_INTEGER);
     let pythonPath = eligible ? (context.resolvePython ?? resolveSnapshotPython)(sourceRoot) : undefined;
     const inherited = eligible && !pythonPath ? context[snapshotToolchainKey]?.() : undefined;
     if (inherited) {
@@ -2697,6 +2697,7 @@ export function parseCli(args) {
   const values = new Map([['--project', 'projectRoot'], ['--task-id', 'taskId'], ['--recovery-backup', 'backupDirectory'], ['--preview-sha256', 'previewSha256'], ['--slug', 'slug'], ['--worktree-root', 'worktreeRoot'], ['--reviewed-commit', 'reviewedCommit'], ['--verification-command', 'verificationCommand'], ['--verification-status', 'verificationStatus'], ['--verification-duration-seconds', 'verificationDuration']]);
   values.set('--interruption-evidence', 'interruptionEvidence');
   values.set('--resident-root', 'residentRoot');
+  values.set('--backup-root', 'backupRoot');
   for (let index = 0; index < rest.length; index++) {
     const item = rest[index];
     if (['--start', '--prepare', '--publish', '--status', '--cleanup'].includes(item)) { if (options.action) fail('CLI_ACTION_INVALID'); options.action = item.slice(2); }
@@ -2709,6 +2710,7 @@ export function parseCli(args) {
     else fail('CLI_OPTION_INVALID');
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
+  if (options.backupRoot !== undefined && (!path.isAbsolute(options.backupRoot) || path.resolve(options.backupRoot) === path.parse(options.backupRoot).root || path.resolve(options.backupRoot) === '/Volumes/WorkDisk')) fail('CLI_OPTION_INVALID');
   if (options.deferCleanup !== undefined && (subcommand !== 'delivery' || options.action !== 'status')) fail('CLI_OPTION_INVALID');
   if (subcommand === 'worktree-retirement') {
     if (!options.residentRoot || options.taskId && !ID.test(options.taskId) ||
@@ -2718,14 +2720,14 @@ export function parseCli(args) {
   if (options.residentRoot) fail('CLI_OPTION_INVALID');
   if (recovery.includes(subcommand)) {
     const binding = subcommand === 'backup-lock-recover' ? 'interruptionEvidence' : 'taskId';
-    const keys = ['projectRoot', binding, 'backupDirectory', 'previewSha256', 'apply'];
+    const keys = ['projectRoot', binding, 'backupDirectory', 'previewSha256', 'apply', 'backupRoot'];
     if (!options[binding] || !options.backupDirectory || Object.keys(options).some(key => !keys.includes(key)) ||
         (options.apply ? !/^[a-f0-9]{64}$/.test(options.previewSha256 ?? '') : options.previewSha256)) fail('CLI_ARGUMENT_REQUIRED');
     return {subcommand,options};
   }
   if(options.backupDirectory || options.previewSha256 || options.interruptionEvidence)fail('CLI_OPTION_INVALID');
   const maintenance=['backup-audit','backup-migrate','backup-prune'].includes(subcommand);
-  if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot' && !(maintenance && key==='apply'))) fail('CLI_OPTION_INVALID');
+  if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot' && !(maintenance && key==='apply') && !(key==='backupRoot' && (maintenance || ['backup','configure'].includes(subcommand))))) fail('CLI_OPTION_INVALID');
   if(options.apply && !['backup-migrate','backup-prune'].includes(subcommand))fail('CLI_OPTION_INVALID');
   if(maintenance)options.action=subcommand;
   if (options.reviewedCommit && (options.action !== 'status' || !/^[a-f0-9]{40}$/.test(options.reviewedCommit))) fail('CLI_REVIEW_INVALID');
@@ -2742,6 +2744,12 @@ export function parseCli(args) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const {subcommand, options} = parseCli(process.argv.slice(2));
+    const executionOptions = options.backupRoot === undefined ? {} : {backupRoot:path.resolve(options.backupRoot)};
+    if (executionOptions.backupRoot?.startsWith('/Volumes/WorkDisk/')) {
+      const disk = output(command('/usr/sbin/diskutil', ['info', '-plist', '/Volumes/WorkDisk']));
+      const value = key => disk.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`))?.[1];
+      if (value('VolumeUUID') !== '2BC466D2-FD62-4395-86AC-45CFF653BC51' || value('FilesystemType') !== 'apfs' || value('MountPoint') !== '/Volumes/WorkDisk') fail('WORKDISK_BACKUP_IDENTITY_INVALID');
+    }
     const handlers = {
       check: checkRepository, configure: configureRepository, backup: backupRepository, delivery: runDelivery,
       'worktree-retirement': retireDeployedWorktrees,
@@ -2749,7 +2757,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       'closeout-recover': recoverCloseoutFinalization, 'backup-lock-recover': recoverBackupLock,
       'worktree-revalidate': revalidateWorktreeIdentity,
     };
-    const result = await handlers[subcommand](options);
+    const result = await handlers[subcommand](options, executionOptions);
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup', 'cleanupScope',

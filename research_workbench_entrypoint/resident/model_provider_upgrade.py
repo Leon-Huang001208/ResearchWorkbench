@@ -3161,7 +3161,19 @@ class Operations:
         elif name in ("start_gateway", "start_previous_gateway"):
             self.start_gateway("previous" in name)
         elif name in ("verify_target", "verify_previous"):
-            self.verify(name.endswith("previous"))
+            deadline = time.monotonic() + 30
+            while True:
+                try:
+                    self.verify(name.endswith("previous"))
+                    break
+                except MaintenanceBusy:
+                    remaining = deadline - time.monotonic()
+                    if self.state.get("mode") != REVIEWED_MODE or remaining <= 0:
+                        raise
+                    log.info("reviewed_upgrade_waiting_for_started_host_idle action=%s", name)
+                    time.sleep(min(0.5, remaining))
+                    if time.monotonic() >= deadline:
+                        raise
         else:
             raise UpdateBlocked("model_upgrade_action_unknown")
 
