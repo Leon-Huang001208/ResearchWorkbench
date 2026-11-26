@@ -41,4 +41,3 @@
   原 MCP/DataHub lane；资产三项桥接仍要求 contracts/task_contracts/asset_workspace 同时变化。
 
 Product-Progress: not-required — 本次只把既有后端 MCP 工具目录重构为七域结构，用户界面与产品可见功能未变化。
-
