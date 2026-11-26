@@ -983,3 +983,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 私网 HTTPS 的 WeKnora OAuth 跨站导航仅允许预登记回调及其登录页，随后沿同源授权与 MCP 读取接口。
 
 既有会话接口在 AlphaDesk 启用时附带 `execution_engine` 和 `qa_events`。原普通 FinGPT 会话 API 返回 410。静态资源经本机 `GET /static/qa-dist/{name:path}` 缺包回执和私网 `GET /static/qa-dist/{name}` 检查。
+
+2026-11-26 列表键盘导航去重：`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」规则，能力类型 tab 与 MCP 子视图 tab 已迁移。各自原有的边缘语义（未知值钉在 0 的行为）保持不变，方向键、Home、End 的落点与原实现逐项等价。
