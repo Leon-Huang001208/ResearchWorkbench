@@ -303,7 +303,23 @@ def register_tools(server, store, backend, datahub=None):
     async def rwb_datahub_catalog() -> dict:
         """List this account's callable DataHub sources, implemented bindings and business parameters. Reuses existing configuration and permissions; does not call suppliers or return credentials."""
         catalog = await data_operation(datahub.configured_catalog)
-        return bounded({**catalog, "business_domains": business_directory()["domains"]})
+        registered = (
+            {tool.name: tool for tool in await server.list_tools()}
+            if callable(getattr(datahub, "task_query", None))
+            else {}
+        )
+        directory = (
+            business_directory(registered_tools=registered)
+            if registered
+            else business_directory(())
+        )
+        return bounded(
+            {
+                **catalog,
+                "business_directory_format": directory["format"],
+                "business_domains": directory["domains"],
+            }
+        )
 
     @server.tool(annotations=execution)
     async def rwb_datahub_business_query(

@@ -143,6 +143,8 @@ class BusinessContractTests(unittest.TestCase):
         tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
         for name in TASKS:
             self.assertEqual(tools[name].meta, domain_metadata(name))
+        self.assertTrue(tools["search_assets"].description.startswith("[shared]"))
+        self.assertTrue(tools["get_trading_calendar"].description.startswith("[shared]"))
 
     def test_scope_filter_keeps_domain_groups_and_unchanged_tool_metadata(self):
         from app.research_web.mcp_facade.server import tools_only
@@ -178,10 +180,19 @@ class BusinessContractTests(unittest.TestCase):
                 "analytics_data",
             ],
         )
+        self.assertEqual(
+            narrowed.meta["rwb.business_directory_format"], "rwb.business_directory.v1"
+        )
         grouped = [
             tool["name"] for item in narrowed.meta["rwb.business_domains"] for tool in item["tools"]
         ]
         self.assertEqual(sorted(grouped), sorted(TASKS))
+        registered = {tool.name: tool for tool in asyncio.run(server.list_tools())}
+        for item in narrowed.meta["rwb.business_domains"]:
+            for entry in item["tools"]:
+                tool = registered[entry["name"]]
+                self.assertEqual(entry["description"], tool.description)
+                self.assertEqual(entry["input_schema"], tool.input_schema)
         for tool in narrowed.tools:
             self.assertEqual(tool.meta, domain_metadata(tool.name))
             self.assertEqual(tool.input_schema["additionalProperties"], False)

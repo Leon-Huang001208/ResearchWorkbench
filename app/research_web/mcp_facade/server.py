@@ -70,7 +70,9 @@ async def tools_only(ctx, call_next):
         business = [tool.name for tool in tools if tool.name in TASKS]
         meta = dict(listed.meta or {})
         if business:
-            meta["rwb.business_domains"] = business_directory(business)["domains"]
+            directory = business_directory(business, {tool.name: tool for tool in listed.tools})
+            meta["rwb.business_directory_format"] = directory["format"]
+            meta["rwb.business_domains"] = directory["domains"]
         return listed.model_copy(update={"tools": tools, "meta": meta or None})
     return result
 

@@ -625,6 +625,7 @@ def test_configured_catalog_reuses_account_readiness_without_fetch(gateway):
         "economic_data",
         "analytics_data",
     ]
+    assert catalog["business_directory_format"] == "rwb.business_directory.v1"
     assert sum(len(item["tools"]) for item in catalog["business_domains"]) == 9
     assert env.state.calls == []
 

@@ -98,21 +98,23 @@ class TradingCalendar(TaskArguments):
 
 @dataclass(frozen=True)
 class TaskContract:
-    """A registered business tool; domain ownership is derived from ``domains.py``."""
+    """A registered business tool; the catalog domain is derived from ``domains.py``."""
 
     name: str
     capability: str
     schema: type[TaskArguments]
     description: str
+    legacy_domain: str
 
     @property
     def domain(self) -> str:
         return domain_of(self.name)
 
     def __iter__(self):
-        # Keep the historical 4-tuple unpacking contract for callers:
+        # Preserve the historical 4-tuple values, including the legacy "shared"
+        # catalog prefix, for the existing registration and unpacking callers.
         # ``for name, (domain, _, schema, description) in TASKS.items()``.
-        yield self.domain
+        yield self.legacy_domain
         yield self.capability
         yield self.schema
         yield self.description
@@ -125,7 +127,15 @@ class TaskContract:
 
 
 def _contract(name: str, capability: str, schema: type[TaskArguments], description: str):
-    return TaskContract(name=name, capability=capability, schema=schema, description=description)
+    return TaskContract(
+        name=name,
+        capability=capability,
+        schema=schema,
+        description=description,
+        legacy_domain=(
+            "shared" if name in {"search_assets", "get_trading_calendar"} else domain_of(name)
+        ),
+    )
 
 
 TASKS = {
@@ -198,7 +208,10 @@ def _schema_document(schema: type[TaskArguments]) -> dict:
     return document
 
 
-def business_directory(tool_names: tuple[str, ...] | list[str] | None = None) -> dict:
+def business_directory(
+    tool_names: tuple[str, ...] | list[str] | None = None,
+    registered_tools: dict | None = None,
+) -> dict:
     """Return the seven-domain catalog with every registered tool and its metadata."""
 
     selected = tuple(TASKS) if tool_names is None else tuple(tool_names)
@@ -211,14 +224,23 @@ def business_directory(tool_names: tuple[str, ...] | list[str] | None = None) ->
     by_domain = {item.id: [] for item in DOMAINS}
     for name in selected:
         task = TASKS[name]
-        by_domain[domain_of(name)].append(
+        registered = (registered_tools or {}).get(name)
+        metadata = (
             {
+                "name": registered.name,
+                "capability": task.capability,
+                "description": registered.description,
+                "input_schema": registered.input_schema,
+            }
+            if registered is not None
+            else {
                 "name": name,
                 "capability": task.capability,
                 "description": task.description,
                 "input_schema": _schema_document(task.schema),
             }
         )
+        by_domain[domain_of(name)].append(metadata)
     return {
         "format": "rwb.business_directory.v1",
         "domains": [

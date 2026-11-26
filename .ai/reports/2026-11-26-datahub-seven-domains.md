@@ -1,5 +1,7 @@
 # DataHub WeKnora 七域目录结构
 
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只在原 Research Web Checks 的路径过滤与精确分片选择器登记新增的 scripts/mcp_datahub_ci.py，作业、runner、依赖、超时与平台 dispatch 全部沿用；域目录重构不改 CI 拓扑。","diagrams":[]} -->
+
 <!-- architecture-review {"group":"inbound-mcp-readonly","structure":"unchanged","reason":"七域只作为现有入站 MCP 业务工具的目录骨架，复用原 OAuth、Host、DataHub 查询、status 分页和快照链；不新增服务、执行器、数据库、HTTP 路由或权限范围。","diagrams":[]} -->
 
 宿主：macOS arm64 Mac mini；任务类型：Web 后端功能重构；本平台范围为本地 Python/HTTP 合同、

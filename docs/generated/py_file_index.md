@@ -9727,7 +9727,7 @@ Classes:
 - `SearchAssets`
 - `TradingCalendar`
 - `TaskContract`
-  - A registered business tool; domain ownership is derived from ``domains.py``.
+  - A registered business tool; the catalog domain is derived from ``domains.py``.
   - methods: domain, __iter__, __getitem__, __len__
 
 Functions:
