@@ -13,7 +13,7 @@
   padding: 5px;
   overflow: visible;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 8px 28px rgb(0 0 0 / 14%), 0 2px 6px rgb(0 0 0 / 6%);
@@ -40,7 +40,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--text-md);
   font-weight: 400;
   line-height: 1.3;
   text-align: left;
@@ -73,8 +73,8 @@
 .conversation-action-menu button.danger-item { color: var(--danger); }
 .conversation-action-menu button.danger-item:disabled { color: var(--muted); }
 .conversation-menu-separator { height: 1px; margin: 4px 3px; background: var(--line); }
-.conversation-menu-empty { margin: 0; padding: 12px 8px; color: var(--muted); font-size: 13px; }
-.conversation-action-menu .menu-reason { margin: 5px 8px; font-size: 11px; }
+.conversation-menu-empty { margin: 0; padding: 12px 8px; color: var(--muted); font-size: var(--text-md); }
+.conversation-action-menu .menu-reason { margin: 5px 8px; font-size: var(--text-xs); }
 .conversation-action-menu.session-project-menu {
   z-index: 91;
   width: var(--project-menu-width, 232px);

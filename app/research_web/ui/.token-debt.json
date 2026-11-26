@@ -1,0 +1,29 @@
+{
+  "comment": "Grandfathered bare px counts. Migrate toward tokens.css; this budget may only shrink.",
+  "total": 6502,
+  "barePx": {
+    "aihot.css": 472,
+    "appearance.css": 1957,
+    "asset-chart.css": 231,
+    "asset-layout.css": 180,
+    "asset-research.css": 47,
+    "asset-workspace.css": 318,
+    "conversation-menus.css": 28,
+    "conversation-navigation.css": 187,
+    "discovery.css": 377,
+    "dossiers.css": 58,
+    "fingpt-workspace.css": 3,
+    "hot-reader.css": 115,
+    "intel.css": 122,
+    "market-calendar.css": 84,
+    "market-dashboard.css": 299,
+    "market.css": 333,
+    "model-settings.css": 105,
+    "module-navigation.css": 68,
+    "progress.css": 99,
+    "questionnaire.css": 121,
+    "report-workspace.css": 89,
+    "scenarios.css": 50,
+    "styles.css": 1159
+  }
+}

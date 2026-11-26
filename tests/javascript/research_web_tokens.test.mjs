@@ -1,0 +1,34 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+const UI = new URL('../../app/research_web/ui/', import.meta.url).pathname;
+
+test('token scale is defined and reachable from the shell', () => {
+  const tokens = readFileSync(join(UI, 'tokens.css'), 'utf8');
+  for (const group of ['--space-2:', '--radius-md:', '--text-sm:', '--duration-base:']) {
+    assert.ok(tokens.includes(group), `tokens.css is missing ${group}`);
+  }
+  const html = readFileSync(join(UI, 'index.html'), 'utf8');
+  const tokenAt = html.indexOf('/static/tokens.css');
+  const stylesAt = html.indexOf('/static/styles.css');
+  assert.ok(tokenAt > 0, 'index.html must link tokens.css');
+  // Tokens define the scale, so they must be evaluated before component sheets.
+  assert.ok(tokenAt < stylesAt, 'tokens.css must load before styles.css');
+});
+
+test('bare px stays inside the recorded budget', async () => {
+  const debt = JSON.parse(readFileSync(join(UI, '.token-debt.json'), 'utf8'));
+  const allowed = new Set(['0px', '1px', '2px', '3px']);
+  for (const name of readdirSync(UI).filter(n => n.endsWith('.css') && n !== 'tokens.css')) {
+    const css = readFileSync(join(UI, name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    let count = 0;
+    for (const m of css.matchAll(/(?<![-\w.#])(\d*\.?\d+)px\b/g)) {
+      if (!allowed.has(m[0])) count++;
+    }
+    const budget = debt.barePx[name];
+    assert.notEqual(budget, undefined, `${name} is new; use var(--space-*) instead of bare px`);
+    assert.ok(count <= budget, `${name}: ${count} bare px exceeds budget ${budget}`);
+  }
+});
