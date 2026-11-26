@@ -25,6 +25,7 @@ from .backend import DataHubBackend, FrozenBackend
 from .http_policy import BoundedHTTP, BoundedMCPMethods
 from .models import CONFIGURED_DATA_SCOPE, DATA_SCOPE, SCOPE, WEKNORA_CLIENT_ID, client_scopes
 from .oauth import OAuthProvider, OAuthVerifier, create_oauth_routes
+from .task_contracts import TASKS, business_directory
 from .tools import CONFIGURED_TOOL_ARGUMENTS, DATA_TOOL_ARGUMENTS, TOOL_ARGUMENTS, register_tools
 
 
@@ -58,20 +59,21 @@ async def tools_only(ctx, call_next):
         token = get_access_token()
         data_enabled = token is not None and DATA_SCOPE in token.scopes
         configured_enabled = token is not None and CONFIGURED_DATA_SCOPE in token.scopes
-        return listed.model_copy(
-            update={
-                "tools": [
-                    tool.model_copy(
-                        update={
-                            "input_schema": {**tool.input_schema, "additionalProperties": False}
-                        }
-                    )
-                    for tool in listed.tools
-                    if data_enabled or tool.name not in DATA_TOOL_ARGUMENTS
-                    if configured_enabled or tool.name not in CONFIGURED_TOOL_ARGUMENTS
-                ]
-            }
-        )
+        tools = [
+            tool.model_copy(
+                update={"input_schema": {**tool.input_schema, "additionalProperties": False}}
+            )
+            for tool in listed.tools
+            if data_enabled or tool.name not in DATA_TOOL_ARGUMENTS
+            if configured_enabled or tool.name not in CONFIGURED_TOOL_ARGUMENTS
+        ]
+        business = [tool.name for tool in tools if tool.name in TASKS]
+        meta = dict(listed.meta or {})
+        if business:
+            directory = business_directory(business, {tool.name: tool for tool in listed.tools})
+            meta["rwb.business_directory_format"] = directory["format"]
+            meta["rwb.business_domains"] = directory["domains"]
+        return listed.model_copy(update={"tools": tools, "meta": meta or None})
     return result
 
 

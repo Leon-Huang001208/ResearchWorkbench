@@ -892,3 +892,7 @@ partial_cleanup分支：原pending proof、独评/CI/真实合并、全部工作
 冷Doctor的真实“禁止导入server启动模块”回归通过后，origin校验提取到共用stdlib helper，公开dispatch与Doctor均显式调用。该兼容修复不安装依赖、不扩大环境白名单；原失败按同根保留，后续通过不能改写原失败身份。
 
 AlphaDesk 替换按 Mac Web L4 交付，实际模型、跟踪通知、报告质量、常驻切换与回滚各自留证。
+
+DataHub 七域目录重构沿用原 MCP/DataHub 精确 lane：新 `scripts/mcp_datahub_ci.py` 只承载路径选择，
+实际 pytest 分片入口、证据暂存与 Mac 安装步骤不变。域目录本身是业务工具的文档骨架，不改变本工作流
+的本地快环、后台通道或 worktree 隔离选择；范围外变更仍走完整 Research Web 矩阵。

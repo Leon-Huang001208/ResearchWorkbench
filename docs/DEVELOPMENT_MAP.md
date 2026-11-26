@@ -948,3 +948,10 @@ Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity
 ## FinGPT 完整工作台
 
 身份桥在 `multiuser/fingpt.py`，壳接线在 `ui/fingpt-workspace.mjs`；WeKnora 原生事件和页面直接使用，Claw 不切内核。代理配置适配沿既有 `integrations/weknora/`，历史精确删除沿 `fingpt_retirement.py` 和原 `apply-reviewed` 停止阶段。新增三个 focused Python 模块、原账号/知识库/MCP及相关升级入口回归，未知混入变更仍走完整 CI；同候选 Mac 安装检查两项新静态资源，真实部署另验。详见[登录、Cookie与清理](research-web-fingpt-workspace.md)。
+
+## DataHub 七域目录
+
+业务工具的域归属由 `mcp_facade/domains.py` 持有：七域为有序不可变对象，各自显式列出工具清单，
+`bond_data` 与 `analytics_data` 保留为空域。`task_contracts.py` 从该目录派生合同的域身份并校验
+工具归属唯一，`tools.py` 与 `server.py` 的 discovery 输出按域分组。CI 选择器
+`scripts/mcp_datahub_ci.py` 只承载精确路径判断，分片入口与证据暂存保持原样。

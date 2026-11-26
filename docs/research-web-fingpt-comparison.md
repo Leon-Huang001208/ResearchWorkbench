@@ -332,3 +332,9 @@ AlphaDesk 迁移验收单独使用新 Host 回执。FinGPT 旧隔离比较记录
 该范围的 Python 命令封装在 `scripts/run_gateway_documentation_ci.sh`，以保持 workflow 的
 `run: |` 解码在 GitHub 21000 字符上限内；它不新增 job、runner、依赖或模型调用。
 该脚本须与其余允许文件一起登记，否则任务自身 diff 会回退完整矩阵。
+
+## DataHub 七域目录不改变比较边界（2026-11-26）
+
+七域目录重构只调整业务工具的目录骨架与 discovery 输出，`scripts/mcp_datahub_ci.py` 仍是原
+MCP/DataHub 精确 lane 的路径选择器。本次不执行 FinGPT 三组比较、不调用模型或供应商、不改
+冻结题目与费用授权；域目录通过不产生任何研究质量结论，CI 结果也不代表常驻已部署。

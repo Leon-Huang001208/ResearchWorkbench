@@ -40,6 +40,15 @@ RWB 保留账户与权限、DataHub/Provider、冻结数据、来源证据、档
 
 ## 四项工具
 
+### 业务工具目录
+
+追加 `rwb.data.configured` 后，原账号目录还包含既有 DataHub 业务工具。其发现元数据由
+`mcp_facade/domains.py` 的 Wind 七域定义驱动：`tools/list` 在每个业务工具上标记
+`_meta.rwb.business`，并在结果级 `_meta.rwb.business_domains` 给出按域分组的工具清单；
+`rwb_datahub_catalog` 也在原来源和绑定之外返回 `business_domains`。域目录只描述当前令牌
+可见的工具，不改变 OAuth scope、Host 选择、DataHub 查询或冻结读取权限；`bond_data`、
+`analytics_data` 为保留空域，公告新闻域当前也无可注册工具，均不因出现在目录中而创建占位工具。
+
 协议使用锁定 `mcp==2.2.0` 的 MCPServer 与标准 OAuth 路由，2025-11-25 Tools 基线、无服务端会话状态的 HTTP。SDK 内部格式和密码学不另写一套。只启用四个只读工具，不启用 Prompts、Tasks、Skills 或 Apps 扩展。
 
 | 工具 | 输入与输出边界 |

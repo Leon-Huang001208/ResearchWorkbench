@@ -1,5 +1,6 @@
 """Business tools preserve fixed semantics and the existing account submission."""
 
+import asyncio
 import unittest
 from datetime import datetime
 from types import SimpleNamespace
@@ -7,8 +8,22 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from mcp.server import MCPServer
+from mcp.types import ListToolsResult
 
-from app.research_web.mcp_facade.task_contracts import TASKS, business_query
+from app.research_web.mcp_facade.domains import (
+    DOMAINS,
+    BusinessDomain,
+    domain_of,
+    domains,
+    tools_in,
+    validate_domains,
+)
+from app.research_web.mcp_facade.task_contracts import (
+    TASKS,
+    business_directory,
+    business_query,
+    domain_metadata,
+)
 from app.research_web.mcp_facade.tools import TASK_TOOL_ARGUMENTS, register_tools
 
 
@@ -117,13 +132,186 @@ class BusinessContractTests(unittest.TestCase):
         async def task_query(*args):
             return {}
 
-        register_tools(MCPServer("test"), None, None, SimpleNamespace(task_query=task_query))
+        server = MCPServer("test")
+        register_tools(server, None, None, SimpleNamespace(task_query=task_query))
         self.assertEqual(len(TASK_TOOL_ARGUMENTS), 9)
         self.assertTrue(all("request_id" in args for args in TASK_TOOL_ARGUMENTS.values()))
         self.assertEqual(
-            {v[0] for v in TASKS.values()},
-            {"stock_data", "fund_data", "index_data", "economic_data", "shared"},
+            {domain_of(name) for name in TASKS},
+            {"stock_data", "fund_data", "index_data", "economic_data"},
         )
+        tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
+        for name in TASKS:
+            self.assertEqual(tools[name].meta, domain_metadata(name))
+        self.assertTrue(tools["search_assets"].description.startswith("[shared]"))
+        self.assertTrue(tools["get_trading_calendar"].description.startswith("[shared]"))
+
+    def test_scope_filter_keeps_domain_groups_and_unchanged_tool_metadata(self):
+        from app.research_web.mcp_facade.server import tools_only
+
+        async def task_query(*args):
+            return {}
+
+        server = MCPServer("test")
+        register_tools(server, None, None, SimpleNamespace(task_query=task_query))
+        listed = ListToolsResult(
+            tools=[tool for tool in asyncio.run(server.list_tools()) if tool.name in TASKS]
+        )
+        token = SimpleNamespace(scopes=["rwb.read", "rwb.data.query", "rwb.data.configured"])
+
+        async def call_next(_ctx):
+            return listed
+
+        with patch("app.research_web.mcp_facade.server.get_access_token", return_value=token):
+            narrowed = asyncio.run(tools_only(SimpleNamespace(method="tools/list"), call_next))
+        self.assertEqual(
+            [tool.name for tool in narrowed.tools],
+            list(TASKS),
+        )
+        self.assertEqual(
+            [item["id"] for item in narrowed.meta["rwb.business_domains"]],
+            [
+                "stock_data",
+                "fund_data",
+                "index_data",
+                "bond_data",
+                "financial_docs",
+                "economic_data",
+                "analytics_data",
+            ],
+        )
+        self.assertEqual(
+            narrowed.meta["rwb.business_directory_format"], "rwb.business_directory.v1"
+        )
+        grouped = [
+            tool["name"] for item in narrowed.meta["rwb.business_domains"] for tool in item["tools"]
+        ]
+        self.assertEqual(sorted(grouped), sorted(TASKS))
+        registered = {tool.name: tool for tool in asyncio.run(server.list_tools())}
+        for item in narrowed.meta["rwb.business_domains"]:
+            for entry in item["tools"]:
+                tool = registered[entry["name"]]
+                self.assertEqual(entry["description"], tool.description)
+                self.assertEqual(entry["input_schema"], tool.input_schema)
+        for tool in narrowed.tools:
+            self.assertEqual(tool.meta, domain_metadata(tool.name))
+            self.assertEqual(tool.input_schema["additionalProperties"], False)
+            self.assertEqual(
+                set(tool.input_schema["properties"]), set(TASK_TOOL_ARGUMENTS[tool.name])
+            )
+
+
+class BusinessDomainTests(unittest.TestCase):
+    def test_seven_domains_have_stable_order_and_expected_status(self):
+        self.assertEqual(
+            [item.id for item in domains()],
+            [
+                "stock_data",
+                "fund_data",
+                "index_data",
+                "bond_data",
+                "financial_docs",
+                "economic_data",
+                "analytics_data",
+            ],
+        )
+        self.assertEqual(len(domains()), 7)
+        by_id = {item.id: item for item in domains()}
+        self.assertEqual(by_id["bond_data"].status, "reserved")
+        self.assertEqual(by_id["analytics_data"].status, "reserved")
+        self.assertEqual(by_id["financial_docs"].status, "available")
+        self.assertFalse(by_id["financial_docs"].tools)
+
+    def test_each_registered_tool_belongs_to_exactly_one_domain(self):
+        owners = {tool: item.id for item in domains() for tool in item.tools}
+        self.assertEqual(set(owners), set(TASKS))
+        self.assertEqual(len(owners), sum(len(item.tools) for item in domains()))
+        self.assertEqual(owners["get_stock_kline"], "stock_data")
+        self.assertEqual(owners["get_fund_detail"], "fund_data")
+        self.assertEqual(owners["get_index_quote"], "index_data")
+        self.assertEqual(owners["get_economic_series"], "economic_data")
+        self.assertEqual(owners["search_assets"], "stock_data")
+        self.assertEqual(owners["get_trading_calendar"], "stock_data")
+        for name in TASKS:
+            self.assertEqual(domain_metadata(name)["rwb.business"]["domain"], owners[name])
+
+    def test_reserved_domains_have_no_tools(self):
+        for item in domains():
+            if item.status == "reserved":
+                self.assertEqual(item.tools, ())
+                self.assertEqual(tools_in(item.id), ())
+
+    def test_directory_groups_every_task_once_in_domain_order(self):
+        directory = business_directory()
+        self.assertEqual(directory["format"], "rwb.business_directory.v1")
+        self.assertEqual(
+            [item["id"] for item in directory["domains"]], [item.id for item in DOMAINS]
+        )
+        groups = {
+            item["id"]: {tool["name"] for tool in item["tools"]} for item in directory["domains"]
+        }
+        listed = [tool["name"] for item in directory["domains"] for tool in item["tools"]]
+        self.assertEqual(len(listed), len(set(listed)))
+        self.assertEqual(set(listed), set(TASKS))
+        for item in DOMAINS:
+            self.assertEqual(groups[item.id], set(item.tools))
+            for tool in item.tools:
+                metadata = next(row for row in directory["domains"] if row["id"] == item.id)[
+                    "tools"
+                ]
+                entry = next(row for row in metadata if row["name"] == tool)
+                self.assertEqual(entry["capability"], TASKS[tool].capability)
+                self.assertEqual(entry["description"], TASKS[tool].description)
+                self.assertEqual(
+                    entry["input_schema"],
+                    TASKS[tool].schema.model_json_schema() | {"additionalProperties": False},
+                )
+
+    def test_directory_rejects_unknown_or_duplicate_tool_names(self):
+        with self.assertRaisesRegex(ValueError, "unknown_business_tool"):
+            business_directory(("get_stock_kline", "get_missing_tool"))
+        with self.assertRaisesRegex(ValueError, "duplicate_business_tool"):
+            business_directory(("get_stock_kline", "get_stock_kline"))
+
+    def test_domain_catalog_with_an_unregistered_tool_fails(self):
+        invalid = (
+            BusinessDomain(
+                id="stock_data",
+                name="股票数据",
+                description="测试域清单中的不存在工具。",
+                tools=("get_stock_kline", "get_missing_tool"),
+                status="available",
+            ),
+            *(item for item in DOMAINS if item.id != "stock_data"),
+        )
+        with self.assertRaisesRegex(ValueError, "unknown_domain_tools:get_missing_tool"):
+            validate_domains(tuple(TASKS), invalid)
+
+    def test_orphan_or_duplicate_ownership_fails_validation(self):
+        orphan = (
+            BusinessDomain(
+                id="stock_data",
+                name="股票数据",
+                description="测试域清单遗漏已注册工具。",
+                tools=("get_stock_kline",),
+                status="available",
+            ),
+            *(item for item in DOMAINS if item.id != "stock_data"),
+        )
+        with self.assertRaisesRegex(ValueError, "unowned_business_tools"):
+            validate_domains(tuple(TASKS), orphan)
+        duplicated = (
+            *DOMAINS,
+            BusinessDomain(
+                id="duplicate_data",
+                name="重复域",
+                description="测试跨域重复归属。",
+                tools=("get_stock_kline",),
+                status="available",
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate_tool_ownership"):
+            validate_domains(tuple(TASKS), duplicated)
 
 
 class ProviderContractTests(unittest.TestCase):

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 focus-trap 缺失的紧急修复；根 README 无需更改。",
-  "reason": "本次只补回被漏掉的一个前端模块文件与导入语句，恢复既有行为，未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑。"
+  "summary": "复核 DataHub 业务工具七域目录、精确 CI 范围与前端 focus-trap 修复；根 README 无需更改。",
+  "reason": "本次把工具所属域改为 domains.py 的一等目录、补充 MCP discovery 元数据，并把 domains 入口纳入原 MCP/DataHub 精确 lane。同期主线补回被漏掉的前端模块文件与导入语句，恢复既有行为。两者均未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑。"
 }
