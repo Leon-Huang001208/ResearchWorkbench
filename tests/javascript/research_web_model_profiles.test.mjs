@@ -31,3 +31,9 @@ test('critical unknown submission remains outside collapsed diagnostics',()=>{
  const html=renderModelProfileForm({item:{provider:'deepseek-official',model:'deepseek-flash',name:'One',uncertain:true},runtime:{owned_runtime:true}});
  assert.ok(html.indexOf('此连接的凭据提交结果未知')>=0);assert.ok(html.indexOf('此连接的凭据提交结果未知')<html.indexOf('<details'));
 });
+
+test('provider identity is a hidden input, independent of model option availability',()=>{
+ const html=renderModelProfileForm({item:{provider:'openai-compatible',model:'MiniMax-M3.1-Flash',name:'MiniMax'},runtime:{owned_runtime:true}});
+ assert.match(html,/<input type="hidden" id="provider" name="provider" value="openai-compatible">/);
+ assert.doesNotMatch(html,/<select[^>]*id="provider"/);
+});

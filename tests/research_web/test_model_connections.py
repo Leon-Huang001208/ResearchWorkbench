@@ -2,6 +2,7 @@
 
 import pytest
 from pydantic import ValidationError
+from test_api import isolated_keyring  # noqa: F401
 
 from app.research_web.main import ModelConfig
 

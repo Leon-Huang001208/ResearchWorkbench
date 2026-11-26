@@ -26762,6 +26762,15 @@ Functions:
 - `main`
 
 
+## `scripts/mcp_datahub_ci.py`
+
+Module docstring:
+> Exact MCP/DataHub path scope; the runner and evidence contract stay unchanged.
+
+Functions:
+- `selected`
+
+
 ## `scripts/merge_huaan_layout_with_native_charts.py`
 
 Module docstring:
@@ -26857,6 +26866,15 @@ Functions:
 - `run_smoke_validation`
   - Run end-to-end smoke validation after recovery.
 - `main`
+
+
+## `scripts/model_profile_ci.py`
+
+Module docstring:
+> Select the exact model-connection scope without widening the full matrix.
+
+Functions:
+- `selected`
 
 
 ## `scripts/prime_wind_realtime_workbook.py`
