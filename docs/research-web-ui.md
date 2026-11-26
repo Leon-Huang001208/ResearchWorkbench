@@ -907,3 +907,36 @@ FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口�
 `contextCollapsed`/`contextOpen`/`contextTab` 三处状态、重绘、定位卡片、计算滚动并闪示；
 现由 `createDatasetReference({openContext, render, root, schedule})` 注入，三处状态写入收敛为
 一次 `openContext({collapsed, open, tab})`。仍由原 click 监听器调用。
+
+第三步提取 `local-integration-filter.mjs`：本地集成分类切换（`data-local-category-target`）与
+Office 自动验证取消（`data-office-auto-cancel`）。两者都是纯 UI 簿记——改状态、重绘、恢复焦点。
+依赖通过 `createLocalIntegrationFilter({setCategory, getConsentTarget, setConsentTarget, render, root})`
+注入；`CSS.escape` 增加无 DOM 环境降级。连接管理其余分支因共享轮询 guard 与目录刷新语义，
+需先收敛为上下文对象再整体抽出。
+
+### Office 自动验证同意（2026-11-26）
+
+`office-auto-consent.mjs` 收敛了原先内联在 click 监听器里的 58 行流程：目标解析、破坏性方向的二次确认、乐观更新、逐项排队、批次轮询、目录刷新与中途放弃。复用 `connections.mjs` 既有的 polling guard 与 consent queue。
+
+参数由 `enabled` 改名为 `currentlyEnabled`——它表示"当前已启用"，关闭才需要确认；原命名容易反向理解。`officeConsentTargets`、`officeConsentNeedsConfirm` 为纯函数，可独立测试。
+
+### 数据源连接操作（2026-11-26）
+
+`source-connections.mjs` 收敛了 click 监听器里四个同形分支：移除本机配置与凭据、切换自动检测许可、执行探测、验证 HTTP 授权。每个方法负责解析来源标签、确认风险方向、走共享 action 包装、刷新目录与详情、给出稳定提示。
+
+`sourceLabel` 在来源已不存在时回退到原始 id；`sharedImpactNote` 只对知丘系列提示共享账号池影响。`connectionProbeBusy` 与 `selectedConnectionConfiguration` 由此模块统一管理，不再由各分支手工置位。启用与停用自动检测都需要确认，这是既有行为。
+
+### 表单处理模块（2026-11-26）
+
+submit 监听器原有 434 行、26 个分支。七个表单批量抽离为两个模块：
+
+- `asset-forms.mjs`：资产观测、自选、笔记、提醒。后三者共用 `postAndRefresh`；观测保留完整生命周期。`windRangeError` 是纯函数，Wind 的「不超过 60 个日历日」与日期不可解析时的失败关闭都在这里。
+- `automation-forms.mjs`：投递渠道、自动化、报告日程。`buildSchedule`/`buildDeliveryChannel`/`automationTarget` 均为导出的纯函数，可脱离 DOM 校验 once/weekly/monthly 差异与 SMTP/webhook 载荷差异。
+
+`app.mjs` 该七处由 148 行降为 28 行。
+
+### 列表键盘导航（2026-11-26）
+
+`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」这一规则。全仓曾有 6 处实现，其中两处用 `Math.max(0, indexOf(...))` 把未知值钉在 0，导致 `ArrowLeft` 时跳到末尾而非首个——这是真实的行为差异，合并时按各自原语义保留并用测试固定。
+
+`nextListIndex` 为纯函数，支持水平/垂直轴与「无选中项时从哪一端进入」。`capabilities.mjs`、`capability-workspace.mjs`、`mcp-marketplace.mjs` 已迁移；`app.mjs` 与 `asset-search.mjs` 的 4 处内联写法语义略有差异，留待逐处比对。

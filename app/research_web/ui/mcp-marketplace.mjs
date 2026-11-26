@@ -1,3 +1,4 @@
+import { listNavTarget } from './list-keynav.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { empty } from './views.mjs';
 
@@ -7,9 +8,9 @@ const subviews = ['library', 'market', 'connections'];
 const environmentName = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 
 export function mcpMarketplaceTabKey(key, current = 'library') {
-  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return { handled: false };
   const index = Math.max(0, subviews.indexOf(current));
-  const next = key === 'Home' ? 0 : key === 'End' ? subviews.length - 1 : (index + (key === 'ArrowRight' ? 1 : -1) + subviews.length) % subviews.length;
+  const next = listNavTarget({ key, count: subviews.length, current: index });
+  if (next === null) return { handled: false };
   return { handled: true, view: subviews[next] };
 }
 

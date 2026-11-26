@@ -19,6 +19,11 @@ import { createAccountWorkspace, renderAccountProfile } from './server/account-w
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createClipboardActions } from './clipboard-actions.mjs';
 import { createDatasetReference } from './dataset-reference.mjs';
+import { createLocalIntegrationFilter } from './local-integration-filter.mjs';
+import { createOfficeAutoConsent } from './office-auto-consent.mjs';
+import { createSourceConnections } from './source-connections.mjs';
+import { createAssetForms } from './asset-forms.mjs';
+import { createAutomationForms } from './automation-forms.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -223,6 +228,12 @@ const datasetReference = createDatasetReference({
   },
   render: () => render(),
 });
+const localIntegrationFilter = createLocalIntegrationFilter({
+  setCategory: value => { localCategory = value; },
+  getConsentTarget: () => officeConsentConfirmation,
+  setConsentTarget: value => { officeConsentConfirmation = value; },
+  render: () => render(),
+});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const eventResearch = createEventResearchWorkspace({ api, getRoute: () => state.route, onChange: render });
 const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
@@ -373,6 +384,74 @@ const officeAutoPollingGuard = createLocalIntegrationPollingGuard(
   () => state.route.page === 'settings' && currentSettingsSection() === 'local',
 );
 const officeConsentQueue = createOfficeConsentQueue((id, consent) => api.setIntegrationConsent(id, consent));
+
+const officeAutoConsent = createOfficeAutoConsent({
+  guard: officeAutoPollingGuard,
+  queue: officeConsentQueue,
+  getCatalog: () => catalog,
+  loadCatalog: names => loadCatalog(names),
+  fetchBatch: id => api.integrationProbeBatch(id),
+  waitForBatch: (getBatch, id) => waitForIntegrationBatch(getBatch, id),
+  setSuccess: value => { success = value; },
+  setError: value => { state.error = value; },
+  render: () => render(),
+  log: safeLog,
+  getPendingTarget: () => officeConsentConfirmation,
+  setPendingTarget: value => { officeConsentConfirmation = value; },
+});
+const sourceConnections = createSourceConnections({
+  getCatalog: () => catalog,
+  api,
+  controller,
+  loadCatalog: names => loadCatalog(names),
+  loadConnectionConfiguration: id => loadConnectionConfiguration(id),
+  setSuccess: value => { success = value; },
+  setError: value => { state.error = value; },
+  clearError: () => { state.error = ''; },
+  clearSuccess: () => { success = ''; },
+  setProbeBusy: value => { connectionProbeBusy = value; },
+  clearSelectedConfiguration: () => { selectedConnectionConfiguration = null; },
+  render: () => render(),
+  waitForProbe: (getProbe, id) => waitForDataProbe(getProbe, id),
+  waitForBatch: (getBatch, id) => waitForIntegrationBatch(getBatch, id),
+  newId: () => crypto.randomUUID(),
+});
+const assetForms = createAssetForms({
+  api,
+  assetState,
+  assetWorkspace,
+  assetNews,
+  getState: () => state,
+  isBusy: () => workbenchBusy,
+  setBusy: value => { workbenchBusy = value; },
+  owner: () => workbenchOwner(),
+  generation: () => pageGeneration,
+  pollObservation: (record, ticket) => pollAssetObservation(record, ticket),
+  loadWorkspace: () => loadAssetWorkspace(),
+  render: () => render(),
+  setSuccess: value => { success = value; },
+  setError: value => { state.error = value; },
+  replaceUrl: url => history.replaceState(null, '', url),
+  assetHref: (asset, type, view) => assetHref(asset, type, view),
+  readObservation: form => readAssetObservation(form),
+  newId: () => crypto.randomUUID(),
+  log: safeLog,
+});
+const automationForms = createAutomationForms({
+  api,
+  getCatalog: () => catalog,
+  isAutomationBusy: () => automationBusy,
+  setAutomationBusy: value => { automationBusy = value; },
+  closeAutomationForm: () => { automationFormOpen = false; },
+  isReportBusy: () => reportWorkflowBusy,
+  setReportBusy: value => { reportWorkflowBusy = value; },
+  loadCatalog: names => loadCatalog(names),
+  render: () => render(),
+  setSuccess: value => { success = value; },
+  setError: value => { state.error = value; },
+  clearMessages: () => { state.error = ''; success = ''; },
+  reportOperations,
+});
 
 function notice(message, kind = 'error') { return message ? `<div class="notice ${kind}" role="${kind === 'error' ? 'alert' : 'status'}">${e(message)}</div>` : ''; }
 
@@ -2423,61 +2502,11 @@ root.addEventListener('submit', async (event) => {
   if (event.target.matches('[data-framework-bot-form]')) { await sendFrameworkQuestion(frameworkBot.draft); return; }
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
   if (event.target.matches('[data-delivery-channel-form]')) {
-    if (automationBusy) return;
-    const values = new FormData(event.target);
-    const kind = String(values.get('kind') || 'webhook');
-    const body = { name: String(values.get('name') || ''), kind, enabled: true };
-    const secret = String(values.get('secret') || '');
-    if (secret) body.secret = secret;
-    if (kind === 'smtp') {
-      body.smtp_host = String(values.get('smtp_host') || '');
-      body.smtp_port = Number(values.get('smtp_port'));
-      body.smtp_username = String(values.get('smtp_username') || '') || null;
-      body.sender = String(values.get('sender') || '');
-      body.recipients = String(values.get('recipients') || '').split(',').map(value => value.trim()).filter(Boolean);
-    } else body.endpoint = String(values.get('endpoint') || '');
-    automationBusy = true; state.error = ''; success = ''; render();
-    try {
-      await api.saveDeliveryChannel(body);
-      success = '外发渠道已保存到系统凭据库。';
-      await loadCatalog(['deliveryChannels']);
-    } catch (error) { state.error = error.message; }
-    finally { automationBusy = false; render(); }
+    await automationForms.saveDeliveryChannel(event.target);
     return;
   }
   if (event.target.matches('[data-automation-form]')) {
-    if (automationBusy) return;
-    const values = new FormData(event.target);
-    const [targetKind, targetId, versionText] = String(values.get('target') || '').split('|');
-    const scheduleKind = String(values.get('schedule_kind') || 'daily');
-    const [hourText, minuteText] = String(values.get('time') || '09:00').split(':');
-    const target = targetKind === 'report_workflow'
-      ? catalog.reportWorkflows.find(item => item.id === targetId)
-      : catalog.capabilities.find(item => item.id === targetId && item.kind === targetKind);
-    const schedule = { kind: scheduleKind, timezone: String(values.get('timezone') || 'Asia/Shanghai') };
-    if (scheduleKind === 'once') schedule.once_at = String(values.get('once_at') || '');
-    else {
-      schedule.hour = Number(hourText); schedule.minute = Number(minuteText);
-      if (scheduleKind === 'weekly') schedule.weekday = Number(values.get('weekday'));
-      if (scheduleKind === 'monthly') schedule.day = Number(values.get('day'));
-    }
-    const outputFormats = targetKind === 'report_workflow' ? (target?.delivery_formats || []) : (target?.metadata?.default_formats || []);
-    automationBusy = true; state.error = ''; success = ''; render();
-    try {
-      await api.createAutomation({
-        name: String(values.get('name') || ''), target_kind: targetKind, target_id: targetId,
-        target_version: Number(versionText), input_template: String(values.get('input_template') || ''),
-        workspace_id: 'research', output_formats: outputFormats, mcp_tools: [], schedule,
-        delivery: {
-          channel_ids: values.getAll('channel_id').map(String),
-          include_attachments: values.get('include_attachments') === 'on',
-        },
-      });
-      automationFormOpen = false;
-      success = 'Automation 已保存并保持停用；确认锁定内容后再启用。';
-      await loadCatalog(['automations', 'automationRuns']);
-    } catch (error) { state.error = error.message; }
-    finally { automationBusy = false; render(); }
+    await automationForms.saveAutomation(event.target);
     return;
   }
   if (event.target.matches('[data-mcp-tool-policy]')) {
@@ -2490,83 +2519,23 @@ root.addEventListener('submit', async (event) => {
     return;
   }
   if (event.target.matches('[data-report-schedule-form]')) {
-    if (reportWorkflowBusy) return;
-    const workflowId = event.target.dataset.reportScheduleForm;
-    const values = new FormData(event.target);
-    const kind = String(values.get('kind') || 'manual');
-    const enabled = values.get('enabled') === 'on' && kind !== 'manual';
-    const body = {
-      kind, enabled, timezone: 'Asia/Shanghai',
-      once_at: kind === 'once' ? String(values.get('once_at') || '') || null : null,
-      weekday: kind === 'weekly' ? Number(values.get('weekday')) : null,
-      hour: kind === 'weekly' ? Number(values.get('hour')) : null,
-      minute: kind === 'weekly' ? Number(values.get('minute')) : null,
-    };
-    await reportOperations.saveSchedule(workflowId, body);
+    await automationForms.saveReportSchedule(event.target);
     return;
   }
   if (event.target.matches('[data-asset-observation]')) {
-    if (workbenchBusy) return;
-    const current = workbenchOwner();
-    const payload = readAssetObservation(event.target); const ticket = pageGeneration;
-    if (payload.source === 'wind' && (payload.frequency !== 'daily' || (Date.parse(payload.end_date) - Date.parse(payload.start_date)) / 86400000 + 1 > 60)) { state.error = 'Wind 当前仅支持不超过 60 个日历日的股票日线，请修改区间或来源。'; render(); return; }
-    assetWorkspace.cancel();
-    workbenchBusy = true; state.error = ''; render();
-    try {
-      let record = await api.createAssetObservation(payload, crypto.randomUUID());
-      if (ticket !== pageGeneration || !current()) return;
-      Object.assign(state.route, { asset: payload.asset, assetType: payload.asset_type });
-      history.replaceState(null, '', assetHref(payload.asset, payload.asset_type, state.route.assetView || 'overview'));
-      assetState.observation = record; assetState.rows = {}; render();
-      // replaceState does not dispatch hashchange; keep topic reads bound to this asset.
-      void assetNews.activate(state.route);
-      record = await pollAssetObservation(record, ticket);
-      if (ticket !== pageGeneration || !current()) return;
-      await loadAssetWorkspace();
-      if (ticket === pageGeneration && current() && record.status !== 'running' && assetState.observation?.id === record.id) void assetWorkspace.startHistory('recent', payload.adjustment, undefined, payload.adjustment === 'none' ? payload.source : 'tinysoft');
-      success = record.status === 'complete' ? '资产数据查询已结束，请查看各区块的来源与覆盖。' : record.status === 'running' ? '查询仍在运行，刷新本地状态可继续查看；未重新提交。' : '查询已结束，部分区块有缺失或失败，请查看对应状态。';
-    } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('asset_observation_create_failed'); }
-    finally { if (current()) { workbenchBusy = false; render(); } }
+    await assetForms.createObservation(event.target);
     return;
   }
   if (event.target.matches('[data-watchlist-item]')) {
-    const current = workbenchOwner();
-    const values = new FormData(event.target);
-    try {
-      await api.addWatchlistItem(String(values.get('watchlist_id')), {
-        asset: String(values.get('asset')),
-        asset_type: assetState.observation?.asset_type || 'stock',
-        name: String(assetState.rows?.overview?.[0]?.name || values.get('asset')),
-      });
-      if (!current()) return;
-      success = '已加入本地自选列表。'; await loadAssetWorkspace(); render();
-    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_watchlist_update_failed', { code: error.code || 'request_failed' }); }
+    await assetForms.addWatchlistItem(event.target);
     return;
   }
   if (event.target.matches('[data-asset-note]')) {
-    const current = workbenchOwner();
-    const values = new FormData(event.target);
-    try {
-      await api.createAssetNote({ asset: String(values.get('asset')), text: String(values.get('text')).trim() });
-      if (!current()) return;
-      event.target.reset(); success = '观察笔记已保存。'; await loadAssetWorkspace(); render();
-    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_note_update_failed', { code: error.code || 'request_failed' }); }
+    await assetForms.saveNote(event.target);
     return;
   }
   if (event.target.matches('[data-asset-alert]')) {
-    const current = workbenchOwner();
-    const values = new FormData(event.target);
-    try {
-      await api.createAssetAlert({
-        asset: String(values.get('asset')),
-        field: String(values.get('field')),
-        operator: String(values.get('operator')),
-        threshold: Number(values.get('threshold')),
-        cooldown_minutes: 60,
-      });
-      if (!current()) return;
-      event.target.reset(); success = '提醒规则已保存，将在新快照到达时评估。'; await loadAssetWorkspace(); render();
-    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_alert_update_failed', { code: error.code || 'request_failed' }); }
+    await assetForms.saveAlert(event.target);
     return;
   }
   if (event.target.matches('[data-workbench-query]')) {
@@ -3100,73 +3069,19 @@ root.addEventListener('click', async (event) => {
   if ('mcpApprovalDeny' in data) { await decideMCPApproval(data.mcpApprovalDeny, false); return; }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
   if ('localCategoryTarget' in data) {
-    localCategory = data.localCategoryTarget === 'all' ? 'all' : data.localCategoryTarget.replace(/^local-category-/, '');
-    render();
-    document.querySelector(`[data-local-category-target="${CSS.escape(data.localCategoryTarget)}"]`)?.focus();
+    localIntegrationFilter.selectCategory(data.localCategoryTarget);
     return;
   }
   if ('officeAutoCancel' in data) {
-    const target = officeConsentConfirmation;
-    officeConsentConfirmation = ''; render();
-    document.querySelector(`[data-office-auto-consent="${CSS.escape(target)}"]`)?.focus();
+    localIntegrationFilter.cancelConsent();
     return;
   }
   if ('officeAutoConsent' in data) {
-    const allowed = ['local:excel_app', 'local:word_app', 'local:powerpoint_app'];
-    const ids = data.officeAutoConsent === 'all' ? allowed : allowed.filter((id) => id === data.officeAutoConsent);
-    if (!ids.length) return;
-    const enabled = data.consentEnabled === 'true';
-    if (!enabled && (data.officeAutoConfirmed !== 'true' || officeConsentConfirmation !== data.officeAutoConsent)) {
-      officeConsentConfirmation = data.officeAutoConsent;
-      render();
-      document.querySelector('[data-office-auto-confirmed]')?.focus();
-      return;
-    }
-    officeConsentConfirmation = '';
-    const ticket = officeAutoPollingGuard.begin();
-    for (const item of catalog.localIntegrations.integration_status?.items || []) {
-      if (ids.includes(item.id)) item.details = { ...item.details, auto_probe_consent: !enabled };
-    }
-    render();
-    try {
-      const settled = await Promise.allSettled(ids.map((id) => officeConsentQueue.set(id, !enabled)));
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      const rejected = settled.find((result) => result.status === 'rejected');
-      if (rejected) throw rejected.reason;
-      const results = settled.map((result) => result.value);
-      await loadCatalog(['localIntegrations']);
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      if (enabled) { success = '已关闭对应 Office 自动验证。'; render(); }
-      const latest = catalog.localIntegrations.integration_status?.latest_batch;
-      const batches = [...new Set(results.map((result) => result.batch?.id).filter(Boolean))];
-      if (latest?.id && ['queued', 'checking'].includes(latest.status)) batches.push(latest.id);
-      if (batches.length) {
-        for (const id of batches) {
-          let previousProgress = '';
-          await waitForIntegrationBatch(async (batchId) => {
-            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
-            const batch = await api.integrationProbeBatch(batchId);
-            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
-            const progress = JSON.stringify(batch.items || {});
-            if (progress !== previousProgress) {
-              previousProgress = progress;
-              await loadCatalog(['localIntegrations']);
-            }
-            return batch;
-          }, id);
-        }
-        if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-        await loadCatalog(['localIntegrations']);
-      }
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      success = enabled ? '已关闭对应 Office 自动验证。' : 'Office 自动验证已处理；请查看每项结果。';
-    } catch (error) {
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      state.error = error?.message || 'Office 自动验证设置失败。';
-      safeLog('office_auto_consent_failed', { status: error?.code || error?.name || 'unknown' });
-      await loadCatalog(['localIntegrations']);
-    }
-    if (officeAutoPollingGuard.isCurrent(ticket)) render();
+    await officeAutoConsent.apply({
+      requested: data.officeAutoConsent,
+      currentlyEnabled: data.consentEnabled === 'true',
+      confirmed: data.officeAutoConfirmed,
+    });
     return;
   }
   if ('connectionGroup' in data) {
@@ -3201,58 +3116,22 @@ root.addEventListener('click', async (event) => {
   }
   if ('connectionCancel' in data) { await loadConnectionConfiguration(data.connectionCancel); return; }
   if ('connectionRemove' in data) {
-    const sourceId = data.connectionRemove;
-    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
-    const sharedImpact = sourceId.startsWith('zhiqiu_') ? '该账号池由知丘研报、公众号与纪要共享，三项授权都会被移除。' : '';
-    if (!globalThis.confirm?.(`移除 ${sourceLabel} 的本机配置与凭据？${sharedImpact}历史快照不会删除。`)) return;
-    const result = await controller.action(() => api.deleteSourceConfiguration(sourceId), { refreshAfter: false });
-    if (result) { success = '本机配置和系统凭据已移除；历史快照保持可读。'; selectedConnectionConfiguration = null; await loadCatalog(['connections', 'dataCatalog', 'tools']); await loadConnectionConfiguration(sourceId); }
+    await sourceConnections.remove(data.connectionRemove);
     return;
   }
   if ('integrationConsent' in data) {
-    const sourceId = data.integrationConsent;
-    const enabled = data.consentEnabled === 'true';
-    const nextConsent = !enabled;
-    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
-    if (!confirmAutoProbeConsent((message) => globalThis.confirm?.(message), sourceLabel, nextConsent)) return;
-    const result = await controller.action(
-      () => api.setIntegrationConsent(`data:${sourceId}`, nextConsent),
-      { refreshAfter: false },
-    );
-    if (result) {
-      success = nextConsent ? `已允许自动检测 ${sourceLabel}。` : `已停用 ${sourceLabel} 的自动检测。`;
-      await loadCatalog(['connections', 'integrations']);
-    }
+    await sourceConnections.setConsent({
+      sourceId: data.integrationConsent,
+      currentlyEnabled: data.consentEnabled === 'true',
+    });
     return;
   }
   if ('connectionProbe' in data) {
-    const sourceId = data.connectionProbe; state.error = ''; success = '';
-    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
-    connectionProbeBusy = true; render();
-    try {
-      const accepted = await controller.action(() => api.probeDataSource(sourceId, `probe-${sourceId}-${crypto.randomUUID()}`), { refreshAfter: false });
-      if (!accepted) return;
-      if (typeof accepted.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的探测任务，请刷新后重试。');
-      const current = await waitForDataProbe((probeId) => api.dataProbe(probeId), accepted.id);
-      success = current.health === 'healthy' ? `${sourceLabel}检测通过。` : `${sourceLabel}检测完成，请根据状态说明处理。`;
-      await loadCatalog(['connections', 'dataCatalog']);
-      await loadConnectionConfiguration(sourceId);
-    } catch (error) {
-      state.error = error?.message || '检测失败，请重试。';
-      safeLog('connection_probe_failed', { status: error?.code || error?.name || 'unknown' });
-    } finally {
-      connectionProbeBusy = false; render();
-    }
+    await sourceConnections.probe(data.connectionProbe);
     return;
   }
   if ('verifySourceAuth' in data) {
-    connectionProbeBusy = true; state.error = ''; success = ''; render();
-    try {
-      const result = await api.verifySourceAuthorization(data.verifySourceAuth);
-      success = result.status === 'authenticated' ? 'HTTP 授权交换成功；具体数据权限尚未验证。' : '授权尚未验证。';
-      await loadConnectionConfiguration(data.verifySourceAuth);
-    } catch (error) { state.error = error.message || '授权未验证'; safeLog('source_authorization_unverified'); }
-    finally { connectionProbeBusy = false; render(); }
+    await sourceConnections.verifyAuth(data.verifySourceAuth);
     return;
   }
   if ('localIntegrationsProbe' in data) {

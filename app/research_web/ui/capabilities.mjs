@@ -1,3 +1,4 @@
+import { listNavTarget } from './list-keynav.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { icon } from './icons.mjs';
 import { empty } from './views.mjs';
@@ -33,9 +34,11 @@ export function reportWorkflowEligibility(item) {
 }
 
 export function capabilityTabKey(key, current) {
-  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return { handled: false };
+  // Math.max(0, ...) keeps an unknown kind pinned to the first tab; -1 would
+  // make ArrowLeft jump to the end instead of the start.
   const index = Math.max(0, capabilityKinds.indexOf(primaryKind(current)));
-  const next = key === 'Home' ? 0 : key === 'End' ? capabilityKinds.length - 1 : (index + (key === 'ArrowRight' ? 1 : -1) + capabilityKinds.length) % capabilityKinds.length;
+  const next = listNavTarget({ key, count: capabilityKinds.length, current: index });
+  if (next === null) return { handled: false };
   return { handled: true, kind: capabilityKinds[next] };
 }
 
