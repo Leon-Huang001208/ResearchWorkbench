@@ -734,3 +734,8 @@ AlphaDesk 新增定点 Python/JS 检查和现有 Mac Bootstrap 资源核对。�
 FinGPT 原生工作台分支保留身份/租户网关、WeKnora绑定/正式资料范围、MCP配置/HTTP/DataHub、三个新增组件、同次升级入口及真实会话列表接口的相关回归；未修改的Store/OAuth内核和无关市场/报告API复用已有通过结果，不再整库重跑。新出现的静态脚本体积边界加入原Checks相关支路，完整Node、固定编辑引擎、Constraints及同候选Mac干净安装仍保留；未知变更仍走完整范围，不新增job、runner或付费模型请求。
 
 既有 FinGPT 窄选器也接受原升级器与专属退役回归同时变更的修复组合；全部路径仍须在原精确名单，单独升级器或无关数据源混入不选。复用原三 CI、原 FinGPT 共享身份/HTTP/数据/升级回归，不新增作业或跳过 Mac 安装。
+
+2026-11-26 DataHub 七域目录重构只扩展原 Research Web Checks 的路径过滤与精确分片选择器，登记新的
+`scripts/mcp_datahub_ci.py` 与 domains 相关源码、测试和文档；不新增 job、runner、依赖、超时或平台
+dispatch。域目录只改业务工具的目录骨架，MCP OAuth、DataHub 查询、status 分页与快照链保持原样；
+本机测试与同候选 Mac 安装分别取证，不连接供应商、模型或付费源。

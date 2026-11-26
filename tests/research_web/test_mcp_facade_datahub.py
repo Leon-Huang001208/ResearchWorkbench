@@ -616,7 +616,64 @@ def test_configured_catalog_reuses_account_readiness_without_fetch(gateway):
         item["readiness"]["callable"] and item["readiness"]["allowed"]
         for item in catalog["sources"]
     )
+    assert [item["id"] for item in catalog["business_domains"]] == [
+        "stock_data",
+        "fund_data",
+        "index_data",
+        "bond_data",
+        "financial_docs",
+        "economic_data",
+        "analytics_data",
+    ]
+    assert catalog["business_directory_format"] == "rwb.business_directory.v1"
+    assert sum(len(item["tools"]) for item in catalog["business_domains"]) == 9
     assert env.state.calls == []
+
+
+def test_business_tools_list_is_grouped_by_domain_without_scope_changes(gateway):
+    env = gateway
+    token = grant(env.store, env.user, [*SCOPES, "rwb.data.configured"]).access_token
+    listed = mcp(env, token)
+    tools = {tool["name"]: tool for tool in listed["tools"]}
+    assert len(tools) == 18
+    assert tools["get_stock_kline"]["_meta"]["rwb.business"]["domain"] == "stock_data"
+    assert tools["get_fund_detail"]["_meta"]["rwb.business"]["domain"] == "fund_data"
+    assert tools["get_index_quote"]["_meta"]["rwb.business"]["domain"] == "index_data"
+    assert tools["get_economic_series"]["_meta"]["rwb.business"]["domain"] == "economic_data"
+    groups = listed["_meta"]["rwb.business_domains"]
+    assert [item["id"] for item in groups] == [
+        "stock_data",
+        "fund_data",
+        "index_data",
+        "bond_data",
+        "financial_docs",
+        "economic_data",
+        "analytics_data",
+    ]
+    grouped = {tool["name"]: item["id"] for item in groups for tool in item["tools"]}
+    assert set(grouped) == {
+        "get_stock_kline",
+        "get_stock_quote",
+        "get_stock_financials",
+        "get_stock_activity",
+        "search_assets",
+        "get_trading_calendar",
+        "get_fund_detail",
+        "get_index_quote",
+        "get_economic_series",
+    }
+    assert grouped["search_assets"] == "stock_data"
+    assert next(item for item in groups if item["id"] == "bond_data")["tools"] == []
+    assert next(item for item in groups if item["id"] == "analytics_data")["tools"] == []
+    assert env.state.calls == []
+
+
+def test_old_readonly_listing_has_no_business_directory(gateway):
+    env = gateway
+    token = grant(env.store, env.user, ["rwb.read"]).access_token
+    listed = mcp(env, token)
+    assert len(listed["tools"]) == 4
+    assert "_meta" not in listed or "rwb.business_domains" not in listed["_meta"]
 
 
 def test_configured_query_accepts_existing_non_fred_binding(gateway):

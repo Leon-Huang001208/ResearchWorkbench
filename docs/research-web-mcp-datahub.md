@@ -11,6 +11,7 @@ WeKnora 客户端。旧令牌不自动获得此权限，refresh 不能增权。
 同意页说明复用账号的厂商配置、权限及可能计费的原额度，不返回凭据。
 
 - `rwb_datahub_catalog` 返回当前账号 callable 且 allowed 的来源、已实现绑定和业务参数；不取源。
+  同一响应的 `business_domains` 按 Wind 七域列出当前可见业务工具；它是目录元数据，不是权限授予。
 - `rwb_datahub_business_query(request_id, query)` 接受原 `BusinessQuery`，要求明确指定目录中的
   source/capability，复用现有查询入口，禁用该次跨源 fallback，不接受外部地址或凭据。
 - 返回查询继续使用原 status/cancel 和 grant 上下文，保留原件、快照及质量含义。

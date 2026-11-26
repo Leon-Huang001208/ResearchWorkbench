@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "scripts/run_mcp_datahub_ci.sh"
+      - "scripts/mcp_datahub_ci.py"
       - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
       - "deploy/weknora/patches/native-upload-manifest.json"
       - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
@@ -48,6 +49,7 @@ on:
       - master
     paths:
       - "scripts/run_mcp_datahub_ci.sh"
+      - "scripts/mcp_datahub_ci.py"
       - "deploy/weknora/patches/0004-retrieval-only-native-upload.patch"
       - "deploy/weknora/patches/native-upload-manifest.json"
       - "outputs/research-web-architecture/04-data-file-flow.delivery.json"
