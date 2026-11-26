@@ -1,3 +1,4 @@
+import { trapTabFocus } from './focus-trap.mjs';
 import { applyConnectionWorkspaceFilters, forgetConfigurationSecrets } from './connection-workspace.mjs';
 import { nativeFinGPT, renderFinGPT, mountFinGPT, paintFinGPTShell } from './fingpt-workspace.mjs';
 import { createQAMount, paintQAPage, qaRetryBlockReason, qaSendBlockReason, renderQAHistory, renderQAPage } from './qa-mount.mjs';
