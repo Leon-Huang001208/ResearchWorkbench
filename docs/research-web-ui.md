@@ -907,3 +907,15 @@ FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口�
 `contextCollapsed`/`contextOpen`/`contextTab` 三处状态、重绘、定位卡片、计算滚动并闪示；
 现由 `createDatasetReference({openContext, render, root, schedule})` 注入，三处状态写入收敛为
 一次 `openContext({collapsed, open, tab})`。仍由原 click 监听器调用。
+
+第三步提取 `local-integration-filter.mjs`：本地集成分类切换（`data-local-category-target`）与
+Office 自动验证取消（`data-office-auto-cancel`）。两者都是纯 UI 簿记——改状态、重绘、恢复焦点。
+依赖通过 `createLocalIntegrationFilter({setCategory, getConsentTarget, setConsentTarget, render, root})`
+注入；`CSS.escape` 增加无 DOM 环境降级。连接管理其余分支因共享轮询 guard 与目录刷新语义，
+需先收敛为上下文对象再整体抽出。
+
+### Office 自动验证同意（2026-11-26）
+
+`office-auto-consent.mjs` 收敛了原先内联在 click 监听器里的 58 行流程：目标解析、破坏性方向的二次确认、乐观更新、逐项排队、批次轮询、目录刷新与中途放弃。复用 `connections.mjs` 既有的 polling guard 与 consent queue。
+
+参数由 `enabled` 改名为 `currentlyEnabled`——它表示"当前已启用"，关闭才需要确认；原命名容易反向理解。`officeConsentTargets`、`officeConsentNeedsConfirm` 为纯函数，可独立测试。

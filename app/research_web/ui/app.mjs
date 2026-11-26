@@ -19,6 +19,8 @@ import { createAccountWorkspace, renderAccountProfile } from './server/account-w
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createClipboardActions } from './clipboard-actions.mjs';
 import { createDatasetReference } from './dataset-reference.mjs';
+import { createLocalIntegrationFilter } from './local-integration-filter.mjs';
+import { createOfficeAutoConsent } from './office-auto-consent.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -223,6 +225,12 @@ const datasetReference = createDatasetReference({
   },
   render: () => render(),
 });
+const localIntegrationFilter = createLocalIntegrationFilter({
+  setCategory: value => { localCategory = value; },
+  getConsentTarget: () => officeConsentConfirmation,
+  setConsentTarget: value => { officeConsentConfirmation = value; },
+  render: () => render(),
+});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const eventResearch = createEventResearchWorkspace({ api, getRoute: () => state.route, onChange: render });
 const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
@@ -373,6 +381,21 @@ const officeAutoPollingGuard = createLocalIntegrationPollingGuard(
   () => state.route.page === 'settings' && currentSettingsSection() === 'local',
 );
 const officeConsentQueue = createOfficeConsentQueue((id, consent) => api.setIntegrationConsent(id, consent));
+
+const officeAutoConsent = createOfficeAutoConsent({
+  guard: officeAutoPollingGuard,
+  queue: officeConsentQueue,
+  getCatalog: () => catalog,
+  loadCatalog: names => loadCatalog(names),
+  fetchBatch: id => api.integrationProbeBatch(id),
+  waitForBatch: (getBatch, id) => waitForIntegrationBatch(getBatch, id),
+  setSuccess: value => { success = value; },
+  setError: value => { state.error = value; },
+  render: () => render(),
+  log: safeLog,
+  getPendingTarget: () => officeConsentConfirmation,
+  setPendingTarget: value => { officeConsentConfirmation = value; },
+});
 
 function notice(message, kind = 'error') { return message ? `<div class="notice ${kind}" role="${kind === 'error' ? 'alert' : 'status'}">${e(message)}</div>` : ''; }
 
@@ -3100,73 +3123,19 @@ root.addEventListener('click', async (event) => {
   if ('mcpApprovalDeny' in data) { await decideMCPApproval(data.mcpApprovalDeny, false); return; }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
   if ('localCategoryTarget' in data) {
-    localCategory = data.localCategoryTarget === 'all' ? 'all' : data.localCategoryTarget.replace(/^local-category-/, '');
-    render();
-    document.querySelector(`[data-local-category-target="${CSS.escape(data.localCategoryTarget)}"]`)?.focus();
+    localIntegrationFilter.selectCategory(data.localCategoryTarget);
     return;
   }
   if ('officeAutoCancel' in data) {
-    const target = officeConsentConfirmation;
-    officeConsentConfirmation = ''; render();
-    document.querySelector(`[data-office-auto-consent="${CSS.escape(target)}"]`)?.focus();
+    localIntegrationFilter.cancelConsent();
     return;
   }
   if ('officeAutoConsent' in data) {
-    const allowed = ['local:excel_app', 'local:word_app', 'local:powerpoint_app'];
-    const ids = data.officeAutoConsent === 'all' ? allowed : allowed.filter((id) => id === data.officeAutoConsent);
-    if (!ids.length) return;
-    const enabled = data.consentEnabled === 'true';
-    if (!enabled && (data.officeAutoConfirmed !== 'true' || officeConsentConfirmation !== data.officeAutoConsent)) {
-      officeConsentConfirmation = data.officeAutoConsent;
-      render();
-      document.querySelector('[data-office-auto-confirmed]')?.focus();
-      return;
-    }
-    officeConsentConfirmation = '';
-    const ticket = officeAutoPollingGuard.begin();
-    for (const item of catalog.localIntegrations.integration_status?.items || []) {
-      if (ids.includes(item.id)) item.details = { ...item.details, auto_probe_consent: !enabled };
-    }
-    render();
-    try {
-      const settled = await Promise.allSettled(ids.map((id) => officeConsentQueue.set(id, !enabled)));
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      const rejected = settled.find((result) => result.status === 'rejected');
-      if (rejected) throw rejected.reason;
-      const results = settled.map((result) => result.value);
-      await loadCatalog(['localIntegrations']);
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      if (enabled) { success = '已关闭对应 Office 自动验证。'; render(); }
-      const latest = catalog.localIntegrations.integration_status?.latest_batch;
-      const batches = [...new Set(results.map((result) => result.batch?.id).filter(Boolean))];
-      if (latest?.id && ['queued', 'checking'].includes(latest.status)) batches.push(latest.id);
-      if (batches.length) {
-        for (const id of batches) {
-          let previousProgress = '';
-          await waitForIntegrationBatch(async (batchId) => {
-            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
-            const batch = await api.integrationProbeBatch(batchId);
-            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
-            const progress = JSON.stringify(batch.items || {});
-            if (progress !== previousProgress) {
-              previousProgress = progress;
-              await loadCatalog(['localIntegrations']);
-            }
-            return batch;
-          }, id);
-        }
-        if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-        await loadCatalog(['localIntegrations']);
-      }
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      success = enabled ? '已关闭对应 Office 自动验证。' : 'Office 自动验证已处理；请查看每项结果。';
-    } catch (error) {
-      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
-      state.error = error?.message || 'Office 自动验证设置失败。';
-      safeLog('office_auto_consent_failed', { status: error?.code || error?.name || 'unknown' });
-      await loadCatalog(['localIntegrations']);
-    }
-    if (officeAutoPollingGuard.isCurrent(ticket)) render();
+    await officeAutoConsent.apply({
+      requested: data.officeAutoConsent,
+      currentlyEnabled: data.consentEnabled === 'true',
+      confirmed: data.officeAutoConfirmed,
+    });
     return;
   }
   if ('connectionGroup' in data) {
