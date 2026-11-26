@@ -62,3 +62,5 @@ Host `pack_catalog.ui_methods` 是从固定方法合同派生的只读表单投�
 场景抽屉由现 App 重绘时，同一场景保留独立滚动位置；正在编辑且未禁用的数字输入节点保留，避免数字框无法通过 selectionStart 恢复的光标倒序。文本继续使用原焦点／selection 恢复，切换场景或关闭重开从顶部开始。逐键浏览器回归 `tests/e2e/research_web_packs_scroll_real_backend.mjs` 使用真实临时 Host 与390px页面，断言每键的可见位置、scrollTop、焦点、数字中间插入、文本 selection、长文本、Tab、场景切换与关闭重开；不以一次 fill 替代输入旅程。
 
 验证入口：`tests/javascript/research_web_packs_ui.test.mjs`、`tests/research_web/test_pack_ui_projection.py`、`tests/e2e/research_web_packs_real_backend.mjs`。后者使用全新临时账号、真实 Host 与合成快照，拒绝非 loopback 网络；真实模型 NOT_RUN，截图始终标识合成验收材料。
+
+2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。

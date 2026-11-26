@@ -298,3 +298,5 @@ service.send新增显式specialist分支，模型调度仍由DSH执行；Automat
 macOS 私网可显式启动仅服务 Host。部署图展示账户 Web 在外部执行模式下跳过内置 DSH；资料批准及历史索引仍由 Host 持有。
 
 AlphaDesk 的代码迁移、数据归属、启用和验收边界见[AI 问答合同](../../research-web-ai-qa.md)。
+
+2026-11-26 列表键盘导航去重：`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」规则，能力类型 tab 与 MCP 子视图 tab 已迁移。各自原有的边缘语义（未知值钉在 0 的行为）保持不变，方向键、Home、End 的落点与原实现逐项等价。

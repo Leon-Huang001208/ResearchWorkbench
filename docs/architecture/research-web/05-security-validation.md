@@ -1000,3 +1000,5 @@ WeKnora HTTPS 回调必须使用独立主机，跨站授权导航忽略已有 Co
 AlphaDesk Node 进程只收到本轮任务、模型流结果及获准工具响应。凭据由 Host 私有解析，资料和报告访问继续受账号与冻结来源检查约束。
 
 FinGPT 完整前端只接收固定 client 的短期一次性身份交换，真实 email 来自已验证的 WeKnora 账号绑定。RWB Cookie 不进入 WeKnora，上游仅能设置原生 OIDC nonce，完整应用仅允许精确 RWB 来源嵌入；同主机 MCP 例外只随显式已隔离配置启用，普通默认拒绝不变。旧聊天删除在原受管停止阶段、不建数据备份，共享数据和正式报告按真实引用保留；见[工作台合同](../../research-web-fingpt-workspace.md)。
+
+2026-11-26 列表键盘导航去重：`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」规则，能力类型 tab 与 MCP 子视图 tab 已迁移。各自原有的边缘语义（未知值钉在 0 的行为）保持不变，方向键、Home、End 的落点与原实现逐项等价。

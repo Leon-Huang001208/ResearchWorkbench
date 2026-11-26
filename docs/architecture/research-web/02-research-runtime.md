@@ -921,3 +921,5 @@ WeKnora 客户端经入站 MCP 获取批准的只读材料。RWB 不为该客户
 主账号单 Web 模式持有原 supervisor 和 lifecycle 锁，旧 Native 双进程停止且归属明确后才启动。
 
 AlphaDesk 会话由 Host 管理任务状态和独立报告验收。进程重启后，未终结任务显示中断，需核对原受理结果。
+
+2026-11-26 列表键盘导航去重：`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」规则，能力类型 tab 与 MCP 子视图 tab 已迁移。各自原有的边缘语义（未知值钉在 0 的行为）保持不变，方向键、Home、End 的落点与原实现逐项等价。

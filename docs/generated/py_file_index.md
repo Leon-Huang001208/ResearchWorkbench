@@ -5116,6 +5116,7 @@ Imports:
 - `providers_kapsarc`
 - `providers_nyfed_reference`
 - `providers_wgc`
+- `providers_wscn`
 - `re`
 - `time`
 - `typing`
@@ -5590,6 +5591,23 @@ Functions:
   - Validate numeric native exports and independently check reviewed windows.
 - `wait_for_idle`
   - Retain vendor/close ownership until the real worker returns.
+
+
+## `app/research_web/datahub/providers_wscn.py`
+
+Module docstring:
+> Closed Wallstreetcn live/articles projection.
+
+Imports:
+- `json`
+- `providers`
+- `typing`
+
+Functions:
+- `_object`
+  - Duplicate keys would make a row identity ambiguous.
+- `wscn_projection`
+  - Validate the vendor envelope and return bounded article/live rows.
 
 
 ## `app/research_web/datahub/public_worker.py`

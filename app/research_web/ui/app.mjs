@@ -1,3 +1,4 @@
+import { trapTabFocus } from './focus-trap.mjs';
 import { applyConnectionWorkspaceFilters, forgetConfigurationSecrets } from './connection-workspace.mjs';
 import { nativeFinGPT, renderFinGPT, mountFinGPT, paintFinGPTShell } from './fingpt-workspace.mjs';
 import { createQAMount, paintQAPage, qaRetryBlockReason, qaSendBlockReason, renderQAHistory, renderQAPage } from './qa-mount.mjs';
@@ -1935,9 +1936,7 @@ root.addEventListener('keydown', (event) => {
     if (event.isComposing || event.keyCode === 229) return;
     const drawerKind = discoveryController.state.drawer?.kind;
     if (event.key === 'Tab' && discoveryController.state.drawer) {
-      const dialog = root.querySelector('.d-drawer');
-      const items = [...(dialog?.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
-      if (items.length && (!items.includes(document.activeElement) || event.shiftKey && document.activeElement === items[0] || !event.shiftKey && document.activeElement === items.at(-1))) { event.preventDefault(); (event.shiftKey ? items.at(-1) : items[0]).focus({ preventScroll: true }); }
+      trapTabFocus(event, root.querySelector('.d-drawer'));
       return;
     }
     void discoveryController.handle(event).then(handled => {

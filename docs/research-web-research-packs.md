@@ -419,3 +419,5 @@ metadata/proof，再核实际正文hash；分类不读撤权body、不递归自�
 登记孤儿、proof缺/坏或进程崩溃，uploads-only与web-enabled均不能将未发布源当普通文件。
 真实上传API的UUID前缀文件不匹配受管命名，普通上传/引用保留；已发布web源在原web权限
 下HTTP/source读取保留，Dossier/source交接仍引用原sid，不建立新源身份系统。
+
+2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。
