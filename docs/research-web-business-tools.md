@@ -5,21 +5,33 @@ BusinessQuery、查询 id、status 分页、原件和冻结快照，不创建第
 
 ## 工具目录
 
-Wind 七域用于分类。当前实现股票、基金、指数、宏观域的 7 个工具及跨域的 2 个公共工具；
-债券、通用 analytics、新闻检索、公告和 MySQL 新工具未注册，不能把设计候选当作已交付。
-权威输入 schema 由 `mcp_facade/task_contracts.py` 的模型生成，拒绝额外参数。
+七域是目录骨架，不是工具元组的附属字段。`mcp_facade/domains.py` 定义域的 id、中文名、
+说明、状态和有序工具清单；`mcp_facade/task_contracts.py` 从该清单派生每个工具的所属域，
+并在导入时校验“每个已注册工具恰好属于一个域、域内工具都存在、无重复归属”。
+债券和通用 analytics 是保留域，不注册占位工具；公告、新闻与研究文档当前也无可用绑定，
+但域本身保留为 available，便于后续按已验证工具逐个接入。权威输入 schema 仍由
+`mcp_facade/task_contracts.py` 的模型生成，拒绝额外参数。
 
-| 域 | 工具 | 本批范围 |
-| --- | --- | --- |
-| stock_data | get_stock_kline | 单股、截至昨日的 daily/none；当日数据走快照，不开放未验证复权与基准日 |
-| stock_data | get_stock_quote | 1–20 股；默认 price，源不支持字段时沿原准入拒绝 |
-| stock_data | get_stock_financials | summary/income_statement/profitability/cash_flow |
-| stock_data | get_stock_activity | 资金流、两融、股东户数与前十名股东；大宗/筹码本批不开放 |
-| fund_data | get_fund_detail | 净值、档案、分红、已披露持仓 |
-| index_data | get_index_quote | 单个 index 最新报价；000/93开头.SH或399开头.SZ，不接受date或批量indexes |
-| economic_data | get_economic_series | 固定四个中国宏观数据集，起止日期必填，不提供PIT |
-| shared | search_assets | query/market；asset_type仅stock，不接受尚无映射的limit |
-| shared | get_trading_calendar | 已发布的 CN 交易日历 |
+| 域 | 中文 | 状态 | 工具 | 本批范围 |
+| --- | --- | --- | --- | --- |
+| stock_data | 股票数据 | available | get_stock_kline | 单股、截至昨日的 daily/none；当日数据走快照，不开放未验证复权与基准日 |
+| stock_data | 股票数据 | available | get_stock_quote | 1–20 股；默认 price，源不支持字段时沿原准入拒绝 |
+| stock_data | 股票数据 | available | get_stock_financials | summary/income_statement/profitability/cash_flow |
+| stock_data | 股票数据 | available | get_stock_activity | 资金流、两融、股东户数与前十名股东；大宗/筹码本批不开放 |
+| stock_data | 股票数据 | available | search_assets | query/market；asset_type仅stock，不接受尚无映射的limit |
+| stock_data | 股票数据 | available | get_trading_calendar | 已发布的 CN 交易日历；为股票及后续金融域共用 |
+| fund_data | 基金数据 | available | get_fund_detail | 净值、档案、分红、已披露持仓 |
+| index_data | 指数与板块数据 | available | get_index_quote | 单个 index 最新报价；000/93开头.SH或399开头.SZ，不接受date或批量indexes |
+| bond_data | 债券数据 | reserved | — | 无已验收工具，不注册占位 |
+| financial_docs | 公告、新闻与研究文档 | available | — | 当前无可用绑定；不因域存在而注册新闻或公告工具 |
+| economic_data | 宏观与行业数据 | available | get_economic_series | 固定四个中国宏观数据集，起止日期必填，不提供PIT |
+| analytics_data | 通用结构化取数 | reserved | — | 不开放自然语言通用取数兜底 |
+
+目录有两个读取方式，均不代表调用供应商：`tools/list` 在业务工具条目的 `_meta.rwb.business`
+标记所属域，并在结果级 `_meta.rwb.business_domains` 返回按七域分组的同名工具列表；
+`rwb_datahub_catalog` 的原有来源、绑定和能力字段保持，新增 `business_domains` 分组。
+每个分组条目包含工具名、内部 capability、说明和输入 schema；原有 9 个工具名、调用参数、
+scope 过滤与权限语义不变。目录只投影当前令牌可见的业务工具，不新增研究执行或绕过授权。
 
 提交返回原 `id`；用 `rwb_datahub_status(query_id=id)` 读取。查询的 `source=auto` 是请求策略，
 实际来源看 `result.manifest.provider`，上游细分看 `provider_metadata.upstream_id`。

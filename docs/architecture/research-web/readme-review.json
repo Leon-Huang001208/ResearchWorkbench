@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核数据集引用跳转提取；根 README 无需更改。",
-  "reason": "本次把回答正文里的数据集引用跳转移入同目录 dataset-reference.mjs，由原 click 监听器调用，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 描述的入口、安装步骤与使用方式保持原样。"
+  "summary": "复核 DataHub 业务工具七域目录与精确 CI 范围；根 README 无需更改。",
+  "reason": "本次只在既有 mcp_facade 内把工具所属域改为 domains.py 的一等目录、补充 MCP discovery 元数据，并把 domains 入口纳入原 MCP/DataHub 精确 lane；未新增公开安装命令、锁定依赖、账号流程、配置项、运行节点或用户可见产品入口，README 描述的安装与使用方式保持原样。"
 }

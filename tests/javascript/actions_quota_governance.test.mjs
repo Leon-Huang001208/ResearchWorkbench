@@ -1162,9 +1162,9 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
   const code=match[1].split('\n').map(line=>line.slice(10)).join('\n');
   const files=['app/research_web/mcp_facade/backend.py','app/research_web/datahub/providers_finance_mcp.py',
     'app/research_web/datahub/connections.py','.agents/verification-policy.json',
-    '.github/workflows/research-web-checks.yml','scripts/run_mcp_datahub_ci.sh',
+    '.github/workflows/research-web-checks.yml','scripts/run_mcp_datahub_ci.sh','scripts/mcp_datahub_ci.py',
     'docs/architecture/research-web/readme-review.json','docs/research-web-finance-mcp.md',
-    'README.md','app/research_web/datahub/__init__.py','app/research_web/datahub/broker.py','app/research_web/datahub/catalog.py','app/research_web/datahub/warehouse.py','app/research_web/datahub/research_warehouse.py','app/research_web/datahub/planning.py','app/research_web/datahub/providers_finance_market.py','app/research_web/datahub/providers_wind.py','app/research_web/mcp_facade/task_contracts.py','tests/research_web/test_datahub_planning.py','tests/research_web/test_finance_market_contract.py','tests/research_web/test_mcp_task_contracts.py','scripts/architecture/build_weknora_skill_layer_reader.mjs','outputs/weknora-datahub-skill-layer/index.html',
+    'README.md','app/research_web/datahub/__init__.py','app/research_web/datahub/broker.py','app/research_web/datahub/catalog.py','app/research_web/datahub/warehouse.py','app/research_web/datahub/research_warehouse.py','app/research_web/datahub/planning.py','app/research_web/datahub/providers_finance_market.py','app/research_web/datahub/providers_wind.py','app/research_web/mcp_facade/domains.py','app/research_web/mcp_facade/task_contracts.py','tests/research_web/test_datahub_planning.py','tests/research_web/test_finance_market_contract.py','tests/research_web/test_mcp_task_contracts.py','scripts/architecture/build_weknora_skill_layer_reader.mjs','outputs/weknora-datahub-skill-layer/index.html',
     'tests/javascript/actions_quota_governance.test.mjs'];
   const assetContract=['app/research_web/datahub/contracts.py','app/research_web/mcp_facade/task_contracts.py','app/research_web/asset_workspace.py'];
   const assetPaths=[...assetContract,'app/research_web/asset_history_jobs.py','tests/research_web/test_asset_loading.py','tests/research_web/test_asset_workspace.py','tests/research_web/test_asset_history.py',
@@ -1172,6 +1172,9 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
     'docs/ARCHITECTURE.md','docs/DEVELOPMENT_MAP.md','docs/generated/py_file_index.md','docs/architecture/research-web/readme-review.json',
     'docs/research-web-asset-research.md','docs/research-web-business-tools.md','docs/research-web-datahub.md','docs/research-web-mcp-datahub.md','docs/actions-budget.md','.ai/reports/2026-11-25-asset-business-query.md'];
   for (const [paths,base,gitFailure,expected] of [[files,'a'.repeat(40),'',true],
+    [['app/research_web/mcp_facade/domains.py'],'a'.repeat(40),'',true],
+    [['app/research_web/mcp_facade/server.py'],'a'.repeat(40),'',true],
+    [['app/research_web/mcp_facade/tools.py'],'a'.repeat(40),'',true],
     [assetPaths,'a'.repeat(40),'',true],
     [[...assetPaths,'app/research_web/main.py'],'a'.repeat(40),'',false],
     [[...assetPaths,'app/research_web/ui/asset-controller.mjs'],'a'.repeat(40),'',false],
@@ -1180,6 +1183,7 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
     [[...files,'app/research_web/main.py'],'a'.repeat(40),'',false],
     [[...files,'app/research_web/datahub/future_provider.py'],'a'.repeat(40),'',false],
     [['.github/workflows/research-web-checks.yml'],'a'.repeat(40),'',false],
+    [['docs/research-web-business-tools.md'],'a'.repeat(40),'',false],
     [['scripts/run_mcp_datahub_ci.sh'],'a'.repeat(40),'',false],
     [files,'','',false],[files,'a'.repeat(40),'1',false]]) {
     const output=path.join(root,`scope-${fs.readdirSync(root).length}`);

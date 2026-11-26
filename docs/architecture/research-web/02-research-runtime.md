@@ -1,5 +1,10 @@
 # 研究协议、执行状态与恢复
 
+WeKnora 业务工具的 discovery 以 `mcp_facade/domains.py` 为七域骨架：域显式列出工具，
+`task_contracts.py` 派生归属并拒绝孤儿、重复或未知工具。`tools/list` 与
+`rwb_datahub_catalog` 只附加分组元数据；既有 OAuth、账号 Host、DataHub 查询、status
+分页与冻结快照链不变，不新增执行器、服务、数据库或 Provider 调用。
+
 G2B 维护与原 resident 准入共同生效：已有研究和子任务保留，新人工执行返回维护状态，新后台执行等待原门解除。Report Workflow、Automation 与 DSH prompt 共享 Host 维护门，不创建替代运行。
 
 五个附接 MCP 保全模式的 forward apply 在最终 GitHub 候选证据核对后、`execute` 前，

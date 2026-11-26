@@ -15,7 +15,7 @@ from ..multiuser.accounts import AccountError
 from .backend import ReadError, canonical_id
 from .config import RESPONSE_BYTES
 from .models import DATA_SCOPE, SCOPE
-from .task_contracts import TASKS
+from .task_contracts import TASKS, business_directory, domain_metadata
 
 log = get_logger(__name__)
 TOOL_ARGUMENTS = {
@@ -302,7 +302,8 @@ def register_tools(server, store, backend, datahub=None):
     @server.tool(annotations=annotations)
     async def rwb_datahub_catalog() -> dict:
         """List this account's callable DataHub sources, implemented bindings and business parameters. Reuses existing configuration and permissions; does not call suppliers or return credentials."""
-        return await data_operation(datahub.configured_catalog)
+        catalog = await data_operation(datahub.configured_catalog)
+        return bounded({**catalog, "business_domains": business_directory()["domains"]})
 
     @server.tool(annotations=execution)
     async def rwb_datahub_business_query(
@@ -348,4 +349,7 @@ def register_tools(server, store, backend, datahub=None):
                 operation.__signature__ = inspect.Signature(parameters, return_annotation=dict)
                 return operation
 
-            server.tool(annotations=execution)(build_task(name, schema, domain, description))
+            server.tool(
+                annotations=execution,
+                meta=domain_metadata(name),
+            )(build_task(name, schema, domain, description))

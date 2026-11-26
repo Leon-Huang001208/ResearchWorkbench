@@ -23,6 +23,7 @@ MCP_PATHS = {
     "app/research_web/datahub/research_warehouse.py",
     "app/research_web/datahub/warehouse.py",
     "app/research_web/mcp_facade/backend.py",
+    "app/research_web/mcp_facade/domains.py",
     "app/research_web/mcp_facade/models.py",
     "app/research_web/mcp_facade/oauth_views.py",
     "app/research_web/mcp_facade/server.py",
@@ -32,6 +33,7 @@ MCP_PATHS = {
     "docs/architecture/research-web/readme-review.json",
     "outputs/weknora-datahub-skill-layer/index.html",
     "scripts/architecture/build_weknora_skill_layer_reader.mjs",
+    "scripts/mcp_datahub_ci.py",
     "scripts/run_mcp_datahub_ci.sh",
     "tests/javascript/actions_quota_governance.test.mjs",
     "tests/javascript/verification_policy.test.mjs",
@@ -51,6 +53,12 @@ CORE = {
     "app/research_web/mcp_facade/backend.py",
     "app/research_web/datahub/providers_finance_mcp.py",
 }
+BUSINESS_TOOLS = {
+    "app/research_web/mcp_facade/domains.py",
+    "app/research_web/mcp_facade/server.py",
+    "app/research_web/mcp_facade/task_contracts.py",
+    "app/research_web/mcp_facade/tools.py",
+}
 ASSET_CONTRACT = {
     "app/research_web/datahub/contracts.py",
     "app/research_web/mcp_facade/task_contracts.py",
@@ -60,7 +68,16 @@ ASSET_CONTRACT = {
 
 def selected(files):
     files = set(files)
-    return (bool(CORE.intersection(files)) or ASSET_CONTRACT.issubset(files)) and all(
+    business_tools = bool(BUSINESS_TOOLS.intersection(files))
+    asset_declared = {
+        "app/research_web/datahub/contracts.py",
+        "app/research_web/asset_workspace.py",
+    }.intersection(files)
+    if business_tools and asset_declared and not ASSET_CONTRACT.issubset(files):
+        return False
+    return (
+        bool(CORE.intersection(files)) or business_tools or ASSET_CONTRACT.issubset(files)
+    ) and all(
         name in MCP_PATHS or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
         for name in files
     )

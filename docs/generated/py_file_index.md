@@ -9471,6 +9471,37 @@ Functions:
 - `resident_execution`
 
 
+## `app/research_web/mcp_facade/domains.py`
+
+Module docstring:
+> Wind-aligned business domains; the domain is the catalog skeleton, not a tool prefix.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `re`
+- `types`
+- `typing`
+
+Classes:
+- `BusinessDomain`
+  - One Wind business directory with an explicit, ordered tool inventory.
+  - methods: __post_init__
+
+Functions:
+- `_catalog_index`
+- `_owner_map`
+  - Return tool -> domain, rejecting orphans and duplicate ownership.
+- `validate_domains`
+  - Validate the catalog against the registered tool names.
+- `domains`
+- `domain`
+- `tools_in`
+- `domain_of`
+
+
 ## `app/research_web/mcp_facade/http_policy.py`
 
 Module docstring:
@@ -9656,6 +9687,7 @@ Imports:
 - `oauth`
 - `pydantic`
 - `starlette.routing`
+- `task_contracts`
 - `tools`
 - `urllib.parse`
 
@@ -9675,9 +9707,11 @@ Module docstring:
 
 Imports:
 - `core.observability`
+- `dataclasses`
 - `datahub.contracts`
 - `datahub.providers`
 - `datetime`
+- `domains`
 - `pydantic`
 - `typing`
 
@@ -9692,9 +9726,18 @@ Classes:
 - `EconomicSeries`
 - `SearchAssets`
 - `TradingCalendar`
+- `TaskContract`
+  - A registered business tool; domain ownership is derived from ``domains.py``.
+  - methods: domain, __iter__, __getitem__, __len__
 
 Functions:
 - `stock_identity`
+- `_contract`
+- `_schema_document`
+- `business_directory`
+  - Return the seven-domain catalog with every registered tool and its metadata.
+- `domain_metadata`
+  - Per-tool discovery metadata without changing the tool's input JSON Schema.
 - `business_query`
 
 
