@@ -144,3 +144,5 @@ service.lock内只信服务器当前receipt accepted、同key/task/marker且canc
 先已saved的成果及其独立readback不被后来取消倒改；acceptedfalse、foreign/newtask不误取消，身份不明
 在写状态前保持原unknown_do_not_retry，不增enum/binding/schema。时间早于execution start不能放行同一
 已取消任务。Mac Bootstrap同一步硬跑SDK一例加pack/method六种真实取消顺序，JUnit exact7且0skip。
+
+2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。

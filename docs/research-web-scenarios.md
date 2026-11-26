@@ -88,3 +88,5 @@ result = select_scenario(
 场景普通问答使用 AlphaDesk 时，Host 验证能力版本及交接资料，并把实际提交的能力记录在本轮回执中。
 
 九个确定性研究包与三个自有原件方法沿同一场景冻结／准备／发送入口接入，来源选择见[选材合同](research-web-source-selection.md)，执行及缺口见[研究包](research-web-research-packs.md)。原八场景与实际授权不因包目录存在而变更。
+
+2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。
