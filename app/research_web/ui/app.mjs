@@ -21,6 +21,7 @@ import { createClipboardActions } from './clipboard-actions.mjs';
 import { createDatasetReference } from './dataset-reference.mjs';
 import { createLocalIntegrationFilter } from './local-integration-filter.mjs';
 import { createOfficeAutoConsent } from './office-auto-consent.mjs';
+import { createSourceConnections } from './source-connections.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -395,6 +396,23 @@ const officeAutoConsent = createOfficeAutoConsent({
   log: safeLog,
   getPendingTarget: () => officeConsentConfirmation,
   setPendingTarget: value => { officeConsentConfirmation = value; },
+});
+const sourceConnections = createSourceConnections({
+  getCatalog: () => catalog,
+  api,
+  controller,
+  loadCatalog: names => loadCatalog(names),
+  loadConnectionConfiguration: id => loadConnectionConfiguration(id),
+  setSuccess: value => { success = value; },
+  setError: value => { state.error = value; },
+  clearError: () => { state.error = ''; },
+  clearSuccess: () => { success = ''; },
+  setProbeBusy: value => { connectionProbeBusy = value; },
+  clearSelectedConfiguration: () => { selectedConnectionConfiguration = null; },
+  render: () => render(),
+  waitForProbe: (getProbe, id) => waitForDataProbe(getProbe, id),
+  waitForBatch: (getBatch, id) => waitForIntegrationBatch(getBatch, id),
+  newId: () => crypto.randomUUID(),
 });
 
 function notice(message, kind = 'error') { return message ? `<div class="notice ${kind}" role="${kind === 'error' ? 'alert' : 'status'}">${e(message)}</div>` : ''; }
@@ -3170,58 +3188,22 @@ root.addEventListener('click', async (event) => {
   }
   if ('connectionCancel' in data) { await loadConnectionConfiguration(data.connectionCancel); return; }
   if ('connectionRemove' in data) {
-    const sourceId = data.connectionRemove;
-    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
-    const sharedImpact = sourceId.startsWith('zhiqiu_') ? '该账号池由知丘研报、公众号与纪要共享，三项授权都会被移除。' : '';
-    if (!globalThis.confirm?.(`移除 ${sourceLabel} 的本机配置与凭据？${sharedImpact}历史快照不会删除。`)) return;
-    const result = await controller.action(() => api.deleteSourceConfiguration(sourceId), { refreshAfter: false });
-    if (result) { success = '本机配置和系统凭据已移除；历史快照保持可读。'; selectedConnectionConfiguration = null; await loadCatalog(['connections', 'dataCatalog', 'tools']); await loadConnectionConfiguration(sourceId); }
+    await sourceConnections.remove(data.connectionRemove);
     return;
   }
   if ('integrationConsent' in data) {
-    const sourceId = data.integrationConsent;
-    const enabled = data.consentEnabled === 'true';
-    const nextConsent = !enabled;
-    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
-    if (!confirmAutoProbeConsent((message) => globalThis.confirm?.(message), sourceLabel, nextConsent)) return;
-    const result = await controller.action(
-      () => api.setIntegrationConsent(`data:${sourceId}`, nextConsent),
-      { refreshAfter: false },
-    );
-    if (result) {
-      success = nextConsent ? `已允许自动检测 ${sourceLabel}。` : `已停用 ${sourceLabel} 的自动检测。`;
-      await loadCatalog(['connections', 'integrations']);
-    }
+    await sourceConnections.setConsent({
+      sourceId: data.integrationConsent,
+      currentlyEnabled: data.consentEnabled === 'true',
+    });
     return;
   }
   if ('connectionProbe' in data) {
-    const sourceId = data.connectionProbe; state.error = ''; success = '';
-    const sourceLabel = catalog.connections.sources.find((item) => item.id === sourceId)?.label || sourceId;
-    connectionProbeBusy = true; render();
-    try {
-      const accepted = await controller.action(() => api.probeDataSource(sourceId, `probe-${sourceId}-${crypto.randomUUID()}`), { refreshAfter: false });
-      if (!accepted) return;
-      if (typeof accepted.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的探测任务，请刷新后重试。');
-      const current = await waitForDataProbe((probeId) => api.dataProbe(probeId), accepted.id);
-      success = current.health === 'healthy' ? `${sourceLabel}检测通过。` : `${sourceLabel}检测完成，请根据状态说明处理。`;
-      await loadCatalog(['connections', 'dataCatalog']);
-      await loadConnectionConfiguration(sourceId);
-    } catch (error) {
-      state.error = error?.message || '检测失败，请重试。';
-      safeLog('connection_probe_failed', { status: error?.code || error?.name || 'unknown' });
-    } finally {
-      connectionProbeBusy = false; render();
-    }
+    await sourceConnections.probe(data.connectionProbe);
     return;
   }
   if ('verifySourceAuth' in data) {
-    connectionProbeBusy = true; state.error = ''; success = ''; render();
-    try {
-      const result = await api.verifySourceAuthorization(data.verifySourceAuth);
-      success = result.status === 'authenticated' ? 'HTTP 授权交换成功；具体数据权限尚未验证。' : '授权尚未验证。';
-      await loadConnectionConfiguration(data.verifySourceAuth);
-    } catch (error) { state.error = error.message || '授权未验证'; safeLog('source_authorization_unverified'); }
-    finally { connectionProbeBusy = false; render(); }
+    await sourceConnections.verifyAuth(data.verifySourceAuth);
     return;
   }
   if ('localIntegrationsProbe' in data) {
