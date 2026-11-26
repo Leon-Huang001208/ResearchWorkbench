@@ -1,7 +1,7 @@
 .native-todo-list { list-style: none; padding: 0; display: grid; gap: 10px; }
 .plugin-layout { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); gap: 20px; margin-top: 18px; }
 .plugin-versions { display: flex; flex-direction: column; gap: 8px; }
-.plugin-version { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: left; padding: 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.plugin-version { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: left; padding: 12px; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
 .plugin-version.selected { border-color: var(--accent, #1768ac); background: var(--sidebar); }
 .plugin-version span, .plugin-version small { color: var(--muted); font-size: 12px; }
 .plugin-detail { min-width: 0; }
@@ -888,7 +888,7 @@ textarea { resize: vertical; }
 .embedded-top-meta .badge { margin-right: 2px; }
 .embedded-status { font-weight: 550; }
 .embedded-status.positive { color: var(--green); }
-.embedded-status.negative { color: var(--red); }
+.embedded-status.negative { color: var(--danger); }
 .embedded-status.neutral { color: var(--muted); }
 .embedded-meta-item { color: var(--muted); white-space: nowrap; }
 .embedded-open-link { margin-left: auto; color: var(--text); text-decoration: none; font-weight: 500; }
@@ -901,7 +901,7 @@ textarea { resize: vertical; }
 .embedded-framework .framework-hero { margin-bottom: 10px; padding-bottom: 12px; }
 .embedded-framework .framework-hero-meta { display: none; }
 .embedded-framework .framework-hero-meta .positive { color: var(--green); }
-.embedded-framework .framework-hero-meta .negative { color: var(--red); }
+.embedded-framework .framework-hero-meta .negative { color: var(--danger); }
 .embedded-framework .framework-hero-meta .neutral { color: var(--muted); }
 
 
