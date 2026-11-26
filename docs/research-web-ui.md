@@ -874,3 +874,14 @@ FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口�
 ## FinGPT 完整工作台
 
 显式配置原生工作台后，`#/fingpt` 与旧 `#/qa` 统一进入 WeKnora 完整应用；RWB 主导航保留，移除原 FinGPT 的重复会话栏和编辑器。独立入口在每次进入时走原生登录，壳局部重绘不拆卸工作台 iframe，避免打断执行流；Claw 与其他页面的渲染不变。账号映射、配置、原生 token 生命周期及删除边界见[工作台合同](research-web-fingpt-workspace.md)。
+
+## 样式尺度与裸值预算（2026-11-26）
+
+`app/research_web/ui/tokens.css` 是间距、字号、圆角、行高、字重、动效和层级的唯一
+尺度来源，在 `index.html` 中先于组件样式表加载。新增或修改样式应引用 `var(--space-*)`、
+`var(--text-*)`、`var(--radius-*)`，不再直接写数值。
+
+`scripts/check_ui_tokens.mjs` 与 `tests/javascript/research_web_tokens.test.mjs` 共同守住
+这条约束：`ui/.token-debt.json` 记录各样式表当前的裸 px 数量，检查只允许该数字下降；
+新建样式表若含裸 px 会直接失败。迁移方式是按文件引用 token、逐次收紧预算，不整仓
+批量替换。改动前的实测背景是 214 种不同 px 值、6506 处裸 px、仅 30 个变量定义。
