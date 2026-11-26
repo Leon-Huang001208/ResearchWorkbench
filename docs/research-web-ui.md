@@ -925,3 +925,12 @@ Office 自动验证取消（`data-office-auto-cancel`）。两者都是纯 UI �
 `source-connections.mjs` 收敛了 click 监听器里四个同形分支：移除本机配置与凭据、切换自动检测许可、执行探测、验证 HTTP 授权。每个方法负责解析来源标签、确认风险方向、走共享 action 包装、刷新目录与详情、给出稳定提示。
 
 `sourceLabel` 在来源已不存在时回退到原始 id；`sharedImpactNote` 只对知丘系列提示共享账号池影响。`connectionProbeBusy` 与 `selectedConnectionConfiguration` 由此模块统一管理，不再由各分支手工置位。启用与停用自动检测都需要确认，这是既有行为。
+
+### 表单处理模块（2026-11-26）
+
+submit 监听器原有 434 行、26 个分支。七个表单批量抽离为两个模块：
+
+- `asset-forms.mjs`：资产观测、自选、笔记、提醒。后三者共用 `postAndRefresh`；观测保留完整生命周期。`windRangeError` 是纯函数，Wind 的「不超过 60 个日历日」与日期不可解析时的失败关闭都在这里。
+- `automation-forms.mjs`：投递渠道、自动化、报告日程。`buildSchedule`/`buildDeliveryChannel`/`automationTarget` 均为导出的纯函数，可脱离 DOM 校验 once/weekly/monthly 差异与 SMTP/webhook 载荷差异。
+
+`app.mjs` 该七处由 148 行降为 28 行。
