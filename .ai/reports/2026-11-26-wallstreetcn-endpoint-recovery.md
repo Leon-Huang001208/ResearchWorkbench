@@ -1,5 +1,7 @@
 # 华尔街见闻外部端点恢复
 
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"两条外部端点改指仍可解析的厂商域名，并在既有 providers_external.fetch 业务分支内接入同一 Provider 的封闭投影；不新增路由、服务、调度器、存储表、Broker 边或快照拓扑。","diagrams":[]} -->
+
 ## 范围
 
 宿主为 Mac mini 本机 macOS，类型为 Research Web 功能修复。本次只修复 DataHub

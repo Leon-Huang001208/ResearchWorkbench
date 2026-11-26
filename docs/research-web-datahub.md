@@ -694,3 +694,11 @@ CLS固定wrapper复用BusinessQuery(search_news, source=cls, allow_fallback=Fals
 
 仅服务账户读取数据目录及已登记快照。快照 GET 使用只读场景校验，需验证历史出站 MCP 授权而现场无法核验时明确拒绝。
 FinGPT 隔离验收通过既有 DataHub 接口读取已完成回执和冻结资料。未核价的新查询在仓库或供应商读取前拒绝，见 [FinGPT 验收预算](research-web-ai-qa.md#切换状态)。
+
+## 华尔街见闻端点与信封（2026-11-26）
+
+`ext_wallstreetcn` 原 `lives`、`articles` 主端点指向的 `api-one.wallstcn.com` 已无 DNS 解析，离线检查无法发现，因此登记状态长期停在 `code_integrated_not_live_verified`。四条端点现统一到仍可用的 `api-one-wscn.awtmt.com`，查询参数保持原样。
+
+该厂商用 `code: 20000` 表示成功，而通用 `response_rows` 只接受 `0/200`，改域后仍会被判为 `vendor_rejected`。修复只在 `providers_wscn.py` 内做封闭投影：校验私有成功码、`data.items` 列表、行 `id` 唯一与类型、必需字段及 `display_time`，异常统一收敛为 `external_wscn_schema_invalid`；不放宽其他来源的信封规则。`providers_external.fetch` 的业务分支按 `source_id` 分流到该投影，Broker、仓库、快照与调度拓扑不变。
+
+真实公网实测 `lives` 取回 100 条、`articles` 取回 30 条，单次响应标记 `partial`；采集调度与常驻实例的定时任务未在本次重跑，登记状态继续保持 `code_integrated_not_live_verified`。完整证据见 [端点恢复报告](../.ai/reports/2026-11-26-wallstreetcn-endpoint-recovery.md)。
