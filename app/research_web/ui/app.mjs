@@ -24,6 +24,7 @@ import { createOfficeAutoConsent } from './office-auto-consent.mjs';
 import { createSourceConnections } from './source-connections.mjs';
 import { createAssetForms } from './asset-forms.mjs';
 import { createAutomationForms } from './automation-forms.mjs';
+import { trapTabFocus } from './focus-trap.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -2058,26 +2059,12 @@ root.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && legacyComposerMenu) { event.preventDefault(); legacyComposerMenu.open = false; legacyComposerMenu.querySelector('summary')?.focus(); return; }
   if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); focusModuleSelection(document); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
-    const dialog = document.querySelector('.mcp-server-dialog');
-    const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
-    if (focusable.length) {
-      const first = focusable[0]; const last = focusable.at(-1);
-      if (!dialog.contains(document.activeElement) || (event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
-        event.preventDefault(); (event.shiftKey ? last : first).focus({ preventScroll: true });
-      }
-    }
+    trapTabFocus(event, document.querySelector('.mcp-server-dialog'));
     return;
   }
   if (mcpMarketplaceState.detail && event.key === 'Escape') { event.preventDefault(); closeMCPServerDialog(); return; }
   if (capabilityPreviewIsOpen() && event.key === 'Tab') {
-    const dialog = document.querySelector('.capability-preview-dialog');
-    const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
-    if (focusable.length) {
-      const first = focusable[0]; const last = focusable.at(-1);
-      if (!dialog.contains(document.activeElement) || (event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
-        event.preventDefault(); (event.shiftKey ? last : first).focus({ preventScroll: true });
-      }
-    }
+    trapTabFocus(event, document.querySelector('.capability-preview-dialog'));
     return;
   }
   if (capabilityPreviewIsOpen() && event.key === 'Escape') {

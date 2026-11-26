@@ -934,3 +934,9 @@ submit 监听器原有 434 行、26 个分支。七个表单批量抽离为两�
 - `automation-forms.mjs`：投递渠道、自动化、报告日程。`buildSchedule`/`buildDeliveryChannel`/`automationTarget` 均为导出的纯函数，可脱离 DOM 校验 once/weekly/monthly 差异与 SMTP/webhook 载荷差异。
 
 `app.mjs` 该七处由 148 行降为 28 行。
+
+### 焦点陷阱（2026-11-26）
+
+能力预览与 MCP 服务器对话框原先各有一份逐字节相同的 Tab 焦点陷阱。现统一为 `focus-trap.mjs`：`FOCUSABLE_SELECTOR` 定义可聚焦元素，`nextTrapIndex` 是可单独测试的纯函数，`trapTabFocus` 负责与 DOM 交互。
+
+判定规则：中间位置交给浏览器默认行为；正向在最后一个元素回卷到首个，反向在首个回卷到末尾；焦点若已逃出对话框，拉回入口边缘（正向首个、反向末尾）；空对话框不处理。
