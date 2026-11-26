@@ -49,6 +49,7 @@ from .providers_wgc import (
     wgc_fields,
     wgc_projection,
 )
+from .providers_wscn import WSCN_DATASETS, wscn_projection
 
 log = get_logger(__name__)
 OFFICIAL_NUMERIC_CONTRACT = "official-numeric-v2"
@@ -1127,6 +1128,8 @@ async def fetch(
         elif source_id == "ext_wgc" and dataset in WGC_DATASETS:
             projected = wgc_projection(raw, dataset)
             business = (projected, len(projected), True)
+        elif source_id == "ext_wallstreetcn" and dataset in WSCN_DATASETS:
+            business = wscn_projection(raw, dataset)
         else:
             business = (
                 (spdr_projection(raw), 4, True)
