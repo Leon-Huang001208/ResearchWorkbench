@@ -1,3 +1,4 @@
+import { nextListIndex } from './list-keynav.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 
@@ -73,7 +74,12 @@ export function createAssetSearchController({ api, onChange = () => {}, onSelect
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter'].includes(value) || !state.items.length) return false;
     if (value === 'Enter') { select(Math.max(0, state.selected)); return true; }
     state.open = true;
-    state.selected = value === 'Home' ? 0 : value === 'End' ? state.items.length - 1 : (state.selected + (value === 'ArrowDown' ? 1 : -1) + state.items.length) % state.items.length;
+    state.selected = nextListIndex({
+      key: value,
+      count: state.items.length,
+      current: state.selected,
+      axis: 'vertical',
+    }) ?? state.selected;
     notify(); return true;
   }
   return { state, search, schedule, key, select, close() { state.open = false; notify(); }, dispose() { cancel(); disposed = true; state.items = []; state.open = false; } };

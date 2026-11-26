@@ -89,3 +89,5 @@ subject/comparison/supporting_evidence角色；比较证券不能偷换为主体
 从资产观察新建的普通研究可进入 AI 问答；模型读取本会话已绑定的资产冻结快照。
 
 研究包只复用用户已选的资产、DataHub快照及资料原件，字段映射与缺失项由原Host冻结，不根据包名称自动取源或补造证券／时点。具体输入见[研究包来源选择](research-web-source-selection.md)。
+
+2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。
