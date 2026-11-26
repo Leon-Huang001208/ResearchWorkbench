@@ -1,5 +1,7 @@
 ## 从哪个问题开始
 
+[DataHub 工具与技能层设计](../../../outputs/research-web-architecture/design-weknora-datahub.html)收录七个业务域、候选工具、输入契约、字段来源及实施进度，完整保留17节讨论记录。它包含待实现与源码候选内容；当前可调用工具仍以[MCP工具参考](../../../outputs/research-web-architecture/reference-mcp.html)和实际授权发现结果为准。
+
 使用者先看[快速开始](../../../outputs/research-web-architecture/getting-started.html)和[指南](../../../outputs/research-web-architecture/guide-data.html)。需要理解实现边界、组件职责或代码时，再读这一栏。
 
 ## 系统与流程

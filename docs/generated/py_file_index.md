@@ -26520,8 +26520,10 @@ Imports:
 - `html`
 - `json`
 - `pathlib`
+- `posixpath`
 - `re`
 - `sys`
+- `urllib.parse`
 
 Functions:
 - `plain`
