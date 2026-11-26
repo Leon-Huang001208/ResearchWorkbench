@@ -19,6 +19,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
@@ -449,6 +450,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
         + ([private_host] if private_host else []),
     )
+    # Static ES modules and stylesheets are served uncompressed; gzip cuts them
+    # to roughly a quarter. Starlette's middleware already skips text/event-stream,
+    # so the realtime SSE stream is unaffected.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
 
     @app.middleware("http")
     async def local_boundary(request, call_next):

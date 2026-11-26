@@ -348,6 +348,12 @@ X-Forwarded-Host 不授予信任；可信回环代理的协议由 Uvicorn 原有
 单个 RWB 实例不提供按 tailnet 用户划分的研究/凭据权限，获准设备具有同一实例权限。
 配置、认证、证书、跨设备 HTTP 与真实 SSE/模型是分别验收的状态。
 
+2026-11-26 静态资源响应压缩：主应用挂载 Starlette `GZipMiddleware`，只压缩大于 1KB 的
+常规响应。该中间件默认排除 `text/event-stream`，实时 SSE 流、认证 Cookie 处理、CSP、
+同源检查与 Host/Origin 边界均不变；压缩发生在应用层，不改代理信任或 TLS 合同。
+`test_static_delivery` 的 gzip 用例同时断言响应头与实际压缩率，防止只加头不压内容。
+真实浏览器 LCP/FCP 与跨设备 SSE 长连接未因此验收，仍 NOT_RUN。
+
 数据型Word子执行不导入会初始化旧设置的日志facade，避免只读镜像根目录写入和开发.env
 读取；沿既有report_documents的标准日志进入父进程日志。隔离进程禁用core模块仍能
 生成并重开Word，这是无旧配置/模型环境依赖的反例测试，不是新增模型验收。
