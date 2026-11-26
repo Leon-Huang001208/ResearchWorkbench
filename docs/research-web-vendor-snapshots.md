@@ -58,6 +58,16 @@ call_id及显式历史证据保留，不改授权配置摘要。原生研究仓�
 真实反例来自本任务remaining-public-probes；Nasdaq/CLS/Dan非空成功路径仍NOT_RUN，
 合成正码封包只用于证明未知形状失败关闭，不代表真实成功验收。
 
+2026-11-26 华尔街见闻 `lives`／`articles` 恢复。旧域 `api-one.wallstcn.com` 已停止解析，
+两条端点改指仍在服务的 `api-one-wscn.awtmt.com`，固定查询参数不变。域名改对后仍失败，
+原因是该厂商用 `code=20000` 表示成功，而共享信封判定只接受 `0/200`，把全部有效响应当作
+`vendor_rejected`。修复不改全局白名单——放宽会削弱其余来源的拒绝检测——而是为
+`ext_wallstreetcn` 增加封闭投影：校验成功码、`data.items` 列表、行 `id` 唯一且为整数、
+`display_time` 为整数、必需字段齐全，异常统一收敛为 `external_wscn_schema_invalid`。
+行保留厂商原字段，不猜测缺失值。2026-11-26 实际公网取回快讯 100 条、AI 文章 30 条，
+均为 `partial`（单次响应非完整历史）。采集调度与 `code_integrated_not_live_verified`
+登记状态不变；定时采集、字段完整性和历史 PIT 语义仍 NOT_RUN。
+
 2026-10-23 官方公开数值合同 `official-numeric-v2` 只扩展 `ext_nyfed/rates` 与
 `ext_treasury/cash` 两个原生快照入口，并加严现有 `ext_worldbank/inflation`。
 NYFed 校验 refRates、六种固定利率身份、effectiveDate 和请求起止日期，SOFRAI 保留独立
