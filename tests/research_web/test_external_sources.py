@@ -1,5 +1,6 @@
 import asyncio
 import json
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -33,6 +34,72 @@ def test_inventory_preserves_all_sources_and_reference_boundary():
     assert not by_id["ext_daole"]["readiness"]["callable"]
     assert by_id["ext_fred"]["readiness"]["health"] == "untested"
     assert resolve(BusinessQuery(capability="external_data")).provider_id == "ext_registry"
+
+
+def test_registered_endpoints_avoid_retired_origins():
+    """A retired API origin breaks every call that still names it."""
+    retired_hosts = {"api-one.wallstcn.com"}
+    offenders = [
+        (source_id, endpoint["id"], urlsplit(endpoint["url"]).netloc)
+        for source_id, source in EXTERNAL_SOURCES.items()
+        for endpoint in source.get("endpoints", [])
+        if urlsplit(endpoint["url"]).netloc in retired_hosts
+    ]
+    assert offenders == []
+
+
+def test_wallstreetcn_endpoints_share_the_live_origin():
+    hosts = {
+        urlsplit(endpoint["url"]).netloc
+        for endpoint in EXTERNAL_SOURCES["ext_wallstreetcn"]["endpoints"]
+    }
+    assert hosts == {"api-one-wscn.awtmt.com"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("dataset", ["lives", "articles"])
+async def test_wallstreetcn_accepts_vendor_success_code(dataset):
+    """20000 is this vendor's success code; the generic 0/200 check must not reject it."""
+    item = {"id": 1, "display_time": 1795694968, "content_text": "synthetic", "title": "synthetic"}
+
+    async def reply(request):
+        assert request.url.host == "api-one-wscn.awtmt.com"
+        return httpx.Response(
+            200,
+            json={"code": 20000, "message": "OK", "data": {"items": [item]}},
+            headers={"content-type": "application/json"},
+        )
+
+    result = await fetch(
+        query("ext_wallstreetcn", dataset, params={}), transport=httpx.MockTransport(reply)
+    )
+    assert result.status == "snapshot"
+    assert [row["id"] for row in result.rows] == [1]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"code": 10001, "message": "rejected", "data": {"items": []}},
+        {"code": 20000, "data": {"items": "not-a-list"}},
+        {
+            "code": 20000,
+            "data": {"items": [{"id": "1", "display_time": 1, "content_text": "x", "title": "x"}]},
+        },
+        {"code": 20000, "data": {"items": [{"id": 1, "content_text": "x", "title": "x"}]}},
+    ],
+)
+@pytest.mark.asyncio
+async def test_wallstreetcn_rejects_unusable_envelopes(body):
+    async def reply(_request):
+        return httpx.Response(200, json=body, headers={"content-type": "application/json"})
+
+    result = await fetch(
+        query("ext_wallstreetcn", "lives", params={}), transport=httpx.MockTransport(reply)
+    )
+    assert result.status == "failed"
+    assert result.rows == []
+    assert result.limitations
 
 
 @pytest.mark.parametrize(

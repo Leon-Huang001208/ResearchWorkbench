@@ -716,12 +716,12 @@
       "endpoints": [
         {
           "id": "lives",
-          "url": "https://api-one.wallstcn.com/apiv1/content/lives?channel=global-channel&limit=100",
+          "url": "https://api-one-wscn.awtmt.com/apiv1/content/lives?channel=global-channel&limit=100",
           "method": "GET"
         },
         {
           "id": "articles",
-          "url": "https://api-one.wallstcn.com/apiv1/content/articles?category=ai&limit=30&platform=pc",
+          "url": "https://api-one-wscn.awtmt.com/apiv1/content/articles?category=ai&limit=30&platform=pc",
           "method": "GET"
         },
         {
