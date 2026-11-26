@@ -41,7 +41,7 @@ export function renderModelProfileForm({ item, models = [], busy = false, runtim
   const locked = busy || !runtime.owned_runtime;
   const disabled = locked ? 'disabled' : '';
   return `<header class="mp-editor-heading">${button('back',icon('chevronLeft'),busy,'aria-label="返回"')}<h1>${item.id ? '编辑连接' : '添加服务商'}</h1></header>${item.uncertain ? notice('此连接的凭据提交结果未知，请重新录入或明确清除。') : ''}${!runtime.owned_runtime ? notice('当前运行时不可管理，暂时不能修改连接。') : ''}<div class="mp-form-heading">${logo(item)}<span>${labelFor(item.provider)}</span>${!item.id ? button('change','更换',busy) : ''}</div>
-    <form id="settings-form" class="mp-form" autocomplete="off"><select id="provider" name="provider" hidden><option value="${item.provider}" selected>${labelFor(item.provider)}</option></select>
+    <form id="settings-form" class="mp-form" autocomplete="off"><input type="hidden" id="provider" name="provider" value="${e(item.provider)}">
       <label for="connection-name">连接名称</label><input id="connection-name" name="name" maxlength="80" required value="${e(item.name || '')}" ${disabled}>
       ${compatible ? '' : `<label for="settings-model">默认模型</label><select id="settings-model" ${disabled}>${official.map(model => `<option value="${e(model.id)}" ${model.id === item.model ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</select>`}
       ${!compatible ? `<input id="model-id" name="model" type="hidden" value="${e(item.model || '')}" ${disabled}>` : ''}

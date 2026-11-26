@@ -28,6 +28,7 @@ on:
       - "scripts/run_fingpt_workspace_ci.sh"
       - "scripts/fingpt_workspace_ci.py"
       - "integrations/weknora/**"
+      - "scripts/run_model_profile_ci.sh"
       - "scripts/stage_ci_pytest_evidence.py"
       - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
@@ -70,6 +71,7 @@ on:
       - "scripts/run_fingpt_workspace_ci.sh"
       - "scripts/fingpt_workspace_ci.py"
       - "integrations/weknora/**"
+      - "scripts/run_model_profile_ci.sh"
       - "scripts/stage_ci_pytest_evidence.py"
       - "scripts/test_artifact_retention.py"
       - "tests/research_web/**"
@@ -132,56 +134,8 @@ jobs:
                   diff = subprocess.run(["git", "diff", "--name-only", "-z", base, head], capture_output=True)
                   if diff.returncode == 0:
                       files = [name for name in diff.stdout.decode().split("\0") if name]
-          mcp_paths = set("""
-          .agents/verification-policy.json
-          .github/workflows/project-constraints.yml
-          .github/workflows/research-web-bootstrap.yml
-          .github/workflows/research-web-checks.yml
-          README.md
-          app/research_web/asset_history_jobs.py
-          app/research_web/asset_workspace.py
-          app/research_web/datahub/__init__.py
-          app/research_web/datahub/broker.py
-          app/research_web/datahub/catalog.py
-          app/research_web/datahub/connections.py
-          app/research_web/datahub/contracts.py
-          app/research_web/datahub/external_sources.json
-          app/research_web/datahub/external_sources.py
-          app/research_web/datahub/planning.py
-          app/research_web/datahub/providers.py
-          app/research_web/datahub/providers_finance_market.py
-          app/research_web/datahub/providers_finance_mcp.py
-          app/research_web/datahub/providers_wind.py
-          app/research_web/datahub/research_warehouse.py
-          app/research_web/datahub/warehouse.py
-          app/research_web/mcp_facade/backend.py
-          app/research_web/mcp_facade/models.py
-          app/research_web/mcp_facade/oauth_views.py
-          app/research_web/mcp_facade/server.py
-          app/research_web/mcp_facade/task_contracts.py
-          app/research_web/mcp_facade/tools.py
-          app/research_web/ui/progress-data.json
-          docs/architecture/research-web/readme-review.json
-          outputs/weknora-datahub-skill-layer/index.html
-          scripts/architecture/build_weknora_skill_layer_reader.mjs
-          scripts/run_mcp_datahub_ci.sh
-          tests/javascript/actions_quota_governance.test.mjs
-          tests/javascript/verification_policy.test.mjs
-          tests/research_web/test_asset_history.py
-          tests/research_web/test_asset_loading.py
-          tests/research_web/test_asset_workspace.py
-          tests/research_web/test_connection_center.py
-          tests/research_web/test_datahub_catalog.py
-          tests/research_web/test_datahub_finance_mcp.py
-          tests/research_web/test_datahub_planning.py
-          tests/research_web/test_external_sources.py
-          tests/research_web/test_finance_market_contract.py
-          tests/research_web/test_mcp_facade_datahub.py
-          tests/research_web/test_mcp_task_contracts.py
-          """.split())
-          mcp_core = {"app/research_web/mcp_facade/backend.py", "app/research_web/datahub/providers_finance_mcp.py"}
-          asset_contract = {"app/research_web/datahub/contracts.py", "app/research_web/mcp_facade/task_contracts.py", "app/research_web/asset_workspace.py"}.issubset(files)
-          mcp_datahub = (bool(mcp_core.intersection(files)) or asset_contract) and all(name in mcp_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          from scripts.mcp_datahub_ci import selected as selected_mcp
+          mcp_datahub = selected_mcp(files)
           from scripts.fingpt_workspace_ci import selected
           fingpt_workspace = selected(files)
           tool = {"scripts/test_artifact_retention.py", "tests/research_web/test_test_artifact_retention.py"}
@@ -373,35 +327,16 @@ jobs:
               "tests/unit/test_fingpt_legacy_cutover.py",
           }
           fingpt_source = bool(fingpt_core.intersection(files)) and all(name in fingpt_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
+          from scripts.model_profile_ci import selected
+          model_profiles = selected(files)
           gateway_doc_core = {"app/research_web/multiuser/gateway.py", "app/research_web/documentation.py", "outputs/research-web-architecture/api-manual.html"}
-          gateway_doc_paths = gateway_doc_core | {
-              "tests/research_web/test_multiuser_gateway.py",
-              "tests/research_web/test_documentation.py",
-              "docs/architecture/research-web/04-api.md",
-              "docs/architecture/research-web/05-security-validation.md",
-              "docs/architecture/research-web/readme-review.json",
-              "docs/generated/py_file_index.md",
-              "scripts/run_gateway_documentation_ci.sh",
-              "scripts/build_research_web_api_atlas.mjs",
-              "scripts/check_research_architecture.mjs",
-              "tests/javascript/research_web_architecture.test.mjs",
-              "outputs/research-web-architecture/api-manual.html",
-              "outputs/research-web-architecture/index.html",
-              ".github/workflows/research-web-checks.yml",
-              "tests/javascript/actions_quota_governance.test.mjs",
-          }
+          gateway_doc_paths = gateway_doc_core | {"tests/research_web/test_multiuser_gateway.py", "tests/research_web/test_documentation.py", "docs/architecture/research-web/04-api.md", "docs/architecture/research-web/05-security-validation.md", "docs/architecture/research-web/readme-review.json", "docs/generated/py_file_index.md", "scripts/run_gateway_documentation_ci.sh", "scripts/build_research_web_api_atlas.mjs", "scripts/check_research_architecture.mjs", "tests/javascript/research_web_architecture.test.mjs", "outputs/research-web-architecture/api-manual.html", "outputs/research-web-architecture/index.html", ".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
           from scripts.documentation_ci_scope import documentation_paths
           gateway_doc_paths |= documentation_paths()
-          gateway_documentation = bool(gateway_doc_core.intersection(files)) and all(
-              name in gateway_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
-              for name in files
-          )
+          gateway_documentation = bool(gateway_doc_core.intersection(files)) and all(name in gateway_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files)
           api_doc_core = {"app/research_web/schemas_responses.py", "app/research_web/api_parameter_docs.py"}
           api_doc_paths = api_doc_core | {"app/research_web/workbench.py", "app/research_web/asset_routes.py", "app/research_web/main.py", "tests/research_web/test_workbench_operations.py", "tests/research_web/test_asset_loading.py", "tests/research_web/test_asset_directory.py", "tests/research_web/test_api_parameter_docs.py", "docs/architecture/research-web/architecture-map.json", "docs/architecture/research-web/readme-review.json", "docs/generated/py_file_index.md", "outputs/research-web-architecture/index.html", "outputs/research-web-architecture/api-atlas.html", "scripts/run_api_documentation_ci.sh", ".github/workflows/research-web-checks.yml", "tests/javascript/actions_quota_governance.test.mjs"}
-          api_documentation = bool(api_doc_core.intersection(files)) and all(
-              name in api_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/"))
-              for name in files
-          ) and ("app/research_web/main.py" not in files or "app/research_web/api_parameter_docs.py" in files)
+          api_documentation = bool(api_doc_core.intersection(files)) and all(name in api_doc_paths or name.endswith(".md") and name.startswith(("docs/", ".ai/reports/")) for name in files) and ("app/research_web/main.py" not in files or "app/research_web/api_parameter_docs.py" in files)
           with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
               output.write("retention_only=" + str(limited).lower() + "\n")
               output.write("research_packs_only=" + str(packs).lower() + "\n")
@@ -410,10 +345,11 @@ jobs:
               output.write("reviewed_upgrade_only=" + str(reviewed_upgrade).lower() + "\n")
               output.write("fingpt_workspace_only=" + str(fingpt_workspace).lower() + "\n")
               output.write("fingpt_source_only=" + str(fingpt_source).lower() + "\n")
+              output.write("model_profiles_only=" + str(model_profiles).lower() + "\n")
               output.write("mcp_datahub_only=" + str(mcp_datahub).lower() + "\n")
               output.write("gateway_documentation_only=" + str(gateway_documentation).lower() + "\n")
               output.write("api_doc_only=" + str(api_documentation).lower() + "\n")
-          print("Contract scope: " + ("MCP and configured DataHub" if mcp_datahub else "retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "gateway documentation navigation" if gateway_documentation else "API response docs" if api_documentation else "FinGPT source reports and Fed tracking" if fingpt_source else "full Research Web"))
+          print("Contract scope: " + ("MCP and configured DataHub" if mcp_datahub else "retention tool" if limited else "architecture checker" if architecture_only else "G2B release and Host admission" if release else "research packs and Host interfaces" if packs else "reviewed maintenance upgrade" if reviewed_upgrade else "gateway documentation navigation" if gateway_documentation else "API response docs" if api_documentation else "FinGPT source reports and Fed tracking" if fingpt_source else "model profile configuration" if model_profiles else "full Research Web"))
           PY
 
       - name: Install declared test dependencies
@@ -536,10 +472,8 @@ jobs:
           RWB_GATEWAY_DOC_ONLY: ${{ steps.contract-scope.outputs.gateway_documentation_only }}
           RWB_FINGPT_WORKSPACE_ONLY: ${{ steps.contract-scope.outputs.fingpt_workspace_only }}
         run: |
-          if [ "${RWB_MCP_DATAHUB_ONLY:-false}" = "true" ]; then
-            bash scripts/run_mcp_datahub_ci.sh
-            exit 0
-          fi
+          [ "${RWB_MCP_DATAHUB_ONLY}" = true ] && bash scripts/run_mcp_datahub_ci.sh && exit 0
+          [ "${{ steps.contract-scope.outputs.model_profiles_only }}" = true ] && bash scripts/run_model_profile_ci.sh && exit 0
           if [ "${{ steps.contract-scope.outputs.architecture_only }}" = "true" ]; then
             echo "Architecture checker scope: no Python product changes"
             exit 0
@@ -917,6 +851,8 @@ jobs:
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/docker_runtime_contract.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_architecture.test.mjs
           elif [ "${{ steps.contract-scope.outputs.research_packs_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/actions_quota_governance.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs tests/javascript/research_web_ci_admission.test.mjs tests/javascript/research_web_guard.test.mjs tests/javascript/research_web_method_tool.test.mjs tests/javascript/research_web_packs_ui.test.mjs tests/javascript/research_web_public_data.test.mjs tests/javascript/research_web_scenarios.test.mjs tests/javascript/research_web_source_picker.test.mjs
+          elif [ "${{ steps.contract-scope.outputs.model_profiles_only }}" = "true" ]; then
+            RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/legacy_fingpt_cutover.test.mjs tests/javascript/actions_quota_governance.test.mjs
           elif [ "${{ steps.contract-scope.outputs.reviewed_upgrade_only }}" = "true" ]; then
             RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test \
               tests/javascript/research_web_multiuser_session.test.mjs tests/javascript/research_web_mcp_login.test.mjs \
@@ -939,7 +875,7 @@ jobs:
           fi
 
       - name: Verify pinned editorial engine without model or paid requests
-        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.research_packs_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true' && steps.contract-scope.outputs.gateway_documentation_only != 'true' && steps.contract-scope.outputs.api_doc_only != 'true'
+        if: steps.contract-scope.outputs.retention_only != 'true' && steps.contract-scope.outputs.research_packs_only != 'true' && steps.contract-scope.outputs.architecture_only != 'true' && steps.contract-scope.outputs.g2b_release_only != 'true' && steps.contract-scope.outputs.reviewed_upgrade_only != 'true' && steps.contract-scope.outputs.gateway_documentation_only != 'true' && steps.contract-scope.outputs.api_doc_only != 'true' && steps.contract-scope.outputs.model_profiles_only != 'true' && steps.contract-scope.outputs.mcp_datahub_only != 'true'
         run: |
           npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
           node --test services/ai_news/tests/*.test.mjs

@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
+from . import qa_execution
 from .client import RuntimeFailure
 from .delivery import FINAL
 from .model_profile_registry import (
@@ -59,7 +60,7 @@ class ModelProfilesMixin:
             )
         ):
             raise RuntimeFailure("研究状态无法确认，暂时不能修改连接", "model_activity_unknown")
-        if any(self.running.values()):
+        if any(self.running.values()) or self.qa.tasks:
             raise RuntimeFailure("研究正在运行，结束后才能修改连接", "model_change_busy")
         if (
             any(row["running"] for row in native["items"])
@@ -75,12 +76,27 @@ class ModelProfilesMixin:
         for row in self.store.data["sessions"].values():
             if row.get("created") is False:
                 continue
-            if row.get("created") is not True or row.get("status") not in {
-                "idle",
-                "completed",
-                "failed",
-                "cancelled",
-            }:
+            status = row.get("status")
+            retired = qa_execution.retired(self, row)
+            if not retired and row.get("created") is True and status in {"running", "interrupted"}:
+                # The index can miss completion while Host is offline. Reuse the
+                # authoritative history projection, without rewriting old records.
+                self.loaded.discard(row["id"])
+                detail = await self.detail(row["id"])
+                if detail.get("history_warning") or detail.get("execution_restricted"):
+                    raise RuntimeFailure("会话历史状态尚未确认", "model_activity_unknown")
+                status = detail.get("status")
+                log.info("research_model_profile_history_reconciled", status=status)
+            if row.get("created") is not True or (
+                not retired
+                and status
+                not in {
+                    "idle",
+                    "completed",
+                    "failed",
+                    "cancelled",
+                }
+            ):
                 raise RuntimeFailure("会话活动或恢复状态尚未确认结束", "model_activity_unknown")
             children = await self.client.rpc(
                 "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
