@@ -13,6 +13,7 @@ def documentation_paths():
         "reference-mcp",
         "reference-api",
         "architecture-guide",
+        "design-weknora-datahub",
         "operations-guide",
         "troubleshooting",
         "glossary",

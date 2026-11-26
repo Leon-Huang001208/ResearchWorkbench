@@ -1,5 +1,8 @@
 # GitHub Actions 免费额度治理
 
+文档设计资料接入沿既有gateway_documentation_only闭包，只登记固定 `design-weknora-datahub.html`；
+复用文档/网关、架构与额度测试及原macOS安装CI，不加job、依赖、权限或超时。
+
 资产观察共享K线合同沿既有mcp_datahub_only检查：同时命中DataHub contracts、MCP task_contracts
 和asset_workspace三项实际源变化，其他改动均须落在明确允许集（含history_jobs及三份资产回归）。
 混入main.py、前端控制器、未知Provider或缺任一锚点继续全量；文档/脚本单改不获得该分支。

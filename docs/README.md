@@ -4,6 +4,9 @@
 快速开始 → 数据/Skill/MCP 指南 → 分业务域参考。架构图与源码索引独立放在设计栏目；
 本目录继续保留专项工程合同和历史验收记录，不作为新用户教程首页。
 
+七个业务域与候选工具的[DataHub工具与技能层设计](../outputs/research-web-architecture/design-weknora-datahub.html)
+归入文档中心“架构与设计”，由[17节讨论稿发布快照](manual/design-weknora-datahub.md)生成，保留历史待实现/候选状态；[已提交设计源](plans/2026-11-24-weknora-datahub-skill-layer.md)继续由接口窗口维护。
+
 当前架构图的[视觉包含性合同](research-web-documentation.md#检查内容与核对标记)保留原strict页面规则，并精确识别有完整度量、可读字号与真实滚动验证的Reader纵滚。四视口、图源／HTML／截图哈希、来源证据和实际看图审阅仍分别核对；任意溢出或单一通过布尔值不能放行。资料、模型、CI与部署验收不由图册检查推定完成。
 
 策略模拟的[策略验证](research-web-strategy-validation.md)记录冻结日线导入、配置与逐笔结果的使用合同。

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "已复核README安装、Native常驻与文档入口；启动暂态等待和GitSafety外盘备份不新增产品入口。",
-  "reason": "本次沿原Native联合事务有界等待启动活动，并通过正式GitSafety CLI选择WorkDisk恢复点；公开安装命令、锁定依赖、账号和运行拓扑保持，操作细节已更新交付与安装文档，README既有链接和部署验收边界仍准确。"
+  "summary": "复核设计资料接入及PyTorch参考阅读布局，根README无需更改；同时覆盖安装、Native常驻与文档入口。",
+  "reason": "仍从原文档中心进入；目录与写作规范在docs/README及文档合同说明，业务工具候选未因此激活。启动暂态等待和GitSafety外盘备份不新增产品入口，公开安装命令、锁定依赖、账号和运行拓扑保持。"
 }

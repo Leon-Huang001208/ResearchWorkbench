@@ -13,6 +13,7 @@
     {"slug":"reference-skills","title":"Skill 参考","group":"参考手册","summary":"输入、依赖、版本、输出及开发接口的查阅入口。"},
     {"slug":"reference-mcp","title":"MCP 工具参考","group":"参考手册","summary":"工具签名、权限、返回边界与读取/取数效果。"},
     {"slug":"architecture-guide","title":"架构与设计导航","group":"架构与设计","summary":"理解组件职责、权限、证据、执行流程与源码位置。"},
+    {"slug":"design-weknora-datahub","title":"DataHub 工具与技能层设计","group":"架构与设计","summary":"七个业务域、候选工具、逐项输入和实施记录，完整17节；含待实现项。","source":"docs/manual/design-weknora-datahub.md","source_revision":"7a3e5c43239fb39c84df75e2afa8b7d27c7b3292"},
     {"slug":"operations-guide","title":"安装与配置","group":"安装、运维与排错","summary":"使用现有安装器，配置来源和客户端，查看系统状态。"},
     {"slug":"troubleshooting","title":"常见问题与错误处理","group":"安装、运维与排错","summary":"登录、文档访问、来源不可用、异步查询与空结果。"},
     {"slug":"documentation-version","title":"文档范围与更新说明","group":"安装、运维与排错","summary":"辨别已发布功能、契约样例与开发中的接口。"}
