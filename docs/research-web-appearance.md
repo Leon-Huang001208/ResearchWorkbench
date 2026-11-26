@@ -505,3 +505,5 @@ AI 问答使用 AlphaDesk 的回答、引用和工作笔记组件，嵌入 RWB �
 
 2026-11-26 数据集引用跳转移入 `dataset-reference.mjs`，滚动定位、12px 卡上留白与 2400ms 闪示
 数值保持不变；窄屏展开上下文与 `prefers-reduced-motion` 时改为瞬时滚动均沿用原判断。
+
+2026-11-26 本地集成筛选提取不改样式：分类 chip 的选中态、焦点环与 Office 同意行的视觉均沿用原有 token 与规则。

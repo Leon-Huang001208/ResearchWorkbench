@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核数据集引用跳转提取；根 README 无需更改。",
-  "reason": "本次把回答正文里的数据集引用跳转移入同目录 dataset-reference.mjs，由原 click 监听器调用，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 描述的入口、安装步骤与使用方式保持原样。"
+  "summary": "复核本地集成筛选与同意取消提取；根 README 无需更改。",
+  "reason": "本次把本地集成分类切换与 Office 自动验证取消两段纯 UI 逻辑移入同目录模块，由原 click 监听器调用，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 保持原样。"
 }

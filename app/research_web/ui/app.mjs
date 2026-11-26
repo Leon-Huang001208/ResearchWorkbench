@@ -19,6 +19,7 @@ import { createAccountWorkspace, renderAccountProfile } from './server/account-w
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createClipboardActions } from './clipboard-actions.mjs';
 import { createDatasetReference } from './dataset-reference.mjs';
+import { createLocalIntegrationFilter } from './local-integration-filter.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -221,6 +222,12 @@ const datasetReference = createDatasetReference({
     contextOpen = open;
     contextTab = tab;
   },
+  render: () => render(),
+});
+const localIntegrationFilter = createLocalIntegrationFilter({
+  setCategory: value => { localCategory = value; },
+  getConsentTarget: () => officeConsentConfirmation,
+  setConsentTarget: value => { officeConsentConfirmation = value; },
   render: () => render(),
 });
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
@@ -3100,15 +3107,11 @@ root.addEventListener('click', async (event) => {
   if ('mcpApprovalDeny' in data) { await decideMCPApproval(data.mcpApprovalDeny, false); return; }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
   if ('localCategoryTarget' in data) {
-    localCategory = data.localCategoryTarget === 'all' ? 'all' : data.localCategoryTarget.replace(/^local-category-/, '');
-    render();
-    document.querySelector(`[data-local-category-target="${CSS.escape(data.localCategoryTarget)}"]`)?.focus();
+    localIntegrationFilter.selectCategory(data.localCategoryTarget);
     return;
   }
   if ('officeAutoCancel' in data) {
-    const target = officeConsentConfirmation;
-    officeConsentConfirmation = ''; render();
-    document.querySelector(`[data-office-auto-consent="${CSS.escape(target)}"]`)?.focus();
+    localIntegrationFilter.cancelConsent();
     return;
   }
   if ('officeAutoConsent' in data) {
