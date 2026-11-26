@@ -40,16 +40,20 @@ Alpha 派和岗底斯按返回的 operations 调用。`windows_worker` 是配置
 ### 岗底斯参数契约
 
 现有实测记录（`.ai/reports/2026-11-26-finance-mcp-live-verification.md`，未跟踪）中，
-`finance_list_tools` 对 `provider=gangtise` 返回 `未知 MCP 厂商`，空参数调用只得到
-`上游 HTTP 400`，因此岗底斯的逐 operation 参数只能另找依据。厂商《金融数据文档汇总》
-共 92 份 Markdown，其中 62 份含请求参数表；其余是常量 ID 表、计分标准与更新日志。
-下列为文本与宏观两类当前最缺的接口。本节参数按厂商文档整理，链路尚未逐个调用验证；
-已实测的只有日 K 线的 `securityList`／`startDate`／`endDate`，其余首次接入仍以实际响应为准。
+`finance_list_tools` 对 `provider=gangtise` 返回 `未知 MCP 厂商`，未取得逐 operation 的
+inputSchema；空参数调用只得到 `上游 HTTP 400`，没有字段级提示。厂商《金融数据文档汇总》
+共 92 份 Markdown，其中 66 份含请求参数表（62 份在标准「五、请求参数」章节，
+另 4 份在别的章节）；其余 26 份主要是常量 ID 表、计分标准、更新日志及会话／股票池说明。
+下列为文本与宏观两类当前最缺的接口。本节参数按厂商文档整理。
+日 K 线、公告列表、内资研报列表已各有一次真实取数记录；其中日 K 线用
+`securityList`／`startDate`／`endDate`，而公告与研报列表在记录中沿用同一组参数名，
+厂商文档却写 `startTime`／`endTime`，网关实际接受的列表参数名待确认。
+其余 operation 未逐个验证，首次接入以实际响应为准。
 
 | operation | 必选参数 | 说明 |
 | --- | --- | --- |
 | `查询A股公告列表` | `from`、`size` | `size` 上限 50，只取单页；`startTime`／`endTime` 完整格式 `yyyy-MM-dd HH:mm:ss`，厂商兼容 `yyyy-MM-dd` 补全；可带 `keyword`、`securityList`、`categoryList` |
-| `下载A股公告文件` | `announcementId`、`fileType` | `fileType` 1=原始 PDF、2=Markdown。参数表写 `reportId`，正文与 URL 示例写 `announcementId`；以 `announcementId` 为先，网关拒绝时再按参数表试 `reportId` 并记录结果 |
+| `下载A股公告文件` | `announcementId`、`fileType` | `fileType` 1=原始 PDF、2=Markdown。参数表写 `reportId`，正文与 URL 示例写 `announcementId`；两者均未实测，先试 `announcementId`，网关拒绝后再试 `reportId` 并记录结果 |
 | `查询内资研报列表` | `from`、`size` | `size` 上限 50；另有 `categoryList`、`industryList`、`securityList`、`brokerList`、`ratingList`、`sourceList` |
 | `下载内资研报文件` | `reportId`、`fileType` | `fileType` 1=原始 PDF、2=Markdown |
 | `查询纪要列表` | `from`、`size` | `size` 上限 50；另有 `keyword`、`sourceList`、`researchAreaList`、`securityList` |
@@ -75,8 +79,8 @@ Alpha 派和岗底斯按返回的 operations 调用。`windows_worker` 是配置
 信封是 `code: 200` 且无 `status` 字段，而现有 `gangtise_query` 投影要求
 `code == "000000"` 且 `status is true`（`app/research_web/datahub/providers_finance_mcp.py`）。
 按文档示例调用会被判为 `finance_mcp_vendor_failed`，需先确认网关实际信封或调整适配器，
-不能直接把 `knowledge_base` 当成可用入口。列表接口的信封与已实测的日 K 线一致，
-可先按列表 + 下载接通，再决定是否补知识库。
+不能直接把 `knowledge_base` 当成可用入口。公告与研报列表的信封已有真实取数记录，
+与已实测的日 K 线一致；下载与纪要链路尚未验证，可先按列表接通，再逐项补下载与知识库。
 
 两处入口的选择标准：已知证券和时间窗、需要结构化字段（公告日、发布方、评级）时用列表接口；
 按主题或跨品种检索、只需要命中段落时用知识库。列表结果只含详情摘要，不含原件，
