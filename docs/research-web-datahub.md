@@ -699,6 +699,18 @@ FinGPT 隔离验收通过既有 DataHub 接口读取已完成回执和冻结资�
 
 `ext_wallstreetcn` 原 `lives`、`articles` 主端点指向的 `api-one.wallstcn.com` 已无 DNS 解析，离线检查无法发现，因此登记状态长期停在 `code_integrated_not_live_verified`。四条端点现统一到仍可用的 `api-one-wscn.awtmt.com`，查询参数保持原样。
 
+## 股票快照导出字段与共享契约（2026-11-27）
+
+`get_stock_quote` 与 `get_stock_kline` 现在同构：都经 `datahub/contracts.py` 的构造函数固定
+capability、规范证券身份与字段白名单，不再由 MCP 层各写一套校验。
+
+同一次真实取数暴露了 akshare `market_snapshot` 分支的缺陷：`涨跌幅` 与 `总市值` 被硬编码为
+`None`，而日线响应已带今收、前收与 `outstanding_share`。修复后只在两个输入都存在时计算，
+缺任一则保持 `None`。实测 `600519.SH` 涨跌幅 −0.396%、`000001.SZ` +0.4032%，
+`status=complete`。`名称`、`市盈率-动态` 仍为空且未用其他来源填补。
+
+Provider、Broker 选源、仓库与快照拓扑未变；快照仍不参与 `plannable()` 的仓库规划。
+
 该厂商用 `code: 20000` 表示成功，而通用 `response_rows` 只接受 `0/200`，改域后仍会被判为 `vendor_rejected`。修复只在 `providers_wscn.py` 内做封闭投影：校验私有成功码、`data.items` 列表、行 `id` 唯一与类型、必需字段及 `display_time`，异常统一收敛为 `external_wscn_schema_invalid`；不放宽其他来源的信封规则。`providers_external.fetch` 的业务分支按 `source_id` 分流到该投影，Broker、仓库、快照与调度拓扑不变。
 
 真实公网实测 `lives` 取回 100 条、`articles` 取回 30 条，单次响应标记 `partial`；采集调度与常驻实例的定时任务未在本次重跑，登记状态继续保持 `code_integrated_not_live_verified`。完整证据见 [端点恢复报告](../.ai/reports/2026-11-26-wallstreetcn-endpoint-recovery.md)。

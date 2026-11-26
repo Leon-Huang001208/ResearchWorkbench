@@ -16,6 +16,21 @@ log = get_logger(__name__)
 
 SCHEMA_VERSION = "1.0.0"
 RAW_STOCK_SEMANTICS = "cn_stock_daily_cny_share_v1"
+
+# Snapshot contract bounds. Kept next to the contract so the asset API and the
+# MCP tool cannot diverge on how many assets or which fields they accept.
+STOCK_QUOTE_MAX_ASSETS = 20
+STOCK_QUOTE_FIELDS = frozenset(
+    {
+        "price",
+        "change_pct",
+        "volume",
+        "turnover",
+        "pe_ttm",
+        "pb",
+        "total_shares",
+    }
+)
 SOURCES = {
     "fund_nav": "基金净值",
     "cls_telegraph": "财联社电报",
@@ -362,4 +377,59 @@ def stock_kline_query(
         },
     )
     log.info("stock_kline_contract_validated")
+    return query
+
+
+def stock_quote_query(
+    assets: list[str] | tuple[str, ...],
+    fields: list[str] | tuple[str, ...] | None = None,
+    *,
+    source: str = "auto",
+    refresh: bool = False,
+) -> BusinessQuery:
+    """Shared snapshot contract for asset pages and the ``get_stock_quote`` tool.
+
+    Same shape as :func:`stock_kline_query`: validate identity and field
+    membership here, so callers (asset API, MCP tool, automation) cannot drift
+    into different parameter spellings for the same capability.
+    """
+    from .providers import ProviderError, cn_stock_identity
+
+    try:
+        requested = list(assets)
+        if not 1 <= len(requested) <= STOCK_QUOTE_MAX_ASSETS:
+            raise ValueError("invalid_asset_count")
+        if len(set(requested)) != len(requested):
+            raise ValueError("invalid_asset")
+        identities = []
+        for asset in requested:
+            if not isinstance(asset, str) or cn_stock_identity(asset) != asset:
+                raise ValueError("invalid_asset")
+            identities.append(asset)
+        selected = list(fields) if fields is not None else ["price"]
+        if not selected or any(field not in STOCK_QUOTE_FIELDS for field in selected):
+            raise ValueError("invalid_quote_field")
+        if len(set(selected)) != len(selected):
+            raise ValueError("invalid_quote_field")
+    except ProviderError:
+        log.warning("stock_quote_contract_rejected", code="invalid_asset")
+        raise ValueError("invalid_asset") from None
+    except (TypeError, ValueError) as exc:
+        log.warning("stock_quote_contract_rejected", error_type=type(exc).__name__)
+        raise ValueError(
+            str(exc)
+            if isinstance(exc, ValueError) and str(exc).startswith("invalid_")
+            else "invalid_asset"
+        ) from None
+    query = BusinessQuery(
+        capability="market_snapshot",
+        source=source,
+        refresh=refresh,
+        parameters={
+            "assets": identities,
+            "asset_type": "stock",
+            "fields": selected,
+        },
+    )
+    log.info("stock_quote_contract_validated")
     return query

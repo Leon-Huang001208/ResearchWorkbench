@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from core.observability import get_logger
 
-from ..datahub.contracts import BusinessQuery, stock_kline_query
+from ..datahub.contracts import BusinessQuery, stock_kline_query, stock_quote_query
 from ..datahub.providers import ProviderError, cn_stock_identity
 from .domains import DOMAINS, domain, domain_of, validate_domains
 
@@ -279,6 +279,10 @@ def business_query(name: str, arguments: dict) -> tuple[str, BusinessQuery]:
         return request_id, stock_kline_query(
             values["asset"], values["start_date"], values["end_date"]
         )
+    if capability == "market_snapshot":
+        # Same shared-contract path as ``get_stock_kline``: identity, count and
+        # field membership are validated once, in ``datahub.contracts``.
+        return request_id, stock_quote_query(values["assets"], values.get("fields"))
     for key in ("start_date", "end_date", "date"):
         if key in values and date.fromisoformat(values[key]).isoformat() != values[key]:
             raise ValueError("invalid_date_range")
@@ -287,14 +291,6 @@ def business_query(name: str, arguments: dict) -> tuple[str, BusinessQuery]:
         raise ValueError("invalid_date_range")
     if capability in {"market_bars", "financials", "market_activity"}:
         stock_identity(values["asset"])
-    if capability in {"market_bars", "market_snapshot"}:
-        values["asset_type"] = "stock"
-    if capability == "market_snapshot":
-        assets = values["assets"]
-        if len(set(assets)) != len(assets):
-            raise ValueError("invalid_asset")
-        for asset in assets:
-            stock_identity(asset)
     if capability == "financials":
         dataset = values.pop("dataset")
         if dataset != "summary":
