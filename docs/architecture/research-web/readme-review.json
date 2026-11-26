@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核数据源连接操作抽离；根 README 无需更改。",
-  "reason": "本次把移除来源、自动检测许可、探测与授权验证四个分支移入 source-connections.mjs，复用既有确认与 action 包装，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 保持原样。"
+  "summary": "复核资产与自动化表单处理抽离；根 README 无需更改。",
+  "reason": "本次把资产观测/自选/笔记/提醒与投递渠道/自动化/报告日程共七个表单分支移入 asset-forms.mjs 与 automation-forms.mjs，由原 submit 监听器调用，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 保持原样。"
 }
