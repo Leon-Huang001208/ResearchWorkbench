@@ -896,3 +896,9 @@ FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口�
 - 阴影：`--shadow-sm` / `--shadow-md` / `--shadow-lg`
 
 涨跌色与状态色**刻意不共享定义**：`--color-up` 不引用 `--color-danger`，因此"A 股红涨"与"危险提示"可以独立调整。`check_ui_tokens.mjs` 同时守住裸 px 与裸色两套预算，均只减不增。
+
+### 事件处理拆分（2026-11-26）
+
+`app.mjs` 的四个顶层事件监听器曾合计 1702 行，其中 click 919 行含 298 个 if 分支、仅 8 处委托给 controller——新增一个按钮要改这个巨型函数。拆分按"依赖最少、内聚明确"逐步迁移，每刀独立验证。
+
+第一步提取 `clipboard-actions.mjs`（复制答案、复制链接），依赖通过 `createClipboardActions({getState,getCopied,setCopied,render,schedule,writeText})` 注入，不直接引用 app.mjs 闭包。仍由原 click 监听器调用，行为与界面不变。后续按同样模式处理连接管理（约 220 行）与文档引用（53 行），submit/keydown/change 在 click 收敛后再动。
