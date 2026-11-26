@@ -25,5 +25,31 @@
     "report-workspace.css": 89,
     "scenarios.css": 50,
     "styles.css": 1159
+  },
+  "totalColor": 158,
+  "bareColor": {
+    "aihot.css": 6,
+    "appearance.css": 19,
+    "asset-chart.css": 4,
+    "asset-layout.css": 0,
+    "asset-research.css": 0,
+    "asset-workspace.css": 3,
+    "conversation-menus.css": 0,
+    "conversation-navigation.css": 0,
+    "discovery.css": 1,
+    "dossiers.css": 0,
+    "fingpt-workspace.css": 0,
+    "hot-reader.css": 0,
+    "intel.css": 0,
+    "market-calendar.css": 0,
+    "market-dashboard.css": 1,
+    "market.css": 1,
+    "model-settings.css": 2,
+    "module-navigation.css": 0,
+    "progress.css": 0,
+    "questionnaire.css": 0,
+    "report-workspace.css": 0,
+    "scenarios.css": 1,
+    "styles.css": 120
   }
 }

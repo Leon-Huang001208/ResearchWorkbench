@@ -72,4 +72,55 @@
   --z-overlay: 500;
   --z-modal: 800;
   --z-toast: 900;
+
+  /*
+    Semantic colour roles.
+
+    The palette above names hues (--blue, --green, --danger); these name intent.
+    Styles should reach for a role, so retheming means editing one declaration
+    instead of hunting every literal. Values mirror what components already use.
+  */
+  --color-success: var(--green);
+  --color-success-bg: var(--success-bg);
+  --color-success-line: var(--success-line);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-line: var(--warning-line);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-line: var(--danger-line);
+  --color-info: var(--blue);
+  --color-info-bg: var(--blue-soft);
+
+  /* Market direction, kept separate from success/danger so a red "up" is possible. */
+  --color-up: #d94747;
+  --color-down: #1f9d70;
+  --color-up-soft: #d947471a;
+  --color-down-soft: #1f9d701a;
+
+  /* Surfaces and separation. */
+  --color-elevated: var(--surface);
+  --color-sunken: var(--canvas);
+  --color-overlay: #0006;
+  --color-hover-wash: #0002;
+  --color-focus-ring: #73a2ff;
+
+  /* Elevation: three steps instead of the dozens of ad-hoc shadows in use. */
+  --shadow-sm: 0 1px 2px #0000000d;
+  --shadow-md: 0 3px 12px #00000014;
+  --shadow-lg: 0 8px 28px #00000026;
+
+  /*
+    Cool neutral surface ladder.
+
+    The shell used several near-identical off-whites (#f9fbfe, #f8fbff, #f0f4fa,
+    #e9f1ff) for the same two jobs: an input/well versus a hover wash. Naming the
+    ladder collapses those into two decisions that stay consistent.
+  */
+  --color-well: #f9fbfe;
+  --color-well-border: #415973;
+  --color-wash: #f0f4fa;
+  --color-wash-strong: #e9f1ff;
+  --color-wash-border: #c0d3f7;
+  --color-selected-wash: #d9e6ff;
 }
