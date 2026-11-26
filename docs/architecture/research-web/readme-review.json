@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 Office 自动验证同意流程抽离；根 README 无需更改。",
-  "reason": "本次把 Office 自动验证的同意/取消流程从 click 监听器移入 office-auto-consent.mjs，复用既有 polling guard 与 consent queue，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 保持原样。"
+  "summary": "复核数据源连接操作抽离；根 README 无需更改。",
+  "reason": "本次把移除来源、自动检测许可、探测与授权验证四个分支移入 source-connections.mjs，复用既有确认与 action 包装，行为不变。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑；README 保持原样。"
 }
