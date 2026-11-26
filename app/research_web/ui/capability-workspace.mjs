@@ -1,3 +1,4 @@
+import { listNavTarget } from './list-keynav.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { icon } from './icons.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm } from './capability-editor.mjs';
@@ -26,9 +27,9 @@ const join = (values, fallback = '未声明') => e(list(values).join('、') || f
 const attrKey = (kind, id) => `${kind}:${id}`;
 
 export function capabilityWorkspaceKindKey(key, current = 'skill') {
-  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return { handled: false };
   const index = Math.max(0, kinds.indexOf(primaryKind(current)));
-  const next = key === 'Home' ? 0 : key === 'End' ? kinds.length - 1 : (index + (key === 'ArrowRight' ? 1 : -1) + kinds.length) % kinds.length;
+  const next = listNavTarget({ key, count: kinds.length, current: index });
+  if (next === null) return { handled: false };
   return { handled: true, kind: kinds[next] };
 }
 
