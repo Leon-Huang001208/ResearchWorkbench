@@ -18,6 +18,7 @@ import { createPluginWorkspace } from './plugins-workspace.mjs';
 import { createAccountWorkspace, renderAccountProfile } from './server/account-workspace.mjs';
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createClipboardActions } from './clipboard-actions.mjs';
+import { createDatasetReference } from './dataset-reference.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -212,6 +213,14 @@ const clipboardActions = createClipboardActions({
   getState: () => state,
   getCopied: () => copiedTransient,
   setCopied: value => { copiedTransient = value; },
+  render: () => render(),
+});
+const datasetReference = createDatasetReference({
+  openContext: ({ collapsed, open, tab }) => {
+    contextCollapsed = collapsed;
+    contextOpen = open;
+    contextTab = tab;
+  },
   render: () => render(),
 });
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
@@ -3564,18 +3573,7 @@ root.addEventListener('click', async (event) => {
   const id = state.detail?.id;
   if (!id) return;
   if ('docRef' in data) {
-    contextCollapsed = false; contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextTab = 'datasets'; render();
-    const index = Number.parseInt(data.docRef, 10) - 1;
-    const card = index >= 0 ? document.querySelectorAll('.context-panel .dataset-card')[index] : null;
-    if (card) {
-      card.classList.add('flash');
-      const panel = card.closest('.context-panel');
-      if (panel) {
-        const top = card.getBoundingClientRect().top - panel.getBoundingClientRect().top + panel.scrollTop - 12;
-        panel.scrollTo({ top: Math.max(0, top), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-      }
-      setTimeout(() => card.classList.remove('flash'), 2400);
-    }
+    datasetReference.focus(data.docRef);
     return;
   }
   if ('copyAnswer' in data) {
