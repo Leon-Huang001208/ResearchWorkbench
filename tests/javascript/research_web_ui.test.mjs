@@ -499,8 +499,11 @@ test('connection secrets are cleared immediately after request serialization', a
 test('connection probe feedback uses health and shared ZhiQiu removal discloses scope', async () => {
   const app = await readFile(new URL('app.mjs', root), 'utf8');
   const settings = await readFile(new URL('settings.mjs', root), 'utf8');
-  assert.match(app, /current\.health === 'healthy'/);
-  assert.match(app, /知丘研报、公众号与纪要共享/);
+  // These two rules moved into source-connections.mjs; the dispatcher delegates.
+  const connections = await readFile(new URL('source-connections.mjs', root), 'utf8');
+  assert.match(connections, /current\.health === 'healthy'/);
+  assert.match(connections, /知丘研报、公众号与纪要共享/);
+  assert.match(app, /sourceConnections\.probe\(/);
   assert.match(settings, /data-model-profiles-root/);
   const { renderSettingsPage } = await import('../../app/research_web/ui/settings.mjs');
   const modelPage = renderSettingsPage({ route: {page: 'settings', settingsSection: 'model'}, hash: '#/settings/model', models: [], runtime: {}, modelFailures: [], connections: {sources: []}, busy: false });
