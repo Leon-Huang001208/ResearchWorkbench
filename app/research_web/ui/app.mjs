@@ -17,6 +17,7 @@ import { createAccountMenu } from './server/account-menu.mjs';
 import { createPluginWorkspace } from './plugins-workspace.mjs';
 import { createAccountWorkspace, renderAccountProfile } from './server/account-workspace.mjs';
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
+import { createClipboardActions } from './clipboard-actions.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -207,6 +208,12 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
   if (sidebarFocused) focusSidebarControl(document, event.matches, !event.matches && !sidebarCollapsed);
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
+const clipboardActions = createClipboardActions({
+  getState: () => state,
+  getCopied: () => copiedTransient,
+  setCopied: value => { copiedTransient = value; },
+  render: () => render(),
+});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const eventResearch = createEventResearchWorkspace({ api, getRoute: () => state.route, onChange: render });
 const scenarioController = createScenarioController({ api, changed: () => render(), onOpen: async result => { if (controller.openScenarioHandoff(result)) await showRoute(); } });
@@ -3572,22 +3579,11 @@ root.addEventListener('click', async (event) => {
     return;
   }
   if ('copyAnswer' in data) {
-    const message = (state.detail?.messages || []).find((item) => item.id === data.copyAnswer);
-    if (message?.text) {
-      try {
-        await navigator.clipboard.writeText(message.text);
-        copiedTransient = `answer:${message.id}`; render();
-        setTimeout(() => { if (copiedTransient === `answer:${message.id}`) { copiedTransient = ''; render(); } }, 1600);
-      } catch { state.error = '复制失败，请手动选择正文复制。'; render(); }
-    }
+    await clipboardActions.copyAnswer(data.copyAnswer);
     return;
   }
   if ('shareSession' in data) {
-    try {
-      await navigator.clipboard.writeText(globalThis.location.href);
-      copiedTransient = 'share'; render();
-      setTimeout(() => { if (copiedTransient === 'share') { copiedTransient = ''; render(); } }, 1600);
-    } catch { state.error = '复制链接失败，请手动复制地址栏地址。'; render(); }
+    await clipboardActions.shareSession();
     return;
   }
   if ('retryRound' in data) {
