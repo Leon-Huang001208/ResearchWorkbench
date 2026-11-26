@@ -37,6 +37,55 @@
 Alpha 派和岗底斯按返回的 operations 调用。`windows_worker` 是配置状态，不是取数成功。
 网关 `ok:true` 也不代表厂商业务成功，MCP 错误、网关错误和厂商状态分别判断。
 
+### 岗底斯参数契约
+
+现有实测记录（`.ai/reports/2026-11-26-finance-mcp-live-verification.md`，未跟踪）中，
+`finance_list_tools` 对 `provider=gangtise` 返回 `未知 MCP 厂商`，未取得逐 operation 的
+inputSchema；空参数调用只得到 `上游 HTTP 400`，没有字段级提示。厂商《金融数据文档汇总》
+共 92 份 Markdown，其中 66 份含请求参数表（62 份在标准「五、请求参数」章节，
+另 4 份在别的章节）；其余 26 份主要是常量 ID 表、计分标准、更新日志及会话／股票池说明。
+下列为文本与宏观两类当前最缺的接口。本节参数按厂商文档整理。
+日 K 线、公告列表、内资研报列表已各有一次真实取数记录；其中日 K 线用
+`securityList`／`startDate`／`endDate`，而公告与研报列表在记录中沿用同一组参数名，
+厂商文档却写 `startTime`／`endTime`，网关实际接受的列表参数名待确认。
+其余 operation 未逐个验证，首次接入以实际响应为准。
+
+| operation | 必选参数 | 说明 |
+| --- | --- | --- |
+| `查询A股公告列表` | `from`、`size` | `size` 上限 50，只取单页；`startTime`／`endTime` 完整格式 `yyyy-MM-dd HH:mm:ss`，厂商兼容 `yyyy-MM-dd` 补全；可带 `keyword`、`securityList`、`categoryList` |
+| `下载A股公告文件` | `announcementId`、`fileType` | `fileType` 1=原始 PDF、2=Markdown。参数表写 `reportId`，正文与 URL 示例写 `announcementId`；两者均未实测，先试 `announcementId`，网关拒绝后再试 `reportId` 并记录结果 |
+| `查询内资研报列表` | `from`、`size` | `size` 上限 50；另有 `categoryList`、`industryList`、`securityList`、`brokerList`、`ratingList`、`sourceList` |
+| `下载内资研报文件` | `reportId`、`fileType` | `fileType` 1=原始 PDF、2=Markdown |
+| `查询纪要列表` | `from`、`size` | `size` 上限 50；另有 `keyword`、`sourceList`、`researchAreaList`、`securityList` |
+| `下载纪要文件` | `summaryId` | 可选 `fileType` 仅对会议平台来源生效，1=原始内容、2=HTML |
+| `查询行业指标列表` | `keyword` | 必填且需具体词（如"空调"），不要传整句；`limit` 上限 200，返回 `indicatorId`、`unit`、`frequency` |
+| `获取行业指标数据` | `indicatorIdList`、`startDate`、`endDate` | 单次最多 10 个指标；返回 `fieldList`／`dataList`，首列为 `date`，数值以字符串返回 |
+| `知识库查询` | `query` | `top` 默认 10、上限 20。`resourceTypes`：10 券商研究报告、11 外资研究报告、20 内部研究报告、40 首席分析师观点、50 A 股公司公告、51 港股公告、60 会议平台纪要、70 调研纪要公告、80 网络资源纪要、90 产业公众号 |
+| `知识库溯源` | `resourceType`、`sourceId` | 取回原文；`40`（首席分析师观点）暂不支持 |
+
+列表接口分页必须显式翻页：`from` 和 `size` 都是必填项，默认只返回一页，
+`total` 大于已取行数时不能当作完整结果。公告列表的 `announcementDate`（公告注明日期）
+与 `publishTime`（东八区发布时间）是两个字段，正式引用分开记录；`publishTime` 的字段说明
+写 `yyyy-MM-dd HH:mm:ss`，而返回示例只到分钟，正式引用须按实际响应核对精度。
+
+试用账号权限按接口不同：公告列表与行业指标回溯 1 年；研报、纪要及路演等日程类接口
+1 个月；行情与三表 3 年。积分口径厂商自身不一致，接口页与《OpenAPI 接口计分标准》
+两套并存：列表接口页 0.01/条、计分标准 0.1/条；下载接口页为公告 1/篇、内资研报 2/篇、
+纪要 5/条，计分标准为 10/20/50；知识库查询接口页与更新日志记 1/次，计分标准记 10/次。
+以厂商结算页为准，不要把 `total` 当作可一次性下载的条数。
+
+`知识库查询`一次可跨公告、研报、纪要检索，返回 `content` 切片、`sourceId`、
+`resourceType` 及页码，可接`知识库溯源`取全文。但在参数之外还有一层阻断：厂商返回示例的
+信封是 `code: 200` 且无 `status` 字段，而现有 `gangtise_query` 投影要求
+`code == "000000"` 且 `status is true`（`app/research_web/datahub/providers_finance_mcp.py`）。
+按文档示例调用会被判为 `finance_mcp_vendor_failed`，需先确认网关实际信封或调整适配器，
+不能直接把 `knowledge_base` 当成可用入口。公告与研报列表的信封已有真实取数记录，
+与已实测的日 K 线一致；下载与纪要链路尚未验证，可先按列表接通，再逐项补下载与知识库。
+
+两处入口的选择标准：已知证券和时间窗、需要结构化字段（公告日、发布方、评级）时用列表接口；
+按主题或跨品种检索、只需要命中段落时用知识库。列表结果只含详情摘要，不含原件，
+原件仍需下载接口或溯源接口另取并单独记录。
+
 ## 结果与证据
 
 保存 MCP 工具结果的 JSON 序列化记录及原生 structuredContent/文本，不声称是原始 HTTP
