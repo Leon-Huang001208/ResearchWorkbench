@@ -29,6 +29,21 @@ function scan(file) {
   return bare.length;
 }
 
+/** Colour literals outside custom-property definitions and outside var() fallbacks. */
+function scanColors(file) {
+  const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  let count = 0;
+  for (const block of css.matchAll(/\{([^{}]*)\}/g)) {
+    for (const decl of block[1].split(';')) {
+      if (/^\s*--[a-z0-9-]+\s*:/.test(decl)) continue;   // token definition
+      if (/var\(/.test(decl)) continue;                    // consumes a token
+      const hits = decl.match(/#[0-9a-fA-F]{3,8}\b/g);
+      if (hits) count += hits.length;
+    }
+  }
+  return count;
+}
+
 const sheets = readdirSync(UI)
   .filter(name => name.endsWith('.css') && name !== 'tokens.css')
   .sort();
@@ -42,6 +57,10 @@ try {
 
 const problems = [];
 const counts = {};
+const colorCounts = {};
+const colorBaseline = JSON.parse(
+  readFileSync(BASELINE, 'utf8').replace(/^{/, '{'),
+).bareColor ?? {};
 for (const name of sheets) {
   const count = scan(join(UI, name));
   counts[name] = count;
@@ -52,6 +71,15 @@ for (const name of sheets) {
     }
   } else if (count > allowed) {
     problems.push(`${name}: ${count} bare px values, budget is ${allowed}; use var(--space-*)`);
+  }
+
+  const colours = scanColors(join(UI, name));
+  colorCounts[name] = colours;
+  const colorAllowed = colorBaseline[name];
+  if (colorAllowed === undefined) {
+    if (colours > 0) problems.push(`${name}: ${colours} bare colours in a new file; use var(--color-*)`);
+  } else if (colours > colorAllowed) {
+    problems.push(`${name}: ${colours} bare colours, budget is ${colorAllowed}; use var(--color-*)`);
   }
 }
 
@@ -65,7 +93,15 @@ if (problems.length) {
 
 console.log(
   JSON.stringify(
-    { status: 'PASS', sheets: sheets.length, barePx: total, budget, headroom: budget - total },
+    {
+      status: 'PASS',
+      sheets: sheets.length,
+      barePx: total,
+      budget,
+      headroom: budget - total,
+      bareColor: Object.values(colorCounts).reduce((sum, n) => sum + n, 0),
+      colorBudget: Object.values(colorBaseline).reduce((sum, n) => sum + (n ?? 0), 0),
+    },
     null,
     2,
   ),

@@ -885,3 +885,14 @@ FinGPT 深链接启动时先读取一次 Runtime 状态，以确定会话入口�
 这条约束：`ui/.token-debt.json` 记录各样式表当前的裸 px 数量，检查只允许该数字下降；
 新建样式表若含裸 px 会直接失败。迁移方式是按文件引用 token、逐次收紧预算，不整仓
 批量替换。改动前的实测背景是 214 种不同 px 值、6506 处裸 px、仅 30 个变量定义。
+
+### 语义色角色（2026-11-26）
+
+`tokens.css` 在间距与字号之外增加颜色角色，样式应引用角色而非字面值：
+
+- 状态：`--color-success` / `--color-warning` / `--color-danger` / `--color-info`，各带 `-bg` 与 `-line`
+- 涨跌方向：`--color-up` / `--color-down`，以及 `-soft` 版本
+- 表面层级：`--color-elevated` / `--color-sunken` / `--color-overlay` / `--color-well` / `--color-wash` / `--color-wash-strong` / `--color-selected-wash`
+- 阴影：`--shadow-sm` / `--shadow-md` / `--shadow-lg`
+
+涨跌色与状态色**刻意不共享定义**：`--color-up` 不引用 `--color-danger`，因此"A 股红涨"与"危险提示"可以独立调整。`check_ui_tokens.mjs` 同时守住裸 px 与裸色两套预算，均只减不增。
