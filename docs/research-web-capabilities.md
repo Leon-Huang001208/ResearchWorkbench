@@ -592,3 +592,5 @@ AlphaDesk 收到 Host 固定且已验证的能力资源。原目录批准、资�
 ## 九个研究包与自有原件方法
 
 研究包复用原 Host、DataHub、DSH 和质量核验链；能力中心继续使用技能／连接器／插件三分类，包详情按现有入口投影，不重开旧分类。确定性计算与来源缺口见[研究包](research-web-research-packs.md)，三个原件方法见[自有方法](research-web-owned-methods.md)，选材与冻结见[来源选择](research-web-source-selection.md)。
+
+2026-11-26 列表键盘导航去重：`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」规则，能力类型 tab 与 MCP 子视图 tab 已迁移。各自原有的边缘语义（未知值钉在 0 的行为）保持不变，方向键、Home、End 的落点与原实现逐项等价。

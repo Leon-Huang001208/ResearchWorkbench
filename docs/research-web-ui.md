@@ -934,3 +934,9 @@ submit 监听器原有 434 行、26 个分支。七个表单批量抽离为两�
 - `automation-forms.mjs`：投递渠道、自动化、报告日程。`buildSchedule`/`buildDeliveryChannel`/`automationTarget` 均为导出的纯函数，可脱离 DOM 校验 once/weekly/monthly 差异与 SMTP/webhook 载荷差异。
 
 `app.mjs` 该七处由 148 行降为 28 行。
+
+### 列表键盘导航（2026-11-26）
+
+`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」这一规则。全仓曾有 6 处实现，其中两处用 `Math.max(0, indexOf(...))` 把未知值钉在 0，导致 `ArrowLeft` 时跳到末尾而非首个——这是真实的行为差异，合并时按各自原语义保留并用测试固定。
+
+`nextListIndex` 为纯函数，支持水平/垂直轴与「无选中项时从哪一端进入」。`capabilities.mjs`、`capability-workspace.mjs`、`mcp-marketplace.mjs` 已迁移；`app.mjs` 与 `asset-search.mjs` 的 4 处内联写法语义略有差异，留待逐处比对。
