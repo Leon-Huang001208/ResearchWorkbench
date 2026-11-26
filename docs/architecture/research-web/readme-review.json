@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 DataHub 业务工具七域目录、精确 CI 范围与前端 focus-trap 修复；根 README 无需更改。",
-  "reason": "本次把工具所属域改为 domains.py 的一等目录、补充 MCP discovery 元数据，并把 domains 入口纳入原 MCP/DataHub 精确 lane。同期主线补回被漏掉的前端模块文件与导入语句，恢复既有行为。两者均未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑。"
+  "summary": "复核股票快照共享契约与可导出字段修复；根 README 无需更改。",
+  "reason": "本次让 get_stock_quote 与 get_stock_kline 同构，共用 datahub/contracts 的构造函数，并在既有 akshare 快照分支内由前收/今收与 outstanding_share 计算涨跌幅与总市值；缺失输入保持为空。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑，README 描述的安装与使用方式保持原样。"
 }
