@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核仓库规划判定的单一来源收敛；根 README 无需更改。",
-  "reason": "本次把 warehouse 内联的规划前置条件收敛到 planning.plannable，并用 PLANNABLE_CAPABILITIES 显式声明可规划能力，当前仍只有原始日线。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑，README 描述的安装与使用方式保持原样。"
+  "summary": "复核仓库规划可覆盖能力的审计；根 README 无需更改。",
+  "reason": "本次只补注释与回归断言，说明 market_bars 走 WarehouseBridge 的按日期缺口规划，financials 与 market_activity 走 SnapshotSeries 的单时点快照路径且不调用 find_gaps，因此不能靠改常量并入规划。未改行为，未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑。"
 }

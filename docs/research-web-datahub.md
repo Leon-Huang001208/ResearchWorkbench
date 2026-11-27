@@ -724,6 +724,26 @@ Provider、Broker 选源、仓库与快照拓扑未变；快照仍不参与 `pla
 
 本次是结构收敛，可规划范围没有扩张。
 
+## 可规划能力审计（2026-11-27）
+
+上一轮收敛后遗留的问题是能否把 `financials`、`market_activity` 并入规划。审计结论是**不能只改常量**：
+
+| 能力 | 存储路径 | 有 `find_gaps` | 可并入 |
+| --- | --- | --- | --- |
+| `market_bars` | `WarehouseBridge` + `Fact.business_date` | 是 | 已并入 |
+| `financials` / `market_activity` | `SnapshotSeries` | 否 | 需先定义期间 gap 语义 |
+| `market_snapshot` | 单时点行 | 不适用 | 区间 gap 无定义 |
+| `search_assets` / `trading_calendar` | 无 dataset 行 | 不适用 | 无行可对比 |
+
+`SnapshotSeries` 只在 `display` + `allow_stale` 且未超 TTL 时命中，严格研究请求一律回源，
+从不调用 `find_gaps`，规划器因此拿不到缺口列表。
+
+另有一处更窄的门：`DataHub._can_plan_wind_gaps` 要求 `source in {auto, wind}` 且
+`asset_type == stock`，只有受信 wind 原始日线可推迟原 span 上限。即便放开前两处，这里仍会拒绝。
+
+把 `financials` 纳入规划需要先定义"某报告期是否已入库"的判定（期间语义、可用时点、修订版本），
+属于新设计，不是开关。本次只补注释与回归断言，未改行为。
+
 该厂商用 `code: 20000` 表示成功，而通用 `response_rows` 只接受 `0/200`，改域后仍会被判为 `vendor_rejected`。修复只在 `providers_wscn.py` 内做封闭投影：校验私有成功码、`data.items` 列表、行 `id` 唯一与类型、必需字段及 `display_time`，异常统一收敛为 `external_wscn_schema_invalid`；不放宽其他来源的信封规则。`providers_external.fetch` 的业务分支按 `source_id` 分流到该投影，Broker、仓库、快照与调度拓扑不变。
 
 真实公网实测 `lives` 取回 100 条、`articles` 取回 30 条，单次响应标记 `partial`；采集调度与常驻实例的定时任务未在本次重跑，登记状态继续保持 `code_integrated_not_live_verified`。完整证据见 [端点恢复报告](../.ai/reports/2026-11-26-wallstreetcn-endpoint-recovery.md)。
