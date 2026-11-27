@@ -1,5 +1,7 @@
 """Pure planning tests: no warehouse, provider, network or clock."""
 
+import inspect
+import sys
 import unittest
 from datetime import UTC, date, datetime, timedelta
 
@@ -73,8 +75,6 @@ class PlannableTests(unittest.TestCase):
         # ``warehouse.missing_queries`` delegates to this predicate. If someone
         # re-adds an inline condition there, the two can disagree and a
         # capability silently gains or loses planning.
-        import inspect
-
         from app.research_web.datahub import warehouse
 
         source = inspect.getsource(warehouse.WarehouseBridge.missing_queries)
@@ -96,6 +96,20 @@ class PlannableTests(unittest.TestCase):
                 self.assertFalse(
                     plannable(BusinessQuery(capability=capability, parameters=parameters))
                 )
+
+    def test_snapshot_backed_capabilities_do_not_use_this_planner(self):
+        # The 2026-11-27 audit found financials/market_activity are warehouse
+        # backed through SnapshotSeries, which never calls find_gaps. If that
+        # ever changes, this assertion should be updated deliberately rather
+        # than by widening PLANNABLE_CAPABILITIES and hoping.
+        planner = inspect.getsource(sys.modules["app.research_web.datahub.planning"])
+        self.assertIn('PLANNABLE_CAPABILITIES = frozenset({"market_bars"})', planner)
+
+        from app.research_web.datahub import research_snapshot_store
+
+        series = inspect.getsource(research_snapshot_store.SnapshotSeries)
+        self.assertNotIn("find_gaps", series)
+        self.assertNotIn("plan_queries", series)
 
 
 class MergeDaysTests(unittest.TestCase):

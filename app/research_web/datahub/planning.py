@@ -27,12 +27,25 @@ PLAN_VERSION = "plan-v2"
 MAX_SEGMENTS = 16
 PLANNABLE_FREQUENCIES = frozenset({"daily", "day", "1d"})
 
-# Capabilities whose warehouse rows are addressed by a date window, so a gap
-# between what is stored and what was requested is a well-defined fetch list.
-# Only ``market_bars`` qualifies today: snapshots store one point-in-time row,
-# identity search has no date, and financials/activity have not been audited for
-# per-date storage rows yet. Adding a name here without that audit would make
-# the planner claim coverage it cannot prove.
+# Capabilities whose warehouse rows are addressed by a date window.
+#
+# Only ``market_bars`` qualifies. The 2026-11-27 audit explains why the others
+# cannot simply be added here:
+#
+# * ``financials`` and ``market_activity`` are already warehouse-backed, but via
+#   ``research_snapshot_store.SnapshotSeries``: they ingest one frozen
+#   projection and serve it only when the caller asks for ``display`` with
+#   ``allow_stale``. That path never calls ``find_gaps``, so there is no
+#   per-date gap list for the planner to produce. Moving them onto this planner
+#   is new work, not a rename.
+# * ``market_snapshot`` stores a single point-in-time row per dataset, so a
+#   date-range gap is undefined.
+# * ``search_assets`` / ``trading_calendar`` carry no dataset row to diff.
+#
+# ``DataHub._can_plan_wind_gaps`` holds a third, deliberately narrower gate
+# (``source in {auto, wind}`` plus ``asset_type == stock``) because only trusted
+# wind raw bars may defer the original span cap. Widening this set alone would
+# not widen planning; that gate would still refuse.
 PLANNABLE_CAPABILITIES = frozenset({"market_bars"})
 
 
