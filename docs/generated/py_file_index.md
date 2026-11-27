@@ -4601,6 +4601,8 @@ Classes:
 Functions:
 - `stock_kline_query`
   - Shared completed raw daily-stock contract for asset pages and MCP tools.
+- `stock_quote_query`
+  - Shared snapshot contract for asset pages and the ``get_stock_quote`` tool.
 
 
 ## `app/research_web/datahub/external_sources.py`

@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from mcp.server import MCPServer
 from mcp.types import ListToolsResult
 
+from app.research_web.datahub.contracts import stock_quote_query
 from app.research_web.mcp_facade.domains import (
     DOMAINS,
     BusinessDomain,
@@ -425,3 +426,117 @@ class ProviderContractTests(unittest.TestCase):
         )
         r = resolve(q, environ={})
         self.assertEqual(r.query.source, "fund_nav")
+
+
+class StockQuoteContractTests(unittest.TestCase):
+    """The snapshot tool must share one contract with the asset page."""
+
+    def test_quote_contract_fixes_capability_and_identity(self):
+        q = stock_quote_query(["600519.SH", "000001.SZ"], ["price", "change_pct"])
+        self.assertEqual(q.capability, "market_snapshot")
+        self.assertEqual(q.parameters["asset_type"], "stock")
+        self.assertEqual(q.parameters["assets"], ["600519.SH", "000001.SZ"])
+        self.assertEqual(q.parameters["fields"], ["price", "change_pct"])
+
+    def test_quote_contract_defaults_to_price_only(self):
+        q = stock_quote_query(["600519.SH"])
+        self.assertEqual(q.parameters["fields"], ["price"])
+
+    def test_quote_contract_rejects_bad_input(self):
+        for assets, fields in (
+            ([], None),
+            (["600519.SH"] * 2, None),
+            (["600519"], None),
+            (["600519.SH"], []),
+            (["600519.SH"], ["close"]),
+            (["600519.SH"], ["price", "price"]),
+        ):
+            with self.subTest(assets=assets, fields=fields), self.assertRaises(ValueError):
+                stock_quote_query(assets, fields)
+
+    def test_quote_contract_caps_asset_count(self):
+        with self.assertRaises(ValueError):
+            stock_quote_query(["600519.SH"] * 21)
+        q = stock_quote_query([f"{code:06d}.SH" for code in range(600000, 600000 + 20)])
+        self.assertEqual(len(q.parameters["assets"]), 20)
+
+    def test_mcp_tool_uses_the_shared_quote_contract(self):
+        request_id, q = business_query(
+            "get_stock_quote",
+            {"request_id": "quote", "assets": ["600519.SH"], "fields": ["price", "pb"]},
+        )
+        expected = stock_quote_query(["600519.SH"], ["price", "pb"])
+        self.assertEqual(request_id, "quote")
+        self.assertEqual(q.capability, expected.capability)
+        self.assertEqual(q.parameters, expected.parameters)
+
+    def test_mcp_tool_still_rejects_bad_assets(self):
+        with self.assertRaises(ValueError):
+            business_query("get_stock_quote", {"request_id": "q", "assets": ["600519"]})
+
+
+class AkshareSnapshotDerivedFieldTests(unittest.TestCase):
+    """The snapshot path must fill derivable fields instead of returning null."""
+
+    def test_change_pct_and_market_cap_are_derived_from_daily_bars(self):
+        from datetime import date
+
+        import pandas as pd
+
+        from app.research_web.datahub import providers_akshare
+
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": date(2026, 11, 25),
+                    "close": 1475.0,
+                    "volume": 1.0,
+                    "amount": 2.0,
+                    "outstanding_share": 1_000.0,
+                },
+                {
+                    "date": date(2026, 11, 26),
+                    "close": 1469.0,
+                    "volume": 3.0,
+                    "amount": 4.0,
+                    "outstanding_share": 1_000.0,
+                },
+            ]
+        )
+        query = stock_quote_query(["600519.SH"], ["price", "change_pct"])
+
+        with patch("akshare.stock_zh_a_daily", create=True, return_value=frame):
+            rows, _ = providers_akshare._invoke_sdk(query)
+
+        self.assertEqual(len(rows), 1)
+        row = rows.iloc[0].to_dict()
+        self.assertEqual(row["涨跌幅"], -0.4068)
+        self.assertEqual(row["总市值"], 1_469_000.0)
+        self.assertEqual(row["最新价"], 1469.0)
+
+    def test_missing_prior_close_does_not_invent_a_change(self):
+        from datetime import date
+
+        import pandas as pd
+
+        from app.research_web.datahub import providers_akshare
+
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": date(2026, 11, 26),
+                    "close": 1469.0,
+                    "volume": 3.0,
+                    "amount": 4.0,
+                    "outstanding_share": None,
+                }
+            ]
+        )
+        query = stock_quote_query(["600519.SH"], ["price"])
+
+        with patch("akshare.stock_zh_a_daily", create=True, return_value=frame):
+            rows, _ = providers_akshare._invoke_sdk(query)
+
+        row = rows.iloc[0].to_dict()
+        self.assertIsNone(row["涨跌幅"])
+        self.assertIsNone(row["总市值"])

@@ -71,3 +71,18 @@ HTTP 受理、Provider 执行结束、数据质量可用分别判断。`status=c
 同一 WeKnora 会话经实际 MCP query/status、隔离 RWB Host 与原 FRED Provider 取得七行 snapshot；随后实际读取 Skill、编辑并运行沙箱脚本，下载11个产物。Root 独立比较了完整 MCP 状态、脚本输入、算术、source/as_of/SHA，以及三份 raw 与 manifest，均与该样本一致。另一 FinGPT Agent 读取同一快照，没有再发一次取数。
 
 这仍是隔离账号和固定公开样本。数据保留 FRED 原始字段；`provider_defined` 不能自行解释成已核单位，缺失和当前vintage限制不变，未证明 PIT／历史当时可得、BLS实源或 Wind/iFinD/天软覆盖。沙箱临时 Git 仓库的编辑／diff不能替代 RWB 持久代码项目，独立 Agent 对话不证明原生子Agent层级。正式 RWB 产品入口、跨设备独立主机名、旧会话与业务数据接管仍需后续实际验收；本记录不宣布生产替换完成。
+
+## 股票快照共享契约（2026-11-27）
+
+`get_stock_quote` 现在与 `get_stock_kline` 同构：两者都经 `datahub/contracts.py` 的共享构造函数，
+由该层固定 capability、规范证券身份、数量上限与字段白名单，MCP 层不再各自维护一套校验。
+契约拒绝空列表、重复资产、非法代码、空字段、未知字段与重复字段，报 `invalid_asset` /
+`invalid_asset_count` / `invalid_quote_field`。
+
+同一次真实取数暴露了本来的缺陷：akshare 分支此前把 `涨跌幅`、`总市值` 硬编码为 `None`，
+而日线响应已带今收、前收与 `outstanding_share`。现在只在两个输入都存在时计算，
+缺失则保持 `None`，不猜测也不补零。实测 `600519.SH` 与 `000001.SZ` 返回
+`status=complete`，涨跌幅分别为 −0.396% 与 +0.4032%。
+
+`名称`、`市盈率-动态` 仍为空——当前网络无法访问东财全市场 spot 接口，
+不用其他来源填补。快照与其他 capability 仍没有仓库规划，只有 `market_bars` 可规划。

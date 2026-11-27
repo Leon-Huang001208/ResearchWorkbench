@@ -1340,16 +1340,32 @@ def _invoke_sdk(query: BusinessQuery):
             if frame is None or frame.empty:
                 continue
             latest = frame.iloc[-1].to_dict()
+            previous = frame.iloc[-2].to_dict() if len(frame) > 1 else {}
             symbol = _symbol(str(asset))
+            close = latest.get("close")
+            prior_close = previous.get("close")
+            # Daily bars already carry close/volume/amount and (for this source)
+            # outstanding_share, so percentages and market cap are derivable.
+            # Leaving them as None made the snapshot tool claim a field it never
+            # filled; compute only when both inputs exist, never guess.
+            change_pct = None
+            if close is not None and prior_close:
+                change_pct = round((close - prior_close) / prior_close * 100, 4)
+            outstanding = latest.get("outstanding_share")
+            market_cap = (
+                round(close * outstanding, 2)
+                if close is not None and outstanding is not None
+                else None
+            )
             snapshots.append(
                 {
                     "代码": symbol,
                     "名称": None,
-                    "最新价": latest.get("close"),
-                    "涨跌幅": None,
+                    "最新价": close,
+                    "涨跌幅": change_pct,
                     "成交量": latest.get("volume"),
                     "成交额": latest.get("amount"),
-                    "总市值": None,
+                    "总市值": market_cap,
                     "市盈率-动态": None,
                     "as_of": _date(latest.get("date")),
                 }
