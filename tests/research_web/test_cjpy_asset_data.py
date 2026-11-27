@@ -333,6 +333,24 @@ def test_holder_identity_conflict_is_not_dropped_or_filled_with_zero():
     assert run(sdk, "market_activity", dataset="holder_details").rows[-1]["change_ratio"] is None
 
 
+def test_holder_historical_ranks_above_ten_do_not_invalidate_latest_period():
+    """Some pre-2003 vendor periods list ranks 11-13; the latest top ten still decides."""
+    sdk = SDK()
+    sdk.tables["十大股东"].extend(
+        {
+            **sdk.tables["十大股东"][0],
+            "截止日": 20251231,
+            "股东序号": rank,
+            "名称": f"历史股东{rank}",
+        }
+        for rank in range(11, 14)
+    )
+    result = run(sdk, "market_activity", dataset="holder_details")
+    assert len(result.rows) == 10
+    assert result.rows[-1]["rank"] == 10
+    assert {row["rank"] for row in result.rows} == set(range(1, 11))
+
+
 def test_margin_stock_units_and_industry_classification_remain_explicit():
     sdk = SDK()
     margin = run(

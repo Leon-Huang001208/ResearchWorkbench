@@ -4799,6 +4799,7 @@ Imports:
 - `asyncio`
 - `calendar`
 - `concurrent.futures`
+- `contextlib`
 - `contracts`
 - `core.observability`
 - `dataclasses`
@@ -4806,6 +4807,7 @@ Imports:
 - `httpx`
 - `json`
 - `math`
+- `os`
 - `providers`
 - `providers_reference_evidence`
 - `re`
@@ -4879,6 +4881,8 @@ Functions:
 - `_sina_income_statement`
   - One reviewed eight-period capture inside the existing public worker.
 - `_normalize_financials`
+- `_direct_connection`
+  - Run a fixed SDK call without the host's possibly-stale system proxy.
 - `_fund_flow_failure_code`
   - Classify SDK HTTP failures without persisting messages, URLs or proxy settings.
 - `_invoke_sdk`

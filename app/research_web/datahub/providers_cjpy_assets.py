@@ -330,7 +330,11 @@ def _holder_details(context):
         if not period or period > context.today:
             continue
         rank = _number(source.get("股东序号"))
-        if rank is None or rank != int(rank) or not 1 <= rank <= 10:
+        # The vendor table is "top ten" per report period, yet a handful of
+        # historical periods carry rows 11-13 (pre-2003 disclosure formats).
+        # Out-of-range rows are not part of the published top ten and must not
+        # invalidate an otherwise complete recent period.
+        if rank is None or rank != int(rank) or not 1 <= rank <= 13:
             raise ProviderError("tinysoft_holder_rank_invalid")
         bucket = periods.setdefault(period, {})
         if rank in bucket and bucket[rank] != source:
@@ -339,9 +343,13 @@ def _holder_details(context):
     if not periods:
         return []
     dates = sorted(periods)
-    latest = periods[dates[-1]]
+    latest = {rank: row for rank, row in periods[dates[-1]].items() if rank <= 10}
+    if not latest:
+        return []
     previous = (
-        {row.get("名称"): row for row in periods[dates[-2]].values()} if len(dates) > 1 else {}
+        {row.get("名称"): row for rank, row in periods[dates[-2]].items() if rank <= 10}
+        if len(dates) > 1
+        else {}
     )
     result = []
     for rank, source in sorted(latest.items()):

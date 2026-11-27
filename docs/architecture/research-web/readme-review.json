@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核 OpenBB 美股日线与基本面 Provider 后根 README 无需更改。",
-  "reason": "OpenBB 是可选、默认未配置的数据来源，需开发者显式设置 RWB_OPENBB_PYTHON 指向独立解释器；五类数据集只是既有 external_data 契约内的封闭扩展，未新增 Web 安装命令、锁定依赖、账号、凭据流程或默认运行拓扑，根 README 的安装与入口说明保持不变。"
+  "summary": "复核 OpenBB 日线与基本面 Provider、DataHub 九业务工具真实取数修复；根 README 无需更改。",
+  "reason": "OpenBB 是可选、默认未配置的来源，需显式设置 RWB_OPENBB_PYTHON 指向独立解释器；其五类数据集是既有 external_data 契约内的封闭扩展。另一组改动只修 Provider 到业务行的映射与执行短路（天软中文名检索、交易日历展开、index_data 最新快照、股东最新报告期前十、未探测 Wind 在 market_activity 下后移并执行前短路、akshare 资金流代理旁路与 guest 字段顺序）。均未新增 Web 安装命令、锁定依赖、账号、凭据流程、配置项或默认运行拓扑，根 README 的安装与入口说明保持不变。"
 }

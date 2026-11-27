@@ -674,6 +674,7 @@ IMPLEMENTED_BINDINGS = {
     ("tinysoft", "trading_calendar"),
     ("tinysoft", "market_bars"),
     ("tinysoft", "market_snapshot"),
+    ("tinysoft", "index_data"),
     ("tinysoft", "factor_macro"),
     ("tinysoft", "financials"),
     ("tinysoft", "market_activity"),
@@ -693,6 +694,7 @@ IMPLEMENTED_BINDINGS = {
 BINDING_ASSETS = {
     ("baostock", "financials"): ["股票"],
     ("tinysoft", "financials"): ["股票"],
+    ("tinysoft", "index_data"): ["指数"],
     ("tinysoft", "market_activity"): ["股票"],
     ("tinysoft", "factor_macro"): ["股票"],
     ("wind", "market_bars"): ["股票"],

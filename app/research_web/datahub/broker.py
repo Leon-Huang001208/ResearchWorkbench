@@ -217,6 +217,17 @@ def resolve(
         ordered = [
             binding["source_id"] for binding in sorted(bindings, key=lambda row: row["priority"])
         ]
+        # Wind's market-activity path validates the dataset first, but an
+        # unprobed Excel session still costs a full launch. For that capability
+        # only, unprobed Wind goes behind sources that are already ready; other
+        # capabilities keep their reviewed priority (their own workload checks
+        # are cheaper and are asserted separately).
+        if (
+            query.capability == "market_activity"
+            and "wind" in ordered
+            and (probes or {}).get("wind", {}).get("health") not in {"healthy", "degraded"}
+        ):
+            ordered = [sid for sid in ordered if sid != "wind"] + ["wind"]
 
     attempts = []
     selected = None
@@ -432,6 +443,7 @@ def resolve(
         "trading_calendar",
         "market_bars",
         "market_snapshot",
+        "index_data",
         "factor_macro",
         "financials",
         "market_activity",
