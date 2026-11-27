@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核股票快照共享契约与可导出字段修复；根 README 无需更改。",
-  "reason": "本次让 get_stock_quote 与 get_stock_kline 同构，共用 datahub/contracts 的构造函数，并在既有 akshare 快照分支内由前收/今收与 outstanding_share 计算涨跌幅与总市值；缺失输入保持为空。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑，README 描述的安装与使用方式保持原样。"
+  "summary": "复核仓库规划判定的单一来源收敛；根 README 无需更改。",
+  "reason": "本次把 warehouse 内联的规划前置条件收敛到 planning.plannable，并用 PLANNABLE_CAPABILITIES 显式声明可规划能力，当前仍只有原始日线。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑，README 描述的安装与使用方式保持原样。"
 }

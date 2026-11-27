@@ -23,7 +23,7 @@ from ..market_store import (
 )
 from ..market_store.models import parse_batch
 from .contracts import BusinessQuery
-from .planning import Plan, merge_gaps, plan_queries
+from .planning import Plan, merge_gaps, plan_queries, plannable
 from .providers import MAX_QUERY_BYTES, Result
 
 log = get_logger(__name__)
@@ -89,13 +89,8 @@ class WarehouseBridge:
         Excessively fragmented gaps collapse to one bounded range rather than
         generating an unbounded number of vendor calls.
         """
-        if (
-            query.refresh
-            or query.as_of is not None
-            or query.capability != "market_bars"
-            or query.parameters.get("adjustment") != "none"
-            or query.parameters.get("frequency") not in {"daily", "day", "1d"}
-        ):
+        # One predicate owns this decision; see planning.plannable.
+        if not plannable(query):
             return None
         context = self._context(query, source, configuration_digest)
         window = self._window(query)

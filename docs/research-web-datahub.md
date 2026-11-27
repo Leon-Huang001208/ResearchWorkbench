@@ -711,6 +711,19 @@ capability、规范证券身份与字段白名单，不再由 MCP 层各写一�
 
 Provider、Broker 选源、仓库与快照拓扑未变；快照仍不参与 `plannable()` 的仓库规划。
 
+## 规划判定收敛为单一来源（2026-11-27）
+
+仓库规划的前置条件此前存在两份：`planning.plannable` 与
+`warehouse.WarehouseBridge.missing_queries` 内联条件。真正执行的是后者，
+前者只被同样无人调用的 `plan()` 使用，两份措辞与顺序都不同，漂移时不会被测试发现。
+
+现在 `missing_queries` 直接调用 `plannable(query)`。可规划能力由
+`PLANNABLE_CAPABILITIES` 显式声明，当前只有 `market_bars`（且要求日线、不复权）。
+快照只有单时点行、身份检索没有日期、财务与个股活动尚未审计按日期存储行，
+因此都不纳入；把名字加进常量而不做该审计，等于让规划器声称它无法证明的覆盖。
+
+本次是结构收敛，可规划范围没有扩张。
+
 该厂商用 `code: 20000` 表示成功，而通用 `response_rows` 只接受 `0/200`，改域后仍会被判为 `vendor_rejected`。修复只在 `providers_wscn.py` 内做封闭投影：校验私有成功码、`data.items` 列表、行 `id` 唯一与类型、必需字段及 `display_time`，异常统一收敛为 `external_wscn_schema_invalid`；不放宽其他来源的信封规则。`providers_external.fetch` 的业务分支按 `source_id` 分流到该投影，Broker、仓库、快照与调度拓扑不变。
 
 真实公网实测 `lives` 取回 100 条、`articles` 取回 30 条，单次响应标记 `partial`；采集调度与常驻实例的定时任务未在本次重跑，登记状态继续保持 `code_integrated_not_live_verified`。完整证据见 [端点恢复报告](../.ai/reports/2026-11-26-wallstreetcn-endpoint-recovery.md)。

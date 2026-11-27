@@ -27,6 +27,14 @@ PLAN_VERSION = "plan-v2"
 MAX_SEGMENTS = 16
 PLANNABLE_FREQUENCIES = frozenset({"daily", "day", "1d"})
 
+# Capabilities whose warehouse rows are addressed by a date window, so a gap
+# between what is stored and what was requested is a well-defined fetch list.
+# Only ``market_bars`` qualifies today: snapshots store one point-in-time row,
+# identity search has no date, and financials/activity have not been audited for
+# per-date storage rows yet. Adding a name here without that audit would make
+# the planner claim coverage it cannot prove.
+PLANNABLE_CAPABILITIES = frozenset({"market_bars"})
+
 
 @dataclass(frozen=True, order=True)
 class Segment:
@@ -81,17 +89,26 @@ def plannable(query: BusinessQuery) -> bool:
     Mirrors the reviewed ``_can_plan_wind_gaps`` predicate but deliberately does
     not constrain ``source``: an explicitly chosen source must also be able to
     hit the warehouse first instead of always calling the vendor.
+
+    This is the single place that decides plannability. ``warehouse`` must not
+    restate the same conditions, or the two drift and a capability silently
+    loses (or gains) planning without any test noticing.
     """
 
     parameters = query.parameters
-    return (
-        not query.refresh
-        and query.as_of is None
-        and query.capability == "market_bars"
-        and parameters.get("asset_type") == "stock"
-        and parameters.get("frequency") in PLANNABLE_FREQUENCIES
-        and parameters.get("adjustment") == "none"
-    )
+    if query.refresh or query.as_of is not None:
+        return False
+    if query.capability not in PLANNABLE_CAPABILITIES:
+        return False
+    if query.capability == "market_bars":
+        # Bars additionally require a raw, unadjusted, daily series. The old
+        # warehouse predicate did not look at ``asset_type``; keeping that
+        # unchanged avoids silently narrowing planning for index/etf bars.
+        return (
+            parameters.get("frequency") in PLANNABLE_FREQUENCIES
+            and parameters.get("adjustment") == "none"
+        )
+    return True
 
 
 def merge_days(days: Iterable[date], *, max_segments: int = MAX_SEGMENTS) -> tuple[Segment, ...]:
