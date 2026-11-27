@@ -853,7 +853,11 @@
           "app/research_web/datahub/external_sources.py",
           "app/research_web/datahub/providers_finance_mcp.py",
           "app/research_web/datahub/providers.py",
+          "app/research_web/datahub/providers_openbb.py",
+          "app/research_web/datahub/public_worker.py",
+          "app/research_web/datahub/worker_activity.py",
           "tests/research_web/test_datahub_finance_mcp.py",
+          "tests/research_web/test_datahub_openbb.py",
           "tests/research_web/test_mcp_facade_datahub.py",
           "tests/research_web/test_external_sources.py",
           "scripts/run_mcp_datahub_ci.sh"

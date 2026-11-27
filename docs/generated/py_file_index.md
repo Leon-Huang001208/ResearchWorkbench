@@ -5407,6 +5407,51 @@ Functions:
   - Validate strict original JSON and bounded observation identities without coercion.
 
 
+## `app/research_web/datahub/providers_openbb.py`
+
+Module docstring:
+> Fixed OpenBB SDK reads in a separately installed interpreter.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `base64`
+- `concurrent.futures`
+- `contextlib`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `json`
+- `math`
+- `os`
+- `pathlib`
+- `providers`
+- `re`
+- `subprocess`
+- `sys`
+- `tempfile`
+- `threading`
+
+Functions:
+- `active_futures`
+  - Witness actual SDK work independently of cancelled coroutine waiters.
+- `interpreter`
+  - The explicitly configured OpenBB interpreter; never the Host interpreter.
+- `_release_capacity`
+- `_submit`
+- `_invoke`
+- `validate`
+  - Reject everything outside the reviewed fixed equity-daily binding.
+- `_arguments`
+  - Fixed business inputs only; no endpoint, header, credential or module.
+- `fetch`
+- `probe`
+- `invoke`
+  - Child-side execution; only fixed calls, no caller-provided expressions.
+- `main`
+
+
 ## `app/research_web/datahub/providers_reference_evidence.py`
 
 Module docstring:

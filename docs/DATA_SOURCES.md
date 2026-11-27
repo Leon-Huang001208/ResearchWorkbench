@@ -55,6 +55,19 @@ FRED 转换还会删除缺失行和每条观察的 realtime 字段；BLS 转换�
 后续扩大其他金融覆盖时再按具体 Provider 评估；数据许可、单位、修订及 PIT 仍由 DataHub 核验。
 详见[本次实际试点](../.ai/reports/2026-11-23-openbb-provider-trial.md)。
 
+### OpenBB DataHub Provider（2026-11-27）
+
+`openbb` 已作为首类 DataHub 来源接入 `external_data`，当前只登记一个封闭数据集
+`equity_daily`：经 OpenBB SDK 的 `obb.equity.price.historical` 读取美股日线，provider
+限定 `nasdaq`／`cboe`／`tmx`，参数只接受 `symbol`、`provider`、`start_date`、`end_date`。
+不开放任意 SDK 表达式、路由或字段。
+
+OpenBB 及其 217 个依赖不进入 RWB 运行环境，而是由 `RWB_OPENBB_PYTHON` 指向的独立解释器
+子进程执行；未配置该变量时来源为 `blocked_dependency`，绑定仍登记但不可调用。数据经第三方
+provider 转发，**OpenBB 不是原始来源**，币种未声明、PIT 与历史修订未认证，正式回测拒绝。
+默认 provider `cboe` 在当前网络匿名返回 403，2026-11-27 实测 `nasdaq` 返回 AAPL
+2026-11-20 至 11-25 共 4 行。
+
 ## 文本数据
 
 ### 金融数据 MCP（2026-11-23）

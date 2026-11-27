@@ -172,6 +172,18 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         "原始日线、目录/日历及季度末盈利能力快照；不推定单季流量、归母口径或历史修订完整。",
     ),
     (
+        "openbb",
+        "OpenBB",
+        "formal",
+        "library",
+        "none",
+        [],
+        ["openbb"],
+        ["美股"],
+        "free",
+        "可选 SDK，独立解释器子进程执行；当前仅固定美股日线，经第三方 provider 转发。",
+    ),
+    (
         "tushare",
         "Tushare",
         "legacy",
@@ -649,6 +661,7 @@ INTEGRATED = {
     "wind",
     "baostock",
     "bea_archive",
+    "openbb",
 }
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
@@ -842,7 +855,14 @@ def build_catalog(
                 configured = configured and bool((connection_status or {}).get("secret_configured"))
         else:
             configured = _configured(auth, keys, env)
-        dependency_ready, dependency_failure_code = _dependency_status(sid, deps)
+        if sid == "openbb":
+            from .providers_openbb import interpreter
+
+            dependency_ready, dependency_failure_code = (
+                (True, None) if interpreter() else (False, "blocked_dependency")
+            )
+        else:
+            dependency_ready, dependency_failure_code = _dependency_status(sid, deps)
         if sid == "wind" and (connection_status or {}).get("preferred_adapter") == "client_api":
             dependency_ready = False
         allowed = integrated and sid not in DISABLED
@@ -925,6 +945,18 @@ def build_catalog(
     sources.extend(external_sources)
     bindings.extend(external_bindings)
     by_source.update({source["id"]: source for source in external_sources})
+    bindings.append(
+        ProviderBinding(
+            capability_id="external_data",
+            source_id="openbb",
+            datasets=["equity_daily"],
+            priority=1,
+            implemented=True,
+            markets=["美股"],
+            assets=["股票"],
+            coverage="固定美股日线；经 OpenBB 第三方 provider 转发，非原始来源、非 PIT。",
+        ).model_dump(mode="json")
+    )
     bindings.append(
         ProviderBinding(
             capability_id="market_bars",

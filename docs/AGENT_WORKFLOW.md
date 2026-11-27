@@ -896,3 +896,5 @@ AlphaDesk 替换按 Mac Web L4 交付，实际模型、跟踪通知、报告质�
 DataHub 七域目录重构沿用原 MCP/DataHub 精确 lane：新 `scripts/mcp_datahub_ci.py` 只承载路径选择，
 实际 pytest 分片入口、证据暂存与 Mac 安装步骤不变。域目录本身是业务工具的文档骨架，不改变本工作流
 的本地快环、后台通道或 worktree 隔离选择；范围外变更仍走完整 Research Web 矩阵。
+
+2026-11-27 OpenBB 固定美股日线 Provider 的新增源码、worker 与回归登记在既有 `mcp_datahub_only` 精确路径闭包，复用原 runner、job、权限和平台门，不新增执行通道。

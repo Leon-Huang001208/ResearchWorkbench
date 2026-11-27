@@ -955,3 +955,5 @@ Schema、工厂和消费者边界见 `docs/research-web-maintenance-job-identity
 `bond_data` 与 `analytics_data` 保留为空域。`task_contracts.py` 从该目录派生合同的域身份并校验
 工具归属唯一，`tools.py` 与 `server.py` 的 discovery 输出按域分组。CI 选择器
 `scripts/mcp_datahub_ci.py` 只承载精确路径判断，分片入口与证据暂存保持原样。
+
+OpenBB 首类 SDK 来源复用既有 DataHub 子进程边界：`providers_openbb.py` 只发起固定 `equity_daily` 查询，`public_worker.py` 以 `RWB_OPENBB_PYTHON` 独立解释器执行，子进程 Future 纳入 `worker_activity`。CI 仍走原 `mcp_datahub_only` 路径。

@@ -379,3 +379,5 @@ rwb_query_latest_cls_news经原私有business-query、身份/取消、DataHub.qu
 FinGPT 验收的 DataHub 预算判定发生在既有查询入口。已完成的同请求回执和已授权冻结快照可重读，未核价的新请求在调用前拒绝。
 
 2026-11-27 DataHub 九业务工具真实取数复核：仅调整 Provider 到业务行的映射与执行短路（天软中文检索、交易日历展开、指数快照、股东前十过滤、Wind 未探测短路、akshare 资金流代理旁路）。本文件中描述的拓扑、存储与工作流边界均未改变。
+
+2026-11-27 OpenBB 通过既有 Broker 外部来源分支与显式 provider 校验接入；未新增协调器边、后台任务、跨源合并或自动 fallback，未配置解释器时固定来源失败关闭。

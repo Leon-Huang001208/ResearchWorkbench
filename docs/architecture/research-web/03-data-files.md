@@ -1070,3 +1070,5 @@ AlphaDesk 回合正文与事件写入账号会话下的 `.control/qa.json`。冻
 2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。
 
 2026-11-27 九业务工具真实取数复核：天软`search_assets`中文名检索改由同一账号目录因子表一次批量解析（全市场5581只约1.8秒），不再只匹配代码而拒绝中文；`trading_calendar`把天软只返回的开市日展开为区间内每日`is_trading_day`判定；新增天软`index_data`只取最新指数快照并复核代码身份，`IMPLEMENTED_BINDINGS`同步登记。天软十大股东历史期存在第11–13名（2002年前披露格式），只取最新报告期前10名，部分历史期不再使整表失败。`market_activity`在`auto`下未探测的Wind后移，避免可用性检查启动Excel耗尽共享预算；Wind未探测即短路为`wind_not_logged_in`而不进入执行。akshare资金流SDK偶发继承失效系统代理时旁路代理并在失败后回退同源 guest 端点（其15字段顺序已按真实响应校正）。以上仅证明所列参数的单次真实调用，不表示来源全部能力或全市场覆盖通过。
+
+2026-11-27 OpenBB 固定美股日线 Provider 只增加有界子进程外部读取与会话内源限定快照，未改变 `provider-native-snapshot-v1`、原件、manifest 或冻结文件布局。

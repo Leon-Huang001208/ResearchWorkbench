@@ -342,6 +342,10 @@ class DataHub:
             from .providers_baostock import SEMANTICS_REVISION
 
             semantics["provider_semantics_revision"] = SEMANTICS_REVISION
+        elif source_id == "openbb":
+            from .providers_openbb import CONTRACT
+
+            semantics["provider_semantics_revision"] = CONTRACT
         elif source_id == "tinysoft":
             from .adjustment_contract import CONTRACT_VERSION, DEFINITION_SHA256
 

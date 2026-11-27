@@ -393,3 +393,5 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 FinGPT 隔离验收使用冻结快照或已完成回执。ETF 周报的取数与日程仍由其已登记的工作流控制。
 
 2026-11-27 DataHub 九业务工具真实取数复核：仅调整 Provider 到业务行的映射与执行短路（天软中文检索、交易日历展开、指数快照、股东前十过滤、Wind 未探测短路、akshare 资金流代理旁路）。本文件中描述的拓扑、存储与工作流边界均未改变。
+
+2026-11-27 OpenBB 只登记 `external_data/equity_daily`；未进入 ETF 周报数据合同、期间或字段映射，也不改变周报取数来源。

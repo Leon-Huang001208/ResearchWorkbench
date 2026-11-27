@@ -5,11 +5,17 @@ from concurrent.futures import Future
 
 from core.observability import get_logger
 
-from . import providers_akshare, providers_baostock, providers_cjpy, providers_wind
+from . import (
+    providers_akshare,
+    providers_baostock,
+    providers_cjpy,
+    providers_openbb,
+    providers_wind,
+)
 from .providers import ProviderError
 
 log = get_logger(__name__)
-SOURCES = frozenset({"tinysoft", "akshare", "wind", "baostock"})
+SOURCES = frozenset({"tinysoft", "akshare", "wind", "baostock", "openbb"})
 
 
 def source_futures(source: str) -> tuple[Future, ...]:
@@ -20,6 +26,7 @@ def source_futures(source: str) -> tuple[Future, ...]:
         "tinysoft": providers_cjpy,
         "akshare": providers_akshare,
         "baostock": providers_baostock,
+        "openbb": providers_openbb,
         "wind": providers_wind,
     }.get(source)
     return module.active_futures() if module is not None else ()

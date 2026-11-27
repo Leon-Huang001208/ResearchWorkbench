@@ -315,6 +315,16 @@ def resolve(
                 if query.source == "bea_archive":
                     unsupported_code, unsupported_source = reason, source_id
                 log.info("datahub_bea_query_rejected", reason=reason)
+        if reason is None and source_id == "openbb":
+            from .providers_openbb import validate as validate_openbb_query
+
+            try:
+                validate_openbb_query(query)
+            except ProviderError as exc:
+                reason = str(exc)
+                if query.source == "openbb":
+                    unsupported_code, unsupported_source = reason, source_id
+                log.info("datahub_openbb_query_rejected", reason=reason)
         if (
             reason is None
             and source_id == "wind"
@@ -382,7 +392,11 @@ def resolve(
                 else (
                     "天软因子请求口径不受支持"
                     if query.capability == "factor_macro" and unsupported_source == "tinysoft"
-                    else f"{ {'wind': 'Wind', 'baostock': 'BaoStock'}.get(source_id, 'AKShare')} 请求口径不受支持"
+                    else (
+                        "OpenBB 请求口径不受支持"
+                        if unsupported_source == "openbb"
+                        else f"{ {'wind': 'Wind', 'baostock': 'BaoStock'}.get(source_id, 'AKShare')} 请求口径不受支持"
+                    )
                 )
             )
             raise StoreError(message, unsupported_code, 400)
