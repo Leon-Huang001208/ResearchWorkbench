@@ -5,11 +5,13 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import re
 import threading
 import time
 from calendar import monthrange
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -558,6 +560,10 @@ def _fund_flow_guest(query):
             raise ValueError("invalid_lines")
         rows = []
         previous = None
+        # Verified against the live endpoint (2026-11-27): each kline carries
+        # 15 comma-separated values in the vendor's documented order
+        # (date + f51..f65). Values are reordered by name, never positionally
+        # mislabelled when the upstream stops sending the two trailing fields.
         names = (
             "日期",
             "主力净流入-净额",
@@ -565,7 +571,15 @@ def _fund_flow_guest(query):
             "中单净流入-净额",
             "大单净流入-净额",
             "超大单净流入-净额",
-            *(f"f{index}" for index in range(57, 66)),
+            "主力净流入-净占比",
+            "小单净流入-净占比",
+            "中单净流入-净占比",
+            "大单净流入-净占比",
+            "超大单净流入-净占比",
+            "收盘价",
+            "涨跌幅",
+            "-",
+            "-",
         )
         for line in lines:
             parts = line.split(",") if isinstance(line, str) else []
@@ -1178,6 +1192,27 @@ def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
     return normalized
 
 
+@contextmanager
+def _direct_connection():
+    """Run a fixed SDK call without the host's possibly-stale system proxy."""
+    names = ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY")
+    previous = {name: os.environ.get(name) for name in names}
+    os.environ.update(
+        HTTP_PROXY="",
+        HTTPS_PROXY="",
+        ALL_PROXY="",
+        NO_PROXY="*",
+    )
+    try:
+        yield
+    finally:
+        for name, value in previous.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+
+
 def _fund_flow_failure_code(error: Exception) -> str:
     """Classify SDK HTTP failures without persisting messages, URLs or proxy settings."""
     names = {kind.__name__ for kind in type(error).__mro__}
@@ -1383,8 +1418,13 @@ def _invoke_sdk(query: BusinessQuery):
     if capability == "market_activity":
         symbol = _symbol(str(parameters["asset"]))
         market = _exchange_symbol(str(parameters["asset"]))[:2]
+        # ``akshare`` calls ``requests`` without a timeout and inherits the
+        # system proxy, which can block far past the shared deadline. Bound the
+        # SDK call and bypass a stale proxy; the guest endpoint stays a fallback
+        # only, so a working SDK still keeps its reviewed field validation.
         try:
-            frame = ak.stock_individual_fund_flow(stock=symbol, market=market)
+            with _direct_connection():
+                frame = ak.stock_individual_fund_flow(stock=symbol, market=market)
         except Exception as exc:  # noqa: BLE001 - fixed SDK boundary.
             error_code = _fund_flow_failure_code(exc)
             log.warning("datahub_fund_flow_sdk_failed", error_code=error_code)

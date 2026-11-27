@@ -417,18 +417,61 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
             raise ProviderError("tinysoft_directory_invalid")
         needle = str(parameters.get("query", "")).strip().casefold()
         if needle and re.fullmatch(r"[a-z0-9.]+", needle) is None:
-            raise ProviderError("data_not_equivalent")
-        selected = [
-            code
-            for code in stocks
-            if not needle
-            or needle in code.casefold()
-            or needle in f"{code[2:]}.{code[:2]}".casefold()
-        ]
+            # Chinese names live in the factor directory, not the code list.
+            # Resolve them with one bounded batch call instead of rejecting the
+            # query; the whole market is a single 1-2 second vendor response.
+            today = datetime.now(SHANGHAI_TZ).date().isoformat()
+            frame = cjpy.get_factor_data(
+                code=stocks,
+                date=today,
+                factors=["上市日期"],
+                client=client,
+            )
+            # The full A-share directory exceeds the generic 5000-row ceiling;
+            # this is a bounded single response used only for name matching.
+            if hasattr(frame, "to_dict"):
+                directory = frame.to_dict(orient="records")
+            elif isinstance(frame, list):
+                directory = frame
+            else:
+                raise ProviderError("tinysoft_directory_invalid")
+            if not isinstance(directory, list) or len(directory) > 20000:
+                raise ProviderError("tinysoft_directory_invalid")
+            if _contains_secret(directory, effective_token):
+                raise ProviderError("credential_reflection")
+            named = []
+            for row in directory:
+                code, name = row.get("代码"), row.get("名称")
+                if not isinstance(code, str) or not isinstance(name, str):
+                    raise ProviderError("tinysoft_directory_identity_invalid")
+                if code not in stocks or not name.strip() or len(name) > 120:
+                    raise ProviderError("tinysoft_directory_identity_invalid")
+                named.append((code, name.strip()))
+            if len(named) != len(stocks):
+                raise ProviderError("tinysoft_directory_incomplete")
+            selected_names = {
+                code: name
+                for code, name in named
+                if needle in code.casefold()
+                or needle in f"{code[2:]}.{code[:2]}".casefold()
+                or needle in name.casefold()
+            }
+            codes = [code for code, _ in named if code in selected_names]
+        else:
+            selected_names = {}
+            codes = [
+                code
+                for code in stocks
+                if not needle
+                or needle in code.casefold()
+                or needle in f"{code[2:]}.{code[:2]}".casefold()
+            ]
+        selected = codes
         rows = [
             {
                 "asset": f"{code[2:]}.{code[:2]}",
                 "code": code[2:],
+                "name": selected_names.get(code),
                 "exchange": code[:2],
                 "asset_type": "stock",
             }
@@ -449,14 +492,52 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
         return result
     elif query.capability == "trading_calendar":
         start, end = _required_date_range(parameters)
-        rows = _rows(
-            cjpy.get_trading_days(
-                start=start,
-                end=end,
-                cycle="D",
-                client=client,
-            )
+        trading = cjpy.get_trading_days(
+            start=start,
+            end=end,
+            cycle="D",
+            client=client,
         )
+        if not isinstance(trading, list) or any(not isinstance(day, str) for day in trading):
+            raise ProviderError("tinysoft_calendar_invalid")
+        try:
+            open_days = {
+                date.fromisoformat(f"{day[:4]}-{day[4:6]}-{day[6:]}")
+                for day in trading
+                if re.fullmatch(r"[0-9]{8}", day)
+            }
+        except ValueError:
+            raise ProviderError("tinysoft_calendar_invalid") from None
+        if len(open_days) != len(trading):
+            raise ProviderError("tinysoft_calendar_invalid")
+        begin, finish = date.fromisoformat(start), date.fromisoformat(end)
+        # The vendor returns only open sessions; the tool contract promises an
+        # explicit open/closed verdict for every calendar day in the range.
+        rows = [
+            {
+                "date": (begin + timedelta(days=offset)).isoformat(),
+                "market": "CN",
+                "is_trading_day": begin + timedelta(days=offset) in open_days,
+            }
+            for offset in range((finish - begin).days + 1)
+        ]
+        result = Result(
+            rows=rows,
+            raw=[json.dumps(trading, ensure_ascii=False).encode()],
+            source_url=SOURCE_URL,
+            provider_id="tinysoft",
+            provider_total=len(rows),
+            pagination_complete=True,
+        )
+        result.fields = {
+            "date": {"unit": None, "currency": None},
+            "market": {"unit": None, "currency": None},
+            "is_trading_day": {"unit": None, "currency": None},
+        }
+        result.limitations.append(
+            "天软只返回已发布开市日；区间内其余自然日按休市列出，未单独证明交易所临时安排。"
+        )
+        return result
     elif query.capability in {"market_bars", "market_snapshot"}:
         asset = parameters.get("asset")
         if asset is None:
@@ -519,6 +600,33 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
         )
         if query.capability == "market_snapshot" and rows:
             rows = rows[-1:]
+    elif query.capability == "index_data":
+        index = parameters.get("index")
+        if (
+            not isinstance(index, str)
+            or re.fullmatch(r"(?:000[0-9]{3}|93[0-9]{4})\.SH|399[0-9]{3}\.SZ", index) is None
+        ):
+            raise ProviderError("data_not_equivalent")
+        if parameters.get("dataset") not in (None, "quotes"):
+            raise ProviderError("data_not_equivalent")
+        today = datetime.now(SHANGHAI_TZ).date()
+        rows = _rows(
+            cjpy.get_market_data(
+                code=canonical_vendor_code(index),
+                start=(today - timedelta(days=14)).isoformat(),
+                end=today.isoformat(),
+                cycle="day",
+                rate="不复权",
+                client=client,
+            )
+        )
+        if rows:
+            # Latest available close; identity is re-checked below.
+            rows = rows[-1:]
+            if any(
+                str(row.get("代码", "")).upper() != canonical_vendor_code(index) for row in rows
+            ):
+                raise ProviderError("index_identity_mismatch")
     else:
         raise ProviderError("tinysoft_capability_unsupported")
     if _contains_secret(rows, effective_token):

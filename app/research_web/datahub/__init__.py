@@ -945,6 +945,14 @@ class DataHub:
         async def fetch(resolution):
             self.execution_sources.setdefault((sid, call_id), set()).add(resolution.provider_id)
             before = self.source_configuration_digest(resolution.provider_id)
+            if resolution.provider_id == "wind" and self._latest_probes().get("wind", {}).get(
+                "health"
+            ) not in {"healthy", "degraded"}:
+                # Wind's availability check launches Excel and can burn the
+                # whole shared deadline. Without an explicit probe the source
+                # has no evidence of a live session, so skip it (a fallback
+                # attempt still reaches the next authorized source).
+                raise providers.ProviderError("wind_not_logged_in")
             self._authorize_query(
                 sid,
                 query.model_copy(

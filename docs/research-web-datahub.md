@@ -747,3 +747,5 @@ Provider、Broker 选源、仓库与快照拓扑未变；快照仍不参与 `pla
 该厂商用 `code: 20000` 表示成功，而通用 `response_rows` 只接受 `0/200`，改域后仍会被判为 `vendor_rejected`。修复只在 `providers_wscn.py` 内做封闭投影：校验私有成功码、`data.items` 列表、行 `id` 唯一与类型、必需字段及 `display_time`，异常统一收敛为 `external_wscn_schema_invalid`；不放宽其他来源的信封规则。`providers_external.fetch` 的业务分支按 `source_id` 分流到该投影，Broker、仓库、快照与调度拓扑不变。
 
 真实公网实测 `lives` 取回 100 条、`articles` 取回 30 条，单次响应标记 `partial`；采集调度与常驻实例的定时任务未在本次重跑，登记状态继续保持 `code_integrated_not_live_verified`。完整证据见 [端点恢复报告](../.ai/reports/2026-11-26-wallstreetcn-endpoint-recovery.md)。
+
+2026-11-27 九业务工具真实取数复核：天软中文名检索改走目录因子表一次批量解析（全市场5581只约1.8秒），`trading_calendar`展开为区间每日开休市判定，新增`index_data`仅取最新指数快照并复核代码身份。天软十大股东只取最新报告期前10名，历史期第11–13名不再使整表失败。`market_activity`未探测的Wind在`auto`下后移并在执行前短路，避免可用性检查启动Excel耗尽预算。akshare资金流SDK旁路失效系统代理、失败后回退同源guest端点；guest 15字段顺序按真实响应校正。均只证明所列参数的单次真实调用。

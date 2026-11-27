@@ -150,6 +150,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "trading_calendar",
         "market_bars",
         "market_snapshot",
+        "index_data",
         "factor_macro",
         "financials",
         "market_activity",
@@ -1122,11 +1123,70 @@ def test_akshare_stock_snapshot_keeps_explicit_exchange_identity():
     assert rows[0]["asset"] == "000001.SH"
 
 
+def test_fund_flow_guest_maps_live_fifteen_field_kline(monkeypatch):
+    """Regression: the live endpoint sends 15 fields in f51..f65 order."""
+    import json
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    line = (
+        "2026-11-26,288492400.0,-165478.0,-288326912.0,341643120.0,-53150720.0,"
+        "6.08,-0.00,-6.07,7.20,-1.12,1469.00,-0.40,0.00,0.00"
+    )
+    payload = {
+        "rc": 0,
+        "data": {"code": "600519", "market": 1, "name": "贵州茅台", "klines": [line]},
+    }
+
+    class Reply:
+        status_code = 200
+
+        def iter_bytes(self):
+            yield json.dumps(payload).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+    class Client:
+        def __init__(self, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+        def stream(self, *_args, **_kwargs):
+            return Reply()
+
+    monkeypatch.setattr(provider.httpx, "Client", Client)
+    frame, _normalizer = provider._fund_flow_guest(
+        BusinessQuery(
+            capability="market_activity",
+            source="akshare",
+            parameters={
+                "asset": "600519.SH",
+                "dataset": "fund_flow",
+                "start_date": "2026-11-26",
+                "end_date": "2026-11-26",
+            },
+        )
+    )
+    row = frame.to_dict(orient="records")[0]
+    assert row["主力净流入-净额"] == 288492400.0
+    assert row["小单净流入-净额"] == -165478.0
+    assert row["超大单净流入-净占比"] == -1.12
+    assert row["收盘价"] == 1469.0
+
+
 @pytest.mark.parametrize(
     "capability,parameters,expected_code",
     [
         ("trading_calendar", {"market": "CN"}, "data_capability_unavailable"),
-        ("index_data", {"index": "000300.SH", "dataset": "quotes"}, "data_capability_unavailable"),
         ("factor_macro", {"series": "adjustment_metadata"}, "data_capability_unavailable"),
     ],
 )

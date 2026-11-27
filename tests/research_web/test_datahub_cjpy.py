@@ -198,6 +198,47 @@ def query(series="adjustment_factors", **parameters):
 
 
 @pytest.mark.asyncio
+async def test_calendar_expands_open_days_into_explicit_daily_verdicts(sdk):
+    package, _calls, _definitions = sdk
+    package.get_trading_days = lambda **kwargs: ["20261124", "20261126"]
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="trading_calendar",
+            source="tinysoft",
+            parameters={"market": "CN", "start_date": "2026-11-24", "end_date": "2026-11-26"},
+        ),
+        token="synthetic-token",
+    )
+    assert result.status == "complete"
+    assert result.rows == [
+        {"date": "2026-11-24", "market": "CN", "is_trading_day": True},
+        {"date": "2026-11-25", "market": "CN", "is_trading_day": False},
+        {"date": "2026-11-26", "market": "CN", "is_trading_day": True},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_index_quote_uses_latest_index_close_with_identity_check(sdk):
+    package, _calls, _definitions = sdk
+    package.get_market_data = lambda **kwargs: [
+        {"代码": "SH000300", "简称": "沪深300", "时间": "2026-11-26", "close": 3900.55},
+        {"代码": "SH000300", "简称": "沪深300", "时间": "2026-11-27", "close": 3890.06},
+    ]
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="index_data",
+            source="tinysoft",
+            parameters={"index": "000300.SH", "dataset": "quotes"},
+        ),
+        token="synthetic-token",
+    )
+    assert result.status == "complete"
+    assert result.rows == [
+        {"代码": "SH000300", "简称": "沪深300", "时间": "2026-11-27", "close": 3890.06}
+    ]
+
+
+@pytest.mark.asyncio
 async def test_closed_factor_series_normalizes_exact_days_and_keeps_original_evidence(sdk):
     _package, calls, _definitions = sdk
     request = query(assets=["000001.SZ"], dates=["2024-01-03", "2024-01-02"])
