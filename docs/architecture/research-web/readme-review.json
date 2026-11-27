@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核仓库规划可覆盖能力的审计；根 README 无需更改。",
-  "reason": "本次只补注释与回归断言，说明 market_bars 走 WarehouseBridge 的按日期缺口规划，financials 与 market_activity 走 SnapshotSeries 的单时点快照路径且不调用 find_gaps，因此不能靠改常量并入规划。未改行为，未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑。"
+  "summary": "复核新增 OpenBB DataHub Provider 后根 README 无需更改。",
+  "reason": "OpenBB 是可选、默认未配置的数据来源，需开发者显式设置 RWB_OPENBB_PYTHON 指向独立解释器；未新增 Web 安装命令、锁定依赖、账号、凭据流程或默认运行拓扑，根 README 的安装与入口说明保持不变。"
 }

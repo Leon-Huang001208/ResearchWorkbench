@@ -22,3 +22,6 @@ OpenBB 是第三方转发，不是原始来源。`purpose=backtest`、`as_of`、
 未执行：GitHub CI、真实 Windows/Linux、常驻服务部署、OpenBB 其他 provider 或数据集。
 
 Product-Progress: not-required — 本次仅新增可选 DataHub 来源和开发文档，用户可见进度尚未确认发布。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"新增一个首类 SDK 来源及固定 external_data 数据集，沿用既有 Broker→Provider→会话快照边界，无新增服务、数据库、路由或仓库拓扑；只在既有 provider dispatch、catalog、probe 与 worker_activity 上增加封闭分支。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只把新增 Provider、worker 与测试登记进既有 mcp_datahub_only 路径闭包和 verification-policy 的 inbound-mcp 文件清单，复用原 runner、job、权限与平台门，不改 CI 拓扑。","diagrams":[]} -->
