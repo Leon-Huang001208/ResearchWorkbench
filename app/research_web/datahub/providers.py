@@ -486,6 +486,10 @@ async def supplement(client, query, result):
 
 async def fetch(query: Query | BusinessQuery, *, transport=None, connections=None):
     if isinstance(query, BusinessQuery):
+        if query.source == "openbb":
+            from .providers_openbb import fetch as openbb_fetch
+
+            return await openbb_fetch(query, connections=connections)
         if query.capability == "market_bars" and query.source == "ext_finance_mcp":
             from .providers_finance_market import fetch_market
 
@@ -597,6 +601,10 @@ async def probe(source_id: str, *, transport=None, connections=None):
         from .providers_akshare import probe as akshare_probe
 
         return await akshare_probe()
+    if source_id == "openbb":
+        from .providers_openbb import probe as openbb_probe
+
+        return await openbb_probe()
     if source_id == "bea_archive":
         from .providers_bea_archive import PERIOD, SERIES
         from .providers_bea_archive import fetch as bea_fetch

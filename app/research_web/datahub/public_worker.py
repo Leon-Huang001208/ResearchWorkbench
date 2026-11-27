@@ -24,7 +24,7 @@ from .providers import MAX_QUERY_BYTES, MAX_ROWS, ProviderError, Result
 
 log = get_logger(__name__)
 DEADLINE = 12
-SOURCES = frozenset({"baostock", "akshare"})
+SOURCES = frozenset({"baostock", "akshare", "openbb"})
 
 
 class _BoundedPublicSocket(socket.socket):
@@ -166,7 +166,9 @@ def main() -> int:
                 log.info(
                     "datahub_public_worker_transport", source=source, policy="anonymous_direct"
                 )
-            if source == "baostock":
+            if source == "openbb":
+                from .providers_openbb import invoke
+            elif source == "baostock":
                 from .providers_baostock import invoke
             else:
                 from .providers_akshare import invoke_public as invoke
