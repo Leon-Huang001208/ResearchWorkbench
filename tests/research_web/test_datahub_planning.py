@@ -69,6 +69,34 @@ class PlannableTests(unittest.TestCase):
         # independent of the source so an explicit source can hit the warehouse.
         self.assertTrue(plannable(bar_query(source="akshare")))
 
+    def test_plannable_is_the_single_source_of_truth(self):
+        # ``warehouse.missing_queries`` delegates to this predicate. If someone
+        # re-adds an inline condition there, the two can disagree and a
+        # capability silently gains or loses planning.
+        import inspect
+
+        from app.research_web.datahub import warehouse
+
+        source = inspect.getsource(warehouse.WarehouseBridge.missing_queries)
+        self.assertIn("plannable(query)", source)
+        self.assertNotIn('capability != "market_bars"', source)
+
+    def test_every_plannable_capability_is_named_explicitly(self):
+        from app.research_web.datahub.planning import PLANNABLE_CAPABILITIES
+
+        self.assertEqual(PLANNABLE_CAPABILITIES, frozenset({"market_bars"}))
+
+    def test_capabilities_without_per_date_rows_stay_direct(self):
+        for capability, parameters in (
+            ("market_snapshot", {"assets": ["600519.SH"], "asset_type": "stock"}),
+            ("financials", {"asset": "600519.SH", "statements": ["metrics"]}),
+            ("search_assets", {"query": "茅台"}),
+        ):
+            with self.subTest(capability=capability):
+                self.assertFalse(
+                    plannable(BusinessQuery(capability=capability, parameters=parameters))
+                )
+
 
 class MergeDaysTests(unittest.TestCase):
     def test_empty(self):
