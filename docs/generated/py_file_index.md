@@ -5442,7 +5442,7 @@ Functions:
 - `_submit`
 - `_invoke`
 - `validate`
-  - Reject everything outside the reviewed fixed equity-daily binding.
+  - Reject everything outside the reviewed fixed equity datasets.
 - `_arguments`
   - Fixed business inputs only; no endpoint, header, credential or module.
 - `fetch`

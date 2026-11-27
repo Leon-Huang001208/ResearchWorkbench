@@ -295,12 +295,14 @@ Wind 的日线、资金流与融资融券入口在 adapter 初始化前验证 IS
 
 ## 查询与来源
 
-### OpenBB 固定美股日线（2026-11-27）
+### OpenBB 固定美股日线与基本面（2026-11-27）
 
-`openbb` 是首类 SDK 来源，不是 `external_sources.json` 的固定端点。它只登记
-`external_data/equity_daily` 一个封闭数据集，参数必须放在 `arguments_json`：
-`params.symbol`、`params.provider`（`nasdaq`／`cboe`／`tmx`）与
-`query.start_date`／`end_date`；其他 key、任意路由、表达式和字段直接拒绝。
+`openbb` 是首类 SDK 来源，不是 `external_sources.json` 的固定端点。它登记五个封闭数据集：
+`equity_daily`、`equity_income`、`equity_balance`、`equity_cash`、`equity_ratios`。
+日线参数为 `params.symbol`、`params.provider`（`nasdaq`／`cboe`／`tmx`）与
+`query.start_date`／`end_date`；基本面参数为 `params.symbol`、`params.provider`、
+`params.period`（`annual`／`quarter`）、`params.limit`（1–20），不接受日期。
+其他 key、任意路由、表达式和字段直接拒绝。
 
 OpenBB 及其依赖安装在 `RWB_OPENBB_PYTHON` 指向的独立解释器，Host 不导入该 SDK。
 每次查询由 `public_worker.py` 启动固定 argv 的有界子进程，最小环境、临时 HOME、30 秒上限；

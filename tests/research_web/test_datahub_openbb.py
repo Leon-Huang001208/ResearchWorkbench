@@ -73,9 +73,43 @@ def test_fixed_arguments_accept_the_reviewed_contract():
     assert providers_openbb._arguments(arguments()) == {
         "symbol": "AAPL",
         "provider": "nasdaq",
+        "period": "annual",
+        "limit": 4,
         "start": "2026-11-20",
         "end": "2026-11-25",
     }
+
+
+def test_fundamental_arguments_use_fixed_period_and_limit():
+    value = json.dumps({"params": {"symbol": "AAPL", "provider": "nasdaq"}})
+    assert providers_openbb._arguments(value) == {
+        "symbol": "AAPL",
+        "provider": "nasdaq",
+        "period": "annual",
+        "limit": 4,
+    }
+    value = json.dumps(
+        {"params": {"symbol": "AAPL", "provider": "nasdaq", "period": "quarter", "limit": 2}}
+    )
+    assert providers_openbb._arguments(value)["period"] == "quarter"
+    assert providers_openbb._arguments(value)["limit"] == 2
+    for invalid in (
+        {"period": "monthly"},
+        {"limit": 0},
+        {"limit": 21},
+        {"limit": True},
+        {"period": "annual", "start_date": "2026-01-01"},
+    ):
+        with pytest.raises(ProviderError):
+            providers_openbb._arguments(json.dumps({"params": {"symbol": "AAPL", **invalid}}))
+
+
+def test_fundamental_datasets_are_reviewed_and_priced_by_the_contract():
+    for dataset in ("equity_income", "equity_balance", "equity_cash", "equity_ratios"):
+        assert dataset in providers_openbb.FUNDAMENTAL_DATASETS
+        assert dataset in providers_openbb.DATASETS
+    assert providers_openbb.PRICE_DATASET in providers_openbb.DATASETS
+    assert "equity_snapshot" not in providers_openbb.DATASETS
 
 
 def test_backtest_and_historical_semantics_are_rejected_before_start():
@@ -186,7 +220,13 @@ def test_catalog_exposes_openbb_only_when_the_interpreter_is_configured(monkeypa
         if binding["capability_id"] == "external_data" and binding["source_id"] == "openbb"
     ]
     assert len(external) == 1
-    assert external[0]["datasets"] == ["equity_daily"]
+    assert external[0]["datasets"] == [
+        "equity_daily",
+        "equity_income",
+        "equity_balance",
+        "equity_cash",
+        "equity_ratios",
+    ]
 
     monkeypatch.setattr(providers_openbb, "interpreter", lambda: "/opt/openbb/python")
     catalog = build_catalog(environ={})
@@ -199,7 +239,13 @@ def test_catalog_exposes_openbb_only_when_the_interpreter_is_configured(monkeypa
         if binding["capability_id"] == "external_data" and binding["source_id"] == "openbb"
     ]
     assert len(external) == 1
-    assert external[0]["datasets"] == ["equity_daily"]
+    assert external[0]["datasets"] == [
+        "equity_daily",
+        "equity_income",
+        "equity_balance",
+        "equity_cash",
+        "equity_ratios",
+    ]
     assert external[0]["implemented"] is True
 
 
