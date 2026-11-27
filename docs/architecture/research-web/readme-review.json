@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核仓库规划可覆盖能力的审计；根 README 无需更改。",
-  "reason": "本次只补注释与回归断言，说明 market_bars 走 WarehouseBridge 的按日期缺口规划，financials 与 market_activity 走 SnapshotSeries 的单时点快照路径且不调用 find_gaps，因此不能靠改常量并入规划。未改行为，未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑。"
+  "summary": "复核 DataHub 九业务工具真实取数修复；根 README 无需更改。",
+  "reason": "本次修正 Provider 到业务行的映射与执行短路：天软中文名检索走目录因子表单次批量、交易日历展开为每日开休市、新增 index_data 最新快照、股东只取最新报告期前十、未探测 Wind 在 market_activity 下后移并执行前短路、akshare 资金流旁路失效系统代理并校正 guest 字段顺序。未新增运行节点、公开安装命令、锁定依赖、账号、凭据流程、配置项或运行拓扑，根 README 与安装入口不变。"
 }
