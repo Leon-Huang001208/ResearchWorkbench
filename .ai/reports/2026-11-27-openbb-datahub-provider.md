@@ -4,8 +4,9 @@ macOS arm64，功能开发。OpenBB 5.0.0 及 217 个依赖安装在
 `/Users/leon/Developer/openbb/.venv`（`openbb[routers]`，`openbb-build` 已执行），
 RWB Web 环境未新增依赖。
 
-接入只开放 `external_data/equity_daily`：`args.params.symbol`、`provider`
-（`nasdaq`/`cboe`/`tmx`）与 `args.query.start_date`/`end_date`。Host 不导入 SDK，
+接入开放 `external_data` 的五个封闭数据集：`equity_daily`（`symbol`、`provider`、起止日期）
+与 `equity_income`/`equity_balance`/`equity_cash`/`equity_ratios`
+（`symbol`、`provider`、`period=annual|quarter`、`limit=1..20`）。Host 不导入 SDK，
 每次调用由 `RWB_OPENBB_PYTHON` 指向的解释器运行固定 `public_worker openbb` 子进程，
 最小环境、临时 HOME、30 秒上限，父进程校验固定 Result schema。未配置解释器时
 `blocked_dependency`；binding 仍登记，固定来源请求明确不可用，不换源。
@@ -15,6 +16,10 @@ RWB Web 环境未新增依赖。
 匿名返回 HTTP 403；`tmx` 同样失败。单位、币种、PIT、历史修订未认证；
 OpenBB 是第三方转发，不是原始来源。`purpose=backtest`、`as_of`、
 `required_semantics` 拒绝，也未进入研究仓 `PUBLIC_NUMERIC` 白名单。
+
+四类基本面单独经同一 DataHub 链路实测：AAPL 2025/2026 两个财年、各 2 行，
+`status=snapshot`、`data_success=true`，单次约 8–10 秒。金额单位与币种由 OpenBB
+原样透传、未统一声明；`period_ending` 是期间截止日而非公告日；修订、重述与 PIT 未认证。
 
 已验证：`test_datahub_openbb.py` 9 项、DataHub catalog/connection/外部源/清单相关
 回归、`verification_policy` 与 `actions_quota_governance` 148 项 JS。

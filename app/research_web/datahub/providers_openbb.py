@@ -32,9 +32,17 @@ from .providers import MAX_QUERY_BYTES, MAX_ROWS, ProviderError, Result
 log = get_logger(__name__)
 DEADLINE = 30
 PROBE_DEADLINE = 12
-CONTRACT = "openbb-equity-daily-v1"
+CONTRACT = "openbb-equity-v2"
 PYTHON_ENV = "RWB_OPENBB_PYTHON"
-DATASET = "equity_daily"
+PRICE_DATASET = "equity_daily"
+FUNDAMENTAL_DATASETS = {
+    "equity_income": ("income", "income_statement"),
+    "equity_balance": ("balance", "balance_sheet"),
+    "equity_cash": ("cash", "cash_flow"),
+    "equity_ratios": ("ratios", "ratios"),
+}
+DATASETS = frozenset({PRICE_DATASET, *FUNDAMENTAL_DATASETS})
+PERIODS = frozenset({"annual", "quarter"})
 PROVIDERS = frozenset({"nasdaq", "cboe", "tmx"})
 SAFE_CODES = frozenset(
     {
@@ -49,6 +57,8 @@ SAFE_CODES = frozenset(
         "invalid_provider",
         "invalid_frequency",
         "invalid_adjustment",
+        "invalid_period",
+        "invalid_limit",
         "row_limit",
         "openbb_historical_semantics_unsupported",
         "openbb_arguments_unsupported",
@@ -168,11 +178,11 @@ def _invoke(query: BusinessQuery) -> Result:
 
 
 def validate(query: BusinessQuery) -> None:
-    """Reject everything outside the reviewed fixed equity-daily binding."""
+    """Reject everything outside the reviewed fixed equity datasets."""
     if query.source != "openbb" or query.capability != "external_data":
         raise ProviderError("data_operation_unsupported")
     dataset = query.parameters.get("dataset")
-    if dataset != DATASET:
+    if dataset not in DATASETS:
         raise ProviderError("data_operation_unsupported")
     _arguments(query.parameters.get("arguments_json"))
     if query.parameters.get("limit") not in (None, MAX_ROWS):
@@ -192,15 +202,12 @@ def _arguments(value) -> dict:
         raise ProviderError("openbb_arguments_unsupported")
     params = parsed.get("params", {})
     query_args = parsed.get("query", {})
-    if set(params) - {"symbol", "provider"} or set(query_args) - {
-        "start_date",
-        "end_date",
-    }:
+    if set(params) - {"symbol", "provider", "period", "limit"}:
         raise ProviderError("openbb_arguments_unsupported")
     symbol = params.get("symbol")
     provider = params.get("provider")
-    start_date = query_args.get("start_date")
-    end_date = query_args.get("end_date")
+    period = params.get("period", "annual")
+    limit = params.get("limit", 4)
     if (
         not isinstance(symbol, str)
         or len(symbol) > 32
@@ -209,18 +216,36 @@ def _arguments(value) -> dict:
         raise ProviderError("invalid_asset")
     if not isinstance(provider, str) or provider not in PROVIDERS:
         raise ProviderError("invalid_provider")
-    for boundary in (start_date, end_date):
-        if not isinstance(boundary, str) or not re.fullmatch(
-            r"[0-9]{4}-[0-9]{2}-[0-9]{2}", boundary
-        ):
+    if not isinstance(period, str) or period not in PERIODS:
+        raise ProviderError("invalid_period")
+    if type(limit) is not int or not 1 <= limit <= 20:
+        raise ProviderError("invalid_limit")
+
+    def _day(name: str) -> str:
+        value = query_args.get(name)
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
             raise ProviderError("invalid_date_range")
         try:
-            date.fromisoformat(boundary)
+            date.fromisoformat(value)
         except ValueError:
             raise ProviderError("invalid_date_range") from None
-    if start_date > end_date:
-        raise ProviderError("invalid_date_range")
-    return {"symbol": symbol, "provider": provider, "start": start_date, "end": end_date}
+        return value
+
+    if query_args:
+        if set(query_args) != {"start_date", "end_date"}:
+            raise ProviderError("openbb_arguments_unsupported")
+        start, end = _day("start_date"), _day("end_date")
+        if start > end:
+            raise ProviderError("invalid_date_range")
+        return {
+            "symbol": symbol,
+            "provider": provider,
+            "period": period,
+            "limit": limit,
+            "start": start,
+            "end": end,
+        }
+    return {"symbol": symbol, "provider": provider, "period": period, "limit": limit}
 
 
 async def fetch(query: BusinessQuery, *, connections=None) -> Result:
@@ -231,6 +256,8 @@ async def fetch(query: BusinessQuery, *, connections=None) -> Result:
     try:
         return await asyncio.shield(asyncio.wrap_future(future))
     except asyncio.CancelledError:
+        # The child is bounded by DEADLINE below and will exit on its own; keep
+        # capacity held until it actually ends so a retry never overlaps it.
         log.info("datahub_openbb_cancelled")
         raise
 
@@ -242,7 +269,7 @@ async def probe() -> dict:
         capability="external_data",
         source="openbb",
         parameters={
-            "dataset": DATASET,
+            "dataset": PRICE_DATASET,
             "arguments_json": json.dumps(
                 {
                     "params": {"symbol": "AAPL", "provider": "nasdaq"},
@@ -274,9 +301,46 @@ def invoke(query: BusinessQuery) -> Result:
     inputs = _arguments(query.parameters.get("arguments_json"))
     symbol = inputs["symbol"]
     provider = inputs["provider"]
-    output = obb.equity.price.historical(
-        symbol, start_date=inputs["start"], end_date=inputs["end"], provider=provider
-    )
+    dataset = query.parameters.get("dataset")
+    if dataset == PRICE_DATASET:
+        if not {"start", "end"}.issubset(inputs):
+            raise ProviderError("invalid_date_range")
+        output = obb.equity.price.historical(
+            symbol, start_date=inputs["start"], end_date=inputs["end"], provider=provider
+        )
+        source_url = "https://docs.openbb.co/python/reference/equity/price/historical"
+        dataset_fields = {
+            "date": {"type": "date", "unit": "date"},
+            "open": {"type": "number", "unit": "currency_per_share"},
+            "high": {"type": "number", "unit": "currency_per_share"},
+            "low": {"type": "number", "unit": "currency_per_share"},
+            "close": {"type": "number", "unit": "currency_per_share"},
+            "volume": {"type": "number", "unit": "share"},
+        }
+        extra_limitations = ["未声明币种，未认证历史修订与 PIT。"]
+    else:
+        if inputs.get("start") or inputs.get("end"):
+            raise ProviderError("openbb_arguments_unsupported")
+        method, statement = FUNDAMENTAL_DATASETS[dataset]
+        call = getattr(obb.equity.fundamental, method)
+        output = call(
+            symbol,
+            period=inputs["period"],
+            limit=inputs["limit"],
+            provider=provider,
+        )
+        source_url = f"https://docs.openbb.co/python/reference/equity/fundamental/{method}"
+        dataset_fields = {
+            "symbol": {"type": "string", "unit": "identifier"},
+            "period_ending": {"type": "date", "unit": "date"},
+            "fiscal_period": {"type": "string", "unit": "period"},
+            "fiscal_year": {"type": "integer", "unit": "year"},
+        }
+        extra_limitations = [
+            f"报表口径为 {statement}；金额单位与币种未由 OpenBB 统一声明。",
+            "period_ending 是财务期间截止日，不等于公告日或可得日。",
+            "未认证历史修订、重述与 PIT。",
+        ]
     frame = output.to_dataframe().reset_index()
     raw = frame.to_csv(index=False).encode()
     rows = []
@@ -292,27 +356,23 @@ def invoke(query: BusinessQuery) -> Result:
     result = Result(
         rows=rows,
         raw=[raw],
-        source_url="https://docs.openbb.co/python/reference/equity/price/historical",
+        source_url=source_url,
         status="snapshot" if rows else "empty",
         pages_fetched=1,
         pagination_complete=True,
         provider_id="openbb",
-        fields={
-            "date": {"type": "date", "unit": "date"},
-            "open": {"type": "number", "unit": "currency_per_share"},
-            "high": {"type": "number", "unit": "currency_per_share"},
-            "low": {"type": "number", "unit": "currency_per_share"},
-            "close": {"type": "number", "unit": "currency_per_share"},
-            "volume": {"type": "number", "unit": "share"},
-        },
+        fields=dataset_fields,
         limitations=[
             "经 OpenBB 的 provider 转发；OpenBB 不是原始来源，需按原始来源单独核验。",
-            "未声明币种，未认证历史修订与 PIT。",
+            *extra_limitations,
         ],
         metadata={
             "schema_version": CONTRACT,
             "upstream_id": "openbb",
             "openbb_provider": provider,
+            "openbb_dataset": dataset,
+            "openbb_period": inputs["period"] if dataset != PRICE_DATASET else None,
+            "openbb_limit": inputs["limit"] if dataset != PRICE_DATASET else None,
             "transport": "openbb_sdk_subprocess",
             "independent_source": False,
         },

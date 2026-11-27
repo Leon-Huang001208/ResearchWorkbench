@@ -57,16 +57,20 @@ FRED 转换还会删除缺失行和每条观察的 realtime 字段；BLS 转换�
 
 ### OpenBB DataHub Provider（2026-11-27）
 
-`openbb` 已作为首类 DataHub 来源接入 `external_data`，当前只登记一个封闭数据集
-`equity_daily`：经 OpenBB SDK 的 `obb.equity.price.historical` 读取美股日线，provider
-限定 `nasdaq`／`cboe`／`tmx`，参数只接受 `symbol`、`provider`、`start_date`、`end_date`。
+`openbb` 已作为首类 DataHub 来源接入 `external_data`，登记五个封闭数据集：
+`equity_daily`（日线）、`equity_income`（利润表）、`equity_balance`（资产负债表）、
+`equity_cash`（现金流量表）与 `equity_ratios`（财务比率）。均经 OpenBB SDK 读取美股，
+provider 限定 `nasdaq`／`cboe`／`tmx`；日线参数为 `symbol`、`provider`、起止日期，
+基本面参数为 `symbol`、`provider`、`period`（annual/quarter）、`limit`（1–20）。
 不开放任意 SDK 表达式、路由或字段。
 
 OpenBB 及其 217 个依赖不进入 RWB 运行环境，而是由 `RWB_OPENBB_PYTHON` 指向的独立解释器
 子进程执行；未配置该变量时来源为 `blocked_dependency`，绑定仍登记但不可调用。数据经第三方
 provider 转发，**OpenBB 不是原始来源**，币种未声明、PIT 与历史修订未认证，正式回测拒绝。
 默认 provider `cboe` 在当前网络匿名返回 403，2026-11-27 实测 `nasdaq` 返回 AAPL
-2026-11-20 至 11-25 共 4 行。
+2026-11-20 至 11-25 共 4 行；四类基本面各返回 AAPL 2025/2026 两个财年，单次约 8–10 秒。
+基本面金额单位与币种由 OpenBB 原样透传、未统一声明，`period_ending` 是期间截止日而非
+公告日；修订、重述与 PIT 未认证。
 
 ## 文本数据
 

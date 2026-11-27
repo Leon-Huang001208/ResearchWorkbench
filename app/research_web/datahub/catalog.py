@@ -947,12 +947,21 @@ def build_catalog(
         ProviderBinding(
             capability_id="external_data",
             source_id="openbb",
-            datasets=["equity_daily"],
+            datasets=[
+                "equity_daily",
+                "equity_income",
+                "equity_balance",
+                "equity_cash",
+                "equity_ratios",
+            ],
             priority=1,
             implemented=True,
             markets=["美股"],
             assets=["股票"],
-            coverage="固定美股日线；经 OpenBB 第三方 provider 转发，非原始来源、非 PIT。",
+            coverage=(
+                "固定美股日线与四类基本面报表；经 OpenBB 第三方 provider 转发，"
+                "非原始来源、非 PIT。"
+            ),
         ).model_dump(mode="json")
     )
     bindings.append(
