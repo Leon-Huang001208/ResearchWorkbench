@@ -377,3 +377,4 @@ rwb_query_latest_cls_news经原私有business-query、身份/取消、DataHub.qu
 
 仅服务 Host 跳过集成探测启动，数据目录与既有冻结快照沿现有只读接口提供。
 FinGPT 验收的 DataHub 预算判定发生在既有查询入口。已完成的同请求回执和已授权冻结快照可重读，未核价的新请求在调用前拒绝。
+2026-11-27 OpenBB 通过既有 Broker 外部来源分支与显式 provider 校验接入；未新增协调器边、后台任务、跨源合并或自动 fallback，未配置解释器时固定来源失败关闭。

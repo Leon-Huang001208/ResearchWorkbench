@@ -103,9 +103,9 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
                 self.assertRaisesRegex(ProviderError, "provider_cleanup_unconfirmed"),
             ):
                 await hub.close()
-            self.assertEqual(len([call for call in calls if call[0] == "sdk"]), 4)
-            self.assertIn(("wind_api",), calls)
-            self.assertIn(("storage",), calls)
+        self.assertEqual(len([call for call in calls if call[0] == "sdk"]), 5)
+        self.assertIn(("wind_api",), calls)
+        self.assertIn(("storage",), calls)
 
     async def test_deadline_drains_storage_without_turning_into_user_cancel(self):
         import time

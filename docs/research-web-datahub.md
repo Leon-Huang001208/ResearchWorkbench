@@ -295,6 +295,23 @@ Wind 的日线、资金流与融资融券入口在 adapter 初始化前验证 IS
 
 ## 查询与来源
 
+### OpenBB 固定美股日线（2026-11-27）
+
+`openbb` 是首类 SDK 来源，不是 `external_sources.json` 的固定端点。它只登记
+`external_data/equity_daily` 一个封闭数据集，参数必须放在 `arguments_json`：
+`params.symbol`、`params.provider`（`nasdaq`／`cboe`／`tmx`）与
+`query.start_date`／`end_date`；其他 key、任意路由、表达式和字段直接拒绝。
+
+OpenBB 及其依赖安装在 `RWB_OPENBB_PYTHON` 指向的独立解释器，Host 不导入该 SDK。
+每次查询由 `public_worker.py` 启动固定 argv 的有界子进程，最小环境、临时 HOME、30 秒上限；
+父进程只解析固定 schema，SDK 异常文本不越过边界。未配置解释器时来源为
+`blocked_dependency`，binding 仍登记但 `callable=false`，固定来源请求得到明确不可用，
+不会静默切到其他来源。子进程 Future 纳入 `worker_activity`，`DataHub.close()` 会等待真实结束。
+
+数据经 OpenBB 第三方 provider 转发，**不是原始来源**；币种未声明，历史修订与 PIT 未认证，
+`purpose=backtest`、`as_of` 和 `required_semantics` 均拒绝。标准普通查询会发布源限定会话快照，
+但不进入 `research_snapshot_store` 的 `PUBLIC_NUMERIC` 研究仓白名单。
+
 | source | 固定公开来源 | 范围 |
 | --- | --- | --- |
 | fund_nav | `https://api.fund.eastmoney.com/f10/lsjz` | 六位code；成对start_date/end_date按实际分页取得范围，最多十年且不含未来；旧limit只取最近一页、最多100条 |

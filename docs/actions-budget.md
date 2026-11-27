@@ -739,3 +739,5 @@ FinGPT 原生工作台分支保留身份/租户网关、WeKnora绑定/正式资�
 `scripts/mcp_datahub_ci.py` 与 domains 相关源码、测试和文档；不新增 job、runner、依赖、超时或平台
 dispatch。域目录只改业务工具的目录骨架，MCP OAuth、DataHub 查询、status 分页与快照链保持原样；
 本机测试与同候选 Mac 安装分别取证，不连接供应商、模型或付费源。
+
+OpenBB 固定美股日线 Provider 只把新增源码、worker 与一个回归模块登记进原 `mcp_datahub_only` 清单，复用现有 Python 分片、JS 与 macOS Bootstrap，不新增 job、runner、依赖、权限或时限。

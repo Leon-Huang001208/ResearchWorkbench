@@ -391,3 +391,4 @@ NYFed rates单独使用nyfed-rates-native-v3，Treasury/WorldBank保留official-
 
 仅服务账户保留历史底稿读取边界。周报取数、刷新和正式验收继续按独立 Workflow 合同执行。
 FinGPT 隔离验收使用冻结快照或已完成回执。ETF 周报的取数与日程仍由其已登记的工作流控制。
+2026-11-27 OpenBB 只登记 `external_data/equity_daily`；未进入 ETF 周报数据合同、期间或字段映射，也不改变周报取数来源。

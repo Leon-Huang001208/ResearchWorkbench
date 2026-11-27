@@ -80,7 +80,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     catalog = build_catalog()
     assert catalog["summary"] == {
         "capabilities": 16,
-        "sources": 66,
+        "sources": 67,
         "callable_sources": 41,
         "needs_configuration": 16,
         "unavailable": 0,
@@ -93,6 +93,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "ifind",
         "akshare",
         "baostock",
+        "openbb",
         "tushare",
         "yahoo",
         "chinastock",

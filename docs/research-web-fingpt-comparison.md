@@ -338,3 +338,5 @@ AlphaDesk 迁移验收单独使用新 Host 回执。FinGPT 旧隔离比较记录
 七域目录重构只调整业务工具的目录骨架与 discovery 输出，`scripts/mcp_datahub_ci.py` 仍是原
 MCP/DataHub 精确 lane 的路径选择器。本次不执行 FinGPT 三组比较、不调用模型或供应商、不改
 冻结题目与费用授权；域目录通过不产生任何研究质量结论，CI 结果也不代表常驻已部署。
+
+2026-11-27 OpenBB 固定美股日线 Provider 不参与 FinGPT 对比链，未改变其来源冻结、模型调用或比较合同。

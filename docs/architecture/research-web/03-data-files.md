@@ -1068,3 +1068,4 @@ AlphaDesk 回合正文与事件写入账号会话下的 `.control/qa.json`。冻
 2026-11-26 列表键盘导航去重：`list-keynav.mjs` 统一了「Home/End 跳到两端、方向键步进并回卷」规则，能力类型 tab 与 MCP 子视图 tab 已迁移。各自原有的边缘语义（未知值钉在 0 的行为）保持不变，方向键、Home、End 的落点与原实现逐项等价。
 
 2026-11-26 列表键盘导航收尾：资产搜索下拉的垂直导航与发现抽屉的 Tab 焦点陷阱改为调用共享工具（`list-keynav.mjs`、`focus-trap.mjs`），键位落点与原实现逐项等价，本模块的业务逻辑、数据与接口未变。
+2026-11-27 OpenBB 固定美股日线 Provider 只增加有界子进程外部读取与会话内源限定快照，未改变 `provider-native-snapshot-v1`、原件、manifest 或冻结文件布局。

@@ -1161,7 +1161,7 @@ test('MCP DataHub scope is exact and retains the original runner and permission 
   const step=workflows.checks.split('      - name: Choose contract test scope\n')[1]?.split('\n      - name:')[0];
   const match=step?.match(/          python - <<'PY'\n([^]*?)\n          PY/);assert.ok(match);
   const code=match[1].split('\n').map(line=>line.slice(10)).join('\n');
-  const files=['app/research_web/mcp_facade/backend.py','app/research_web/datahub/providers_finance_mcp.py',
+  const files=['app/research_web/mcp_facade/backend.py','app/research_web/datahub/providers_finance_mcp.py','app/research_web/datahub/providers_openbb.py','app/research_web/datahub/public_worker.py','app/research_web/datahub/worker_activity.py','tests/research_web/test_datahub_openbb.py',
     'app/research_web/datahub/connections.py','.agents/verification-policy.json',
     '.github/workflows/research-web-checks.yml','scripts/run_mcp_datahub_ci.sh','scripts/mcp_datahub_ci.py',
     'docs/architecture/research-web/readme-review.json','docs/research-web-finance-mcp.md',

@@ -27,6 +27,7 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/run_ci_pytest_partitions.py \
   tests/research_web/test_datahub_kapsarc.py \
   tests/research_web/test_datahub_numeric_sources.py \
   tests/research_web/test_datahub_official_numeric.py \
+  tests/research_web/test_datahub_openbb.py \
   tests/research_web/test_datahub_public_worker.py \
   tests/research_web/test_datahub_reliability.py \
   tests/research_web/test_datahub_spdr.py \
