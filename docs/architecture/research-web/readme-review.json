@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核新增 OpenBB DataHub Provider 后根 README 无需更改。",
-  "reason": "OpenBB 是可选、默认未配置的数据来源，需开发者显式设置 RWB_OPENBB_PYTHON 指向独立解释器；未新增 Web 安装命令、锁定依赖、账号、凭据流程或默认运行拓扑，根 README 的安装与入口说明保持不变。"
+  "summary": "复核 OpenBB 美股日线与基本面 Provider 后根 README 无需更改。",
+  "reason": "OpenBB 是可选、默认未配置的数据来源，需开发者显式设置 RWB_OPENBB_PYTHON 指向独立解释器；五类数据集只是既有 external_data 契约内的封闭扩展，未新增 Web 安装命令、锁定依赖、账号、凭据流程或默认运行拓扑，根 README 的安装与入口说明保持不变。"
 }
